@@ -14,7 +14,7 @@ export default function Register() {
     setMessage(""); // wyczyść poprzedni komunikat
 
     try {
-      const res = await fetch("http://localhost:8000/auth/", {
+      const res = await fetch("http://10.10.77.75:8000/auth/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),

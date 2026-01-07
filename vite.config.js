@@ -13,7 +13,8 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, root, '')
 
   // np. VITE_API_URL=http://localhost:8000
-  const API_TARGET = env.VITE_API_URL || 'http://localhost:8000'
+  //const API_TARGET = env.VITE_API_URL || 'http://localhost:8000'
+  const API_TARGET = env.VITE_API_URL || 'http://10.10.77.75:8000'
 
   const proxy = {
     // PASUJE DO TWOJEGO KODU: fetch(`${API_BASE}/auth/token`) oraz /auth/{username}

@@ -1,21 +1,20 @@
-// Changeovers.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
-import ChangeoverHistoryModal from "./subcomponents/ChangeoverHistoryModal";
 
-const API_BASE = import.meta?.env?.VITE_API_BASE ?? "http://localhost:8000";
+import ChangeoverHistoryModal from "./subcomponents/ChangeoverHistoryModal";
+import AddChangeoverModal from "./subcomponents/AddChangeoverModal";
+import EditChangeoverModal from "./subcomponents/EditChangeoverModal";
+
+const API_BASE = import.meta?.env?.VITE_API_BASE ?? "http://10.10.77.75:8000";
 
 const normalizeList = (payload) => {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.items)) return payload.items;
   if (Array.isArray(payload?.results)) return payload.results;
-
-  // ✅ DODANE: częste nazwy z backendu
   if (Array.isArray(payload?.logs)) return payload.logs;
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload?.rows)) return payload.rows;
-
   return [];
 };
 
@@ -23,14 +22,14 @@ const formatDateOnly = (value) => {
   if (!value) return "-";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleString("pl-PL"); // datetime
+  return d.toLocaleString("pl-PL");
 };
 
 const toDateInputValue = (value) => {
   if (!value) return "";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toISOString().slice(0, 16); // datetime-local expects YYYY-MM-DDTHH:MM
+  return d.toISOString().slice(0, 16);
 };
 
 const nowISOForInput = () => new Date().toISOString().slice(0, 16);
@@ -72,7 +71,6 @@ const isAdminFromToken = () => {
 const isSuperAdminFromToken = () => getRoleFromToken() === "superadmin";
 
 export default function Changeovers() {
-  // auth (JWT)
   const token = localStorage.getItem("access_token");
   const logged = Boolean(token);
   const isAdmin = isAdminFromToken();
@@ -81,17 +79,16 @@ export default function Changeovers() {
 
   const authHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {});
 
-  // dane
   const [changeovers, setChangeovers] = useState([]);
   const [moulds, setMoulds] = useState([]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // ✅ PAGINACJA wg wymagań
+  // ✅ PAGINACJA
   const [page, setPage] = useState(1);
-  const DONE_FIRST_PAGE_LIMIT = 10; // max 10 wykonanych na 1. stronie
-  const DONE_PAGE_SIZE = 20; // ile wykonanych na kolejnych stronach
+  const DONE_FIRST_PAGE_LIMIT = 10;
+  const DONE_PAGE_SIZE = 20;
 
   // --- ADD modal ---
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -263,7 +260,8 @@ export default function Changeovers() {
       setEditError(null);
       setEditId(id);
 
-      const res = await axios.get(`${API_BASE}/changeovers/${id}`, {
+      // ✅ ujednolicone na trailing slash (często ważne w FastAPI)
+      const res = await axios.get(`${API_BASE}/changeovers/${id}/`, {
         headers: { ...authHeaders() },
       });
 
@@ -316,7 +314,8 @@ export default function Changeovers() {
       fd.append("czy_wykonano", editDraft.czy_wykonano ? "true" : "false");
       if (usernameFromJwt) fd.append("updated_by", usernameFromJwt);
 
-      await axios.put(`${API_BASE}/changeovers/${editId}`, fd, {
+      // ✅ trailing slash
+      await axios.put(`${API_BASE}/changeovers/${editId}/`, fd, {
         headers: { "Content-Type": "multipart/form-data", ...authHeaders() },
       });
 
@@ -345,7 +344,8 @@ export default function Changeovers() {
 
     try {
       setDeletingId(id);
-      await axios.delete(`${API_BASE}/changeovers/${id}`, { headers: { ...authHeaders() } });
+      // ✅ trailing slash
+      await axios.delete(`${API_BASE}/changeovers/${id}/`, { headers: { ...authHeaders() } });
       await refreshAll();
     } catch (err) {
       console.error(err);
@@ -372,7 +372,8 @@ export default function Changeovers() {
       fd.append("czy_wykonano", next ? "true" : "false");
       if (usernameFromJwt) fd.append("updated_by", usernameFromJwt);
 
-      await axios.put(`${API_BASE}/changeovers/${id}`, fd, {
+      // ✅ trailing slash
+      await axios.put(`${API_BASE}/changeovers/${id}/`, fd, {
         headers: { "Content-Type": "multipart/form-data", ...authHeaders() },
       });
 
@@ -398,12 +399,11 @@ export default function Changeovers() {
       setHistoryId(id);
       setIsHistoryOpen(true);
 
-      const res = await axios.get(`${API_BASE}/changeovers/${id}/log`, {
+      const res = await axios.get(`${API_BASE}/changeovers/${id}/log/`, {
         headers: { ...authHeaders() },
         params: { limit: 200 },
       });
 
-      // ✅ jeśli backend zwróci {logs:[...]} / {items:[...]} / [...]
       setHistoryRows(normalizeList(res.data));
     } catch (err) {
       console.error(err);
@@ -606,7 +606,33 @@ export default function Changeovers() {
         )}
       </div>
 
-        <ChangeoverHistoryModal
+      {/* ✅ MODALE */}
+      <AddChangeoverModal
+        isOpen={logged && isAdmin && isAddOpen}
+        onClose={closeAdd}
+        onSave={saveAdd}
+        saving={savingAdd}
+        error={addError}
+        draft={addDraft}
+        setDraft={setAddDraft}
+        moulds={moulds}
+        labelMould={labelMould}
+      />
+
+      <EditChangeoverModal
+        isOpen={logged && isAdmin && isEditOpen}
+        onClose={closeEdit}
+        onSave={saveEdit}
+        saving={savingEdit}
+        error={editError}
+        editId={editId}
+        draft={editDraft}
+        setDraft={setEditDraft}
+        moulds={moulds}
+        labelMould={labelMould}
+      />
+
+      <ChangeoverHistoryModal
         isOpen={logged && isSuperAdmin && isHistoryOpen}
         onClose={closeHistory}
         historyId={historyId}
@@ -614,8 +640,7 @@ export default function Changeovers() {
         loading={historyLoading}
         error={historyError}
         formatDateOnly={formatDateOnly}
-        />
-
+      />
     </>
   );
 }

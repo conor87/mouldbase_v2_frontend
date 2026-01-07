@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import SafeImg from "./SafeImg.jsx";
 import { useNavigate } from "react-router-dom";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "http://10.10.77.75:8000";
 
 export default function MouldCard({ mould }) {
   const { id, mould_number, product, product_photo } = mould || {};
@@ -89,10 +89,10 @@ export default function MouldCard({ mould }) {
 
         <div>
           <div className="text-center mb-6 sm:mb-8">
-            <h3 className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent pt-3">
+            <h3 className="text-3xl sm:text-4xl lg:text-4xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent pt-3">
               {mould_number}
             </h3>
-            <p className="text-xl sm:text-2xl font-bold mb-2">{product}</p>
+            <p className="text-xl sm:text-2xl lg:text-2xl font-bold mb-2">{product}</p>
 
             <section className="pb-4">
               <div className="flex items-baseline justify-center">

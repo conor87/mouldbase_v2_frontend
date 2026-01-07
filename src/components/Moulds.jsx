@@ -8,7 +8,8 @@ import { useNavigate } from "react-router-dom";
 import AddMouldModal from "./subcomponents/AddMouldModal.jsx";       // <- dopasuj ścieżkę jeśli trzeba
 import DeleteMouldModal from "./subcomponents/DeleteMouldModal.jsx"; // <- nowy plik
 
-const API_BASE = "http://localhost:8000";
+//const API_BASE = "http://localhost:8000";
+const API_BASE = "http://10.10.77.75:8000";
 
 // ===== JWT helpers =====
 const parseJwt = (token) => {
