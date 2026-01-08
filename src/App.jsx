@@ -17,6 +17,7 @@ import RequireRole from './components/RequireRole.jsx';
 import SuperAdminPanel from "./components/SuperAdminPanel";
 import AdminPanel from "./components/AdminPanel";
 import Changeovers from "./components/Changeovers.jsx";
+import Tpm from "./components/Tpm.jsx";
 
 
 
@@ -31,6 +32,7 @@ function App() {
               <Route path="/" element={<Moulds />} />
               <Route path="/moulds/:number" element={<MouldDetails />} />
               <Route path="/changeovers" element={<Changeovers />} />
+              <Route path="/tpm" element={<Tpm />} />
             </Route>
 
             <Route element={<RequireRole allowedRoles={["admin", "superadmin"]} />}>

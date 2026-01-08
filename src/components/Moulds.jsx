@@ -224,6 +224,14 @@ export default function Moulds() {
                       Przezbrojenia
                     </button>
 
+                    <button
+                      onClick={() => navigate("/tpm")}
+                      className="px-3 py-2 rounded-xl text-xs sm:text-sm border border-slate-700 text-gray-300 hover:border-slate-500 bg-white/5 hover:bg-white/10"
+                      title="Przejdź do listy TPM"
+                    >
+                      TPM
+                    </button>
+
                     {/* ✅ DODAJ tylko admin/superadmin */}
                     {logged && isAdmin && (
                       <button
