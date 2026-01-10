@@ -18,6 +18,7 @@ import SuperAdminPanel from "./components/SuperAdminPanel";
 import AdminPanel from "./components/AdminPanel";
 import Changeovers from "./components/Changeovers.jsx";
 import Tpm from "./components/Tpm.jsx";
+import Kalendarz from "./components/Kalendarz.jsx";
 
 
 
@@ -33,6 +34,7 @@ function App() {
               <Route path="/moulds/:number" element={<MouldDetails />} />
               <Route path="/changeovers" element={<Changeovers />} />
               <Route path="/tpm" element={<Tpm />} />
+              <Route path="/kalendarz" element={<Kalendarz />} />
             </Route>
 
             <Route element={<RequireRole allowedRoles={["admin", "superadmin"]} />}>

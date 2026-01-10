@@ -4,12 +4,10 @@ import axios from "axios";
 import Navbar from "./Navbar.jsx";
 import MouldCard from "./MouldCard.jsx";
 import { useNavigate } from "react-router-dom";
+import { API_BASE } from "../config/api.js";
 
 import AddMouldModal from "./subcomponents/AddMouldModal.jsx";       // <- dopasuj ścieżkę jeśli trzeba
 import DeleteMouldModal from "./subcomponents/DeleteMouldModal.jsx"; // <- nowy plik
-
-//const API_BASE = "http://localhost:8000";
-const API_BASE = "http://10.10.77.75:8000";
 
 // ===== JWT helpers =====
 const parseJwt = (token) => {
@@ -203,8 +201,8 @@ export default function Moulds() {
             <>
               <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 {/* LEWA: wyszukiwarka + przyciski */}
-                <div className="w-full sm:w-[520px] flex flex-col gap-2">
-                  <div className="flex gap-2">
+                <div className="w-full sm:w-[680px] flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
                     <div className="flex-1 relative">
                       <input
                         type="text"
@@ -218,7 +216,7 @@ export default function Moulds() {
                     {/* ✅ PRZYCISK PRZEZBROJEŃ przeniesiony obok wyszukiwarki */}
                     <button
                       onClick={() => navigate("/changeovers")}
-                      className="px-3 py-2 rounded-xl text-xs sm:text-sm border border-slate-700 text-gray-300 hover:border-slate-500 bg-white/5 hover:bg-white/10"
+                      className="px-3 py-1.5 rounded-xl text-xs sm:text-sm border border-slate-700 text-gray-300 hover:border-slate-500 bg-white/5 hover:bg-white/10"
                       title="Przejdź do listy przezbrojeń"
                     >
                       Przezbrojenia
@@ -226,17 +224,24 @@ export default function Moulds() {
 
                     <button
                       onClick={() => navigate("/tpm")}
-                      className="px-3 py-2 rounded-xl text-xs sm:text-sm border border-slate-700 text-gray-300 hover:border-slate-500 bg-white/5 hover:bg-white/10"
+                      className="px-3 py-1.5 rounded-xl text-xs sm:text-sm border border-slate-700 text-gray-300 hover:border-slate-500 bg-white/5 hover:bg-white/10"
                       title="Przejdź do listy TPM"
                     >
                       TPM
+                    </button>
+                    <button
+                      onClick={() => navigate("/kalendarz")}
+                      className="px-3 py-1.5 rounded-xl text-xs sm:text-sm border border-slate-700 text-gray-300 hover:border-slate-500 bg-white/5 hover:bg-white/10"
+                      title="Kalendarz"
+                    >
+                      Kalendarz
                     </button>
 
                     {/* ✅ DODAJ tylko admin/superadmin */}
                     {logged && isAdmin && (
                       <button
                         onClick={() => setIsAddOpen(true)}
-                        className="px-3 py-2 rounded-xl text-xs sm:text-sm border border-slate-700 text-gray-300 hover:border-slate-500 bg-white/5 hover:bg-white/10"
+                        className="px-3 py-1.5 rounded-xl text-xs sm:text-sm border border-slate-700 text-gray-300 hover:border-slate-500 bg-white/5 hover:bg-white/10"
                         title="Dodaj nową formę"
                       >
                         Dodaj formę
@@ -247,7 +252,7 @@ export default function Moulds() {
                     {logged && isSuperAdmin && (
                       <button
                         onClick={() => setIsDeleteOpen(true)}
-                        className="px-3 py-2 rounded-xl text-xs sm:text-sm border border-red-700 text-red-200 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20"
+                        className="px-3 py-1.5 rounded-xl text-xs sm:text-sm border border-red-700 text-red-200 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20"
                         title="Usuń formę (tylko superadmin)"
                       >
                         Usuń formę

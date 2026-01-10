@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
+import { DEFAULT_API_BASE } from './src/config/api.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -12,9 +13,8 @@ export default defineConfig(({ mode }) => {
   // wczyta .env, .env.development, .env.production itd.
   const env = loadEnv(mode, root, '')
 
-  // np. VITE_API_URL=http://localhost:8000
-  //const API_TARGET = env.VITE_API_URL || 'http://localhost:8000'
-  const API_TARGET = env.VITE_API_URL || 'http://10.10.77.75:8000'
+  // np. VITE_API_BASE=http://localhost:8000
+  const API_TARGET = env.VITE_API_BASE || env.VITE_API_URL || DEFAULT_API_BASE
 
   const proxy = {
     // PASUJE DO TWOJEGO KODU: fetch(`${API_BASE}/auth/token`) oraz /auth/{username}

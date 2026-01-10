@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
-
-const API_BASE = import.meta?.env?.VITE_API_BASE ?? "http://10.10.77.75:8000";
+import { API_BASE } from "../config/api.js";
 
 const normalizeList = (payload) => {
   if (Array.isArray(payload)) return payload;
@@ -51,8 +50,19 @@ const statusRank = (rawStatus) => {
   return 99;
 };
 
+const getRowDate = (row) =>
+  pickFirst(row, ["changed", "updated", "created", "created_at", "timestamp"], null);
+
+const getRowYear = (row) => {
+  const raw = getRowDate(row);
+  if (!raw) return null;
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.getFullYear();
+};
+
 const toSortableTime = (row) => {
-  const raw = pickFirst(row, ["changed", "updated", "created", "created_at", "timestamp"], null);
+  const raw = getRowDate(row);
   if (!raw) return 0;
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return 0;
@@ -71,6 +81,9 @@ export default function Tpm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [yearFilter, setYearFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 100;
 
   const refreshAll = async () => {
     try {
@@ -125,9 +138,12 @@ export default function Tpm() {
 
   const filtered = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-    if (!term) return sorted;
-
     return sorted.filter((row) => {
+      const year = getRowYear(row);
+      const matchesYear = yearFilter === "all" || String(year) === yearFilter;
+      if (!matchesYear) return false;
+
+      if (!term) return true;
       const mouldId = pickFirst(row, ["mould_id", "mould", "mould_pk"], null);
       if (mouldId == null) return false;
 
@@ -137,7 +153,47 @@ export default function Tpm() {
 
       return mouldNumber.includes(term) || product.includes(term);
     });
-  }, [sorted, searchTerm, mouldById]);
+  }, [sorted, searchTerm, mouldById, yearFilter]);
+
+  const years = useMemo(() => {
+    const set = new Set();
+    (tpms || []).forEach((row) => {
+      const year = getRowYear(row);
+      if (year) set.add(year);
+    });
+    const list = Array.from(set).sort((a, b) => b - a).map(String);
+    return ["all", ...list];
+  }, [tpms]);
+
+  const totalPages = Math.ceil(filtered.length / pageSize) || 1;
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * pageSize;
+  const currentRows = filtered.slice(startIndex, startIndex + pageSize);
+
+  const goToPage = (page) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
+
+  const paginationItems = useMemo(() => {
+    const delta = 3;
+    const pagesSet = new Set([1, totalPages]);
+
+    for (let p = safePage - delta; p <= safePage + delta; p++) {
+      if (p >= 1 && p <= totalPages) pagesSet.add(p);
+    }
+
+    const pages = Array.from(pagesSet).sort((a, b) => a - b);
+
+    const items = [];
+    let prev = null;
+    for (const p of pages) {
+      if (prev !== null && p - prev > 1) items.push("...");
+      items.push(p);
+      prev = p;
+    }
+    return items;
+  }, [safePage, totalPages]);
 
   const labelMould = (mouldId) => {
     const m = mouldById.get(String(mouldId));
@@ -178,23 +234,47 @@ export default function Tpm() {
         </button>
       </div>
 
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="w-full sm:w-[520px]">
+      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="w-full sm:w-[520px] flex flex-col gap-2">
           <input
             type="text"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
             placeholder="Szukaj po numerze formy lub produkcie..."
             className="w-full px-4 py-2 rounded-xl bg-slate-900/60 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
           />
         </div>
 
-        {!loading && !error && (
-          <div className="text-sm opacity-80">
-            Wynik: <span className="text-cyan-300 font-semibold">{filtered.length}</span> /{" "}
-            <span className="text-cyan-300 font-semibold">{sorted.length}</span>
+        <div className="flex flex-col sm:items-end gap-2">
+          <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
+            {years.map((y) => (
+              <button
+                key={y}
+                onClick={() => {
+                  setYearFilter(y);
+                  setCurrentPage(1);
+                }}
+                className={`px-3 py-1 rounded-full text-xs sm:text-sm border transition ${
+                  yearFilter === y
+                    ? "bg-blue-500 border-blue-500 text-white"
+                    : "border-slate-700 text-gray-300 hover:border-slate-500"
+                }`}
+              >
+                {y === "all" ? "Wszystkie lata" : y}
+              </button>
+            ))}
           </div>
-        )}
+
+          {!loading && !error && (
+            <div className="text-sm opacity-80">
+              Wynik: <span className="text-cyan-300 font-semibold">{filtered.length}</span> /{" "}
+              <span className="text-cyan-300 font-semibold">{sorted.length}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {loading && <p>Ladowanie danych.</p>}
@@ -206,76 +286,118 @@ export default function Tpm() {
       )}
 
       {!loading && !error && filtered.length > 0 && (
-        <div className="overflow-x-auto rounded-2xl border border-white/10">
-          <table className="min-w-full text-sm">
-            <thead className="bg-white/5">
-              <tr>
-                <th className="text-center px-4 py-3 font-semibold">ID</th>
-                <th className="text-center px-4 py-3 font-semibold">Forma</th>
-                <th className="text-center px-4 py-3 font-semibold">Opis</th>
-                <th className="text-center px-4 py-3 font-semibold">Czas reakcji</th>
-                <th className="text-center px-4 py-3 font-semibold">Status</th>
-                <th className="text-center px-4 py-3 font-semibold">Data</th>
-              </tr>
-            </thead>
+        <>
+          <div className="overflow-x-auto rounded-2xl border border-white/10">
+            <table className="min-w-full text-sm">
+              <thead className="bg-white/5">
+                <tr>
+                  <th className="text-center px-4 py-3 font-semibold">ID</th>
+                  <th className="text-center px-4 py-3 font-semibold">Forma</th>
+                  <th className="text-center px-4 py-3 font-semibold">Opis</th>
+                  <th className="text-center px-4 py-3 font-semibold">Czas reakcji</th>
+                  <th className="text-center px-4 py-3 font-semibold">Status</th>
+                  <th className="text-center px-4 py-3 font-semibold">Data</th>
+                </tr>
+              </thead>
 
-            <tbody className="text-center">
-              {filtered.map((row, index) => {
-                const id = pickFirst(row, ["id", "pk", "tpm_id"], index + 1);
-                const mouldId = pickFirst(row, ["mould_id", "mould", "mould_pk"], null);
-                const mould = mouldId != null ? mouldById.get(String(mouldId)) : null;
+              <tbody className="text-center">
+                {currentRows.map((row, index) => {
+                  const id = pickFirst(row, ["id", "pk", "tpm_id"], index + 1);
+                  const mouldId = pickFirst(row, ["mould_id", "mould", "mould_pk"], null);
+                  const mould = mouldId != null ? mouldById.get(String(mouldId)) : null;
 
-                const opis = pickFirst(
-                  row,
-                  ["opis_zgloszenia", "opis", "description", "title", "subject", "note"],
-                  ""
-                );
+                  const opis = pickFirst(
+                    row,
+                    ["opis_zgloszenia", "opis", "description", "title", "subject", "note"],
+                    ""
+                  );
 
-                const trt = pickFirst(row, ["tpm_time_type", "czas_reakcji", "time_type"], null);
-                const statusRaw = pickFirst(row, ["status", "state", "status_code"], null);
-                const badge = statusPill(statusRaw);
-                const changed = pickFirst(row, ["changed", "updated", "created", "created_at"], null);
+                  const trt = pickFirst(row, ["tpm_time_type", "czas_reakcji", "time_type"], null);
+                  const statusRaw = pickFirst(row, ["status", "state", "status_code"], null);
+                  const badge = statusPill(statusRaw);
+                  const changed = getRowDate(row);
 
-                return (
-                  <tr key={String(id)} className="border-t border-white/10 hover:bg-white/5">
-                    <td className="px-4 py-3 align-middle whitespace-nowrap">{String(id)}</td>
+                  return (
+                    <tr key={String(id)} className="border-t border-white/10 hover:bg-white/5">
+                      <td className="px-4 py-3 align-middle whitespace-nowrap">{String(id)}</td>
 
-                    <td className="px-4 py-3 align-middle">
-                      <div className="whitespace-pre-wrap break-words">
-                        {mould ? (
-                          <button
-                            type="button"
-                            className="text-cyan-300 hover:text-cyan-200 underline underline-offset-2"
-                            onClick={() => navigate(`/moulds/${mould.mould_number}`, { state: { mould } })}
-                            title="Otworz szczegoly formy"
-                          >
-                            {labelMould(mouldId)}
-                          </button>
-                        ) : (
-                          labelMould(mouldId)
-                        )}
-                      </div>
-                    </td>
+                      <td className="px-4 py-3 align-middle">
+                        <div className="whitespace-pre-wrap break-words">
+                          {mould ? (
+                            <button
+                              type="button"
+                              className="text-cyan-300 hover:text-cyan-200 underline underline-offset-2"
+                              onClick={() => navigate(`/moulds/${mould.mould_number}`, { state: { mould } })}
+                              title="Otworz szczegoly formy"
+                            >
+                              {labelMould(mouldId)}
+                            </button>
+                          ) : (
+                            labelMould(mouldId)
+                          )}
+                        </div>
+                      </td>
 
-                    <td className="px-4 py-3 align-middle">
-                      <div className="whitespace-pre-wrap break-words">{opis || "-"}</div>
-                    </td>
+                      <td className="px-4 py-3 align-middle">
+                        <div className="whitespace-pre-wrap break-words">{opis || "-"}</div>
+                      </td>
 
-                    <td className="px-4 py-3 align-middle whitespace-nowrap">{timeLabel(trt)}</td>
+                      <td className="px-4 py-3 align-middle whitespace-nowrap">{timeLabel(trt)}</td>
 
-                    <td className="px-4 py-3 align-middle whitespace-nowrap">
-                      <span className={`inline-flex px-3 py-1 rounded-full border text-xs font-semibold ${badge.cls}`}>
-                        {badge.label}
-                      </span>
-                    </td>
+                      <td className="px-4 py-3 align-middle whitespace-nowrap">
+                        <span className={`inline-flex px-3 py-1 rounded-full border text-xs font-semibold ${badge.cls}`}>
+                          {badge.label}
+                        </span>
+                      </td>
 
-                    <td className="px-4 py-3 align-middle whitespace-nowrap">{formatDateOnly(changed)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      <td className="px-4 py-3 align-middle whitespace-nowrap">{formatDateOnly(changed)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-6">
+              <button
+                onClick={() => goToPage(safePage - 1)}
+                disabled={safePage === 1}
+                className="px-3 py-2 border border-slate-700 rounded-lg disabled:opacity-40 hover:border-slate-500"
+              >
+                &lsaquo;
+              </button>
+
+              {paginationItems.map((item, idx) =>
+                item === "..." ? (
+                  <span key={`dots-${idx}`} className="px-3 py-2 text-gray-400 select-none">
+                    ...
+                  </span>
+                ) : (
+                  <button
+                    key={item}
+                    onClick={() => goToPage(item)}
+                    className={`px-3 py-2 rounded-lg border ${
+                      safePage === item
+                        ? "bg-blue-500 border-blue-500 text-white"
+                        : "border-slate-700 hover:border-slate-500"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                )
+              )}
+
+              <button
+                onClick={() => goToPage(safePage + 1)}
+                disabled={safePage === totalPages}
+                className="px-3 py-2 border border-slate-700 rounded-lg disabled:opacity-40 hover:border-slate-500"
+              >
+                &rsaquo;
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

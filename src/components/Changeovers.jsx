@@ -1,12 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
+import { API_BASE } from "../config/api.js";
 
 import ChangeoverHistoryModal from "./subcomponents/ChangeoverHistoryModal";
 import AddChangeoverModal from "./subcomponents/AddChangeoverModal";
 import EditChangeoverModal from "./subcomponents/EditChangeoverModal";
-
-const API_BASE = import.meta?.env?.VITE_API_BASE ?? "http://10.10.77.75:8000";
 
 const normalizeList = (payload) => {
   if (Array.isArray(payload)) return payload;

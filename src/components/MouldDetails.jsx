@@ -2,16 +2,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
+import { API_BASE } from "../config/api.js";
 
 import MouldDetails_BasicInfo from "./subcomponents/MouldDetails_BasicInfo.jsx";
 import MouldDetails_Notes from "./subcomponents/MouldDetails_Notes.jsx";
 import MouldDetails_Tpm from "./subcomponents/MouldDetails_Tpm.jsx";
 import MouldsDetails_Book from "./subcomponents/MouldsDetails_Book.jsx";
-
-/**
- * Vite: ustaw w .env np. VITE_API_BASE=http://localhost:8000
- */
-const API_BASE = import.meta?.env?.VITE_API_BASE ?? "http://10.10.77.75:8000";
 
 const isLoggedIn = () => Boolean(localStorage.getItem("access_token"));
 const authHeaders = () => {

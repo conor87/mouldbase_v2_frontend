@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
+import { API_BASE } from "../config/api.js";
 
 export default function Register() {
   const [username, setUsername] = useState("");
@@ -14,7 +15,7 @@ export default function Register() {
     setMessage(""); // wyczyść poprzedni komunikat
 
     try {
-      const res = await fetch("http://10.10.77.75:8000/auth/", {
+      const res = await fetch(`${API_BASE}/auth/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),

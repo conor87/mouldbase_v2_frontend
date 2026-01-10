@@ -1,8 +1,7 @@
 import React, { useMemo } from "react";
 import SafeImg from "./SafeImg.jsx";
 import { useNavigate } from "react-router-dom";
-
-const API_BASE = "http://10.10.77.75:8000";
+import { API_BASE } from "../config/api.js";
 
 export default function MouldCard({ mould }) {
   const { id, mould_number, product, product_photo } = mould || {};

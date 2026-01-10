@@ -1,11 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Navbar from "./Navbar";
-
-//const API_BASE = import.meta?.env?.VITE_API_BASE ?? "";
-//const API_BASE = import.meta?.env?.VITE_API_BASE ?? "http://localhost:8000";
-
-const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
+import { API_BASE } from "../config/api.js";
 
 
 
