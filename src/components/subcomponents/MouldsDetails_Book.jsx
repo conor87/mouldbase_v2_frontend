@@ -25,6 +25,47 @@ const formatDateOnly = (value) => {
   return d.toLocaleDateString("pl-PL");
 };
 
+const TPM_TYPE_OPTIONS = [
+  { value: 0, label: "AWARIA" },
+  { value: 1, label: "USUNIĘCIE AWARII" },
+  { value: 2, label: "TPM" },
+  { value: 3, label: "NAPRAWA TPM" },
+  { value: 4, label: "PRZEGLĄD" },
+  { value: 5, label: "REMONT" },
+  { value: 6, label: "MODYFIKACJA" },
+  { value: 7, label: "PRZEZBROJENIE" },
+];
+
+const tpmTypeLabel = (value) => {
+  const found = TPM_TYPE_OPTIONS.find((opt) => String(opt.value) === String(value));
+  return found?.label ?? String(value ?? "-");
+};
+
+const resolveTpmType = (row) => {
+  const primary = pickFirst(row, ["tpm_type"], null);
+  const fallback = pickFirst(row, ["tpm_time_type", "type"], null);
+  const primaryNum = Number(primary);
+  const fallbackNum = Number(fallback);
+
+  if (!Number.isNaN(primaryNum) && primaryNum !== 0) return primary;
+  if (!Number.isNaN(fallbackNum) && fallbackNum !== 0) return fallback;
+
+  if (primary !== null && primary !== undefined && String(primary).trim() !== "") return primary;
+  if (fallback !== null && fallback !== undefined && String(fallback).trim() !== "")
+    return fallback;
+
+  return "";
+};
+
+const toDateInputValue = (value) => {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 10);
+};
+
+const todayInputValue = () => new Date().toISOString().slice(0, 10);
+
 export default function MouldsDetails_Book({
   API_BASE,
   mouldId,
@@ -43,6 +84,7 @@ export default function MouldsDetails_Book({
   const [bookError, setBookError] = useState(null);
   const [bookDraft, setBookDraft] = useState({
     opis_zgloszenia: "",
+    created: "",
     czas_trwania: "0",
     czas_wylaczenia: "0",
     tpm_type: "0",
@@ -55,6 +97,7 @@ export default function MouldsDetails_Book({
   const [bookEditId, setBookEditId] = useState(null);
   const [bookEditDraft, setBookEditDraft] = useState({
     opis_zgloszenia: "",
+    created: "",
     czas_trwania: "0",
     czas_wylaczenia: "0",
     tpm_type: "0",
@@ -118,6 +161,7 @@ export default function MouldsDetails_Book({
     setBookError(null);
     setBookDraft({
       opis_zgloszenia: "",
+      created: todayInputValue(),
       czas_trwania: "0",
       czas_wylaczenia: "0",
       tpm_type: "0",
@@ -146,6 +190,9 @@ export default function MouldsDetails_Book({
       const fd = new FormData();
       fd.append("mould_id", String(mouldId));
       fd.append("opis_zgloszenia", bookDraft.opis_zgloszenia ?? "");
+      if (bookDraft.created) {
+        fd.append("created", bookDraft.created);
+      }
 
       fd.append("czas_trwania", String(parseInt(bookDraft.czas_trwania || "0", 10) || 0));
       fd.append(
@@ -189,12 +236,14 @@ export default function MouldsDetails_Book({
       });
 
       const entry = res.data || {};
+      const tpmTypeValue = resolveTpmType(entry) || 0;
 
       setBookEditDraft({
         opis_zgloszenia: entry.opis_zgloszenia ?? "",
+        created: toDateInputValue(entry.created),
         czas_trwania: String(entry.czas_trwania ?? 0),
         czas_wylaczenia: String(entry.czas_wylaczenia ?? 0),
-        tpm_type: String(entry.tpm_type ?? 0),
+        tpm_type: String(tpmTypeValue ?? 0),
       });
 
       setIsBookEditModalOpen(true);
@@ -223,6 +272,9 @@ export default function MouldsDetails_Book({
 
       const fd = new FormData();
       fd.append("opis_zgloszenia", bookEditDraft.opis_zgloszenia ?? "");
+      if (bookEditDraft.created) {
+        fd.append("created", bookEditDraft.created);
+      }
       fd.append("czas_trwania", String(parseInt(bookEditDraft.czas_trwania || "0", 10) || 0));
       fd.append(
         "czas_wylaczenia",
@@ -314,6 +366,7 @@ export default function MouldsDetails_Book({
                   <th className="text-center px-4 py-3 font-semibold">ID</th>
                   <th className="text-center px-4 py-3 font-semibold">Created</th>
                   <th className="text-center px-4 py-3 font-semibold">Opis zgłoszenia</th>
+                  <th className="text-center px-4 py-3 font-semibold">Typ</th>
                   <th className="text-center px-4 py-3 font-semibold">Czas trwania</th>
                   <th className="text-center px-4 py-3 font-semibold">Czas wyłączenia</th>
 
@@ -347,6 +400,8 @@ export default function MouldsDetails_Book({
                     ""
                   );
 
+                  const tpmType = resolveTpmType(b);
+
                   const isDeletingThis = deletingId !== null && String(deletingId) === String(id);
 
                   return (
@@ -355,6 +410,9 @@ export default function MouldsDetails_Book({
                       <td className="px-4 py-3 align-top whitespace-nowrap">{created || "-"}</td>
                       <td className="px-4 py-3 align-top">
                         <div className="whitespace-pre-wrap break-words">{opis || "-"}</div>
+                      </td>
+                      <td className="px-4 py-3 align-top whitespace-nowrap">
+                        {tpmTypeLabel(tpmType)}
                       </td>
                       <td className="px-4 py-3 align-top whitespace-nowrap">{czas_trwania || "-"}</td>
                       <td className="px-4 py-3 align-top whitespace-nowrap">{czas_wylaczenia || "-"}</td>
@@ -430,6 +488,15 @@ export default function MouldsDetails_Book({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
+                  <label className="block text-sm opacity-80 mb-1">Data</label>
+                  <input
+                    type="date"
+                    className="w-full rounded-xl p-3 bg-white/5 border border-white/10 text-white"
+                    value={bookDraft.created}
+                    onChange={(e) => setBookDraft((p) => ({ ...p, created: e.target.value }))}
+                  />
+                </div>
+                <div>
                   <label className="block text-sm opacity-80 mb-1">Czas trwania</label>
                   <input
                     type="number"
@@ -453,12 +520,17 @@ export default function MouldsDetails_Book({
 
               <div>
                 <label className="block text-sm opacity-80 mb-1">TPM type</label>
-                <input
-                  type="number"
+                <select
                   className="w-full rounded-xl p-3 bg-white/5 border border-white/10 text-white"
                   value={bookDraft.tpm_type}
                   onChange={(e) => setBookDraft((p) => ({ ...p, tpm_type: e.target.value }))}
-                />
+                >
+                  {TPM_TYPE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={String(opt.value)} style={{ color: "#000" }}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -523,6 +595,17 @@ export default function MouldsDetails_Book({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
+                  <label className="block text-sm opacity-80 mb-1">Data</label>
+                  <input
+                    type="date"
+                    className="w-full rounded-xl p-3 bg-white/5 border border-white/10 text-white"
+                    value={bookEditDraft.created}
+                    onChange={(e) =>
+                      setBookEditDraft((p) => ({ ...p, created: e.target.value }))
+                    }
+                  />
+                </div>
+                <div>
                   <label className="block text-sm opacity-80 mb-1">Czas trwania</label>
                   <input
                     type="number"
@@ -548,14 +631,19 @@ export default function MouldsDetails_Book({
 
               <div>
                 <label className="block text-sm opacity-80 mb-1">TPM type</label>
-                <input
-                  type="number"
+                <select
                   className="w-full rounded-xl p-3 bg-white/5 border border-white/10 text-white"
                   value={bookEditDraft.tpm_type}
                   onChange={(e) =>
                     setBookEditDraft((p) => ({ ...p, tpm_type: e.target.value }))
                   }
-                />
+                >
+                  {TPM_TYPE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={String(opt.value)}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 

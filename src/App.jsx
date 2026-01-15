@@ -19,6 +19,7 @@ import AdminPanel from "./components/AdminPanel";
 import Changeovers from "./components/Changeovers.jsx";
 import Tpm from "./components/Tpm.jsx";
 import Kalendarz from "./components/Kalendarz.jsx";
+import ProductionAdmin from "./components/ProductionAdmin.jsx";
 
 
 
@@ -39,6 +40,7 @@ function App() {
 
             <Route element={<RequireRole allowedRoles={["admin", "superadmin"]} />}>
               <Route path="/admin-panel" element={<AdminPanel />} />
+              <Route path="/production_admin" element={<ProductionAdmin />} />
             </Route>
 
             <Route element={<RequireRole allowedRoles={["superadmin"]} />}>

@@ -11,4 +11,9 @@ stanowiska produkcyjne - id, nazwa stanowiska, stanowisko kosztów, status, aktu
 operacje - id, zlecenie, nr_operacji, opis_operacji, created_at, sugerowany_czas_realizacji, czy_zakończone, czy_przekazane_do_realizacji, czy_rozpoczęte, czas_wykonania_operacji, czas_wykonania_operacji_na_zmianie, stanowisko, (np. 1, D1-680-Magnolia jumper 100/matryca, 1, frezowanie zgrubne, 2025-01-01 10:00, 100, nie, tak, tak, 5h30min, 1h30min, frezarka HZF);
 logi;
 
+Plik models.py z aplikacji lamela_mes w django pokazuje poprzednią wersję programu.
+
+Wprowadź odpowiednie zmiany w mouldbase_v2_backend oraz mouldbase_v2_frontend  
+Dobierz nazwy zmiennych oraz tabel tak aby było to logiczne. Podałem tylko przykład.
+We frontendzie zamieść na razie moduł do wprowadzania danych pod adresem localhost:5173/production_admin
 
