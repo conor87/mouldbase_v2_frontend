@@ -24,8 +24,8 @@ export default function Navbar() {
                     {/* Logo */}
                     <div className="flex items-center space-x-1 group cursor-pointer">
                         <span className="text-lg sm:text-xl md:text-2xl font-medium">
-                            <span className="text-white">Mould</span>
-                            <span className="text-cyan-400">Book</span>
+                            <span className="text-white">Product</span>
+                            <span className="text-cyan-400">ion</span>
                             <span className="text-cyan-400"> 2.0</span>
                         </span>
                     </div>
