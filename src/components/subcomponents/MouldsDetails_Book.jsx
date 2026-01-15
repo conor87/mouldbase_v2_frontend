@@ -2,6 +2,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
+// Wpis dodatkowy
+
 // --- helpery ---
 const normalizeList = (payload) => {
   if (Array.isArray(payload)) return payload;
