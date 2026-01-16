@@ -214,13 +214,13 @@ export default function Moulds() {
                     </div>
 
                     {/* ✅ PRZYCISK PRZEZBROJEŃ przeniesiony obok wyszukiwarki */}
-                    <button
+                    {/* <button
                       onClick={() => navigate("/changeovers")}
                       className="px-3 py-1.5 rounded-xl text-xs sm:text-sm border border-slate-700 text-gray-300 hover:border-slate-500 bg-white/5 hover:bg-white/10"
                       title="Przejdź do listy przezbrojeń"
                     >
                       Przezbrojenia
-                    </button>
+                    </button> */}
 
                     <button
                       onClick={() => navigate("/tpm")}

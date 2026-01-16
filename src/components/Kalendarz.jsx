@@ -46,10 +46,15 @@ const toDateInputValue = (value) => {
   if (!value) return "";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toISOString().slice(0, 16);
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
 };
 
-const nowISOForInput = () => new Date().toISOString().slice(0, 16);
+const nowISOForInput = () => {
+  const d = new Date();
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+};
 
 const toSortableTime = (row) => {
   const raw = row?.start_date || row?.created || row?.updated;
