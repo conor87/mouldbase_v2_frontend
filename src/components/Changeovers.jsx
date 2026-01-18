@@ -64,7 +64,7 @@ const getUsernameFromToken = () => {
 
 const isAdminFromToken = () => {
   const role = getRoleFromToken();
-  return role === "admin" || role === "superadmin";
+  return role === "admin" || role === "admindn" || role === "superadmin";
 };
 
 const isSuperAdminFromToken = () => getRoleFromToken() === "superadmin";
@@ -365,7 +365,7 @@ export default function Changeovers() {
       setToggleError(null);
       setTogglingId(id);
 
-      const next = !Boolean(row?.czy_wykonano);
+      const next = !row?.czy_wykonano;
 
       const fd = new FormData();
       fd.append("czy_wykonano", next ? "true" : "false");
@@ -441,9 +441,9 @@ export default function Changeovers() {
       <div className="p-10 text-white">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <Link to="/" className="px-4 py-2 bg-blue-500 rounded-lg text-white font-semibold hover:scale-105">
+            {/* <Link to="/" className="px-4 py-2 bg-blue-500 rounded-lg text-white font-semibold hover:scale-105">
               ← Powrót
-            </Link>
+            </Link> */}
 
             <h1 className="text-4xl text-cyan-400 font-bold">Przezbrojenia</h1>
           </div>
@@ -484,6 +484,7 @@ export default function Changeovers() {
                     <th className="text-center px-4 py-3 font-semibold">Dostępna od</th>
                     <th className="text-center px-4 py-3 font-semibold">Potrzebna na</th>
                     <th className="text-center px-4 py-3 font-semibold">Wykonano</th>
+                    <th className="text-center px-4 py-3 font-semibold">TPM</th>
                     <th className="text-center px-4 py-3 font-semibold">Updated by</th>
                     <th className="text-center px-4 py-3 font-semibold">Updated</th>
                     {logged && isAdmin && <th className="text-center px-4 py-3 font-semibold">Akcje</th>}
@@ -494,6 +495,9 @@ export default function Changeovers() {
                   {pageRows.map((r) => {
                     const isDeletingThis = deletingId !== null && String(deletingId) === String(r.id);
                     const isTogglingThis = togglingId !== null && String(togglingId) === String(r.id);
+                    const fromMould = mouldById.get(String(r.from_mould_id));
+                    const toMould = mouldById.get(String(r.to_mould_id));
+                    const hasOpenTpm = Boolean(fromMould?.has_open_tpm || toMould?.has_open_tpm);
 
                     return (
                       <tr key={String(r.id)} className="border-t border-white/10 hover:bg-white/5">
@@ -510,6 +514,17 @@ export default function Changeovers() {
                           <div className="flex justify-center">
                             <DoneBadge value={r.czy_wykonano} />
                           </div>
+                        </td>
+                        <td className="px-4 py-3 align-middle whitespace-nowrap">
+                          {hasOpenTpm ? (
+                            <div className="flex justify-center">
+                              <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-semibold shadow-lg bg-gradient-to-b from-red-500 to-orange-500">
+                                TPM
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="opacity-60">-</span>
+                          )}
                         </td>
                         <td className="px-4 py-3 align-middle whitespace-nowrap">{r.updated_by ?? "-"}</td>
                         <td className="px-4 py-3 align-middle whitespace-nowrap">{formatDateOnly(r.updated)}</td>

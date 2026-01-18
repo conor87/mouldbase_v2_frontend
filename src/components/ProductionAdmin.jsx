@@ -65,7 +65,7 @@ export default function ProductionAdmin() {
   const user = getCurrentUser();
   const role = user?.role;
   const isSuperAdmin = role === "superadmin";
-  const canEdit = role === "admin" || role === "superadmin";
+  const canEdit = role === "admin" || role === "admindn" || role === "superadmin";
 
   const [orderSearch, setOrderSearch] = useState("");
   const [operationTaskSearch, setOperationTaskSearch] = useState("");

@@ -40,6 +40,7 @@ export default function MouldDetails_BasicInfo({
   const [mouldEditError, setMouldEditError] = useState(null);
 
   const [mouldDraft, setMouldDraft] = useState({
+    mould_number: "",
     company: "",
     tool_weight: "",
     product: "",
@@ -52,10 +53,16 @@ export default function MouldDetails_BasicInfo({
 
   const [productPhotoFile, setProductPhotoFile] = useState(null);
   const [productPhotoPreview, setProductPhotoPreview] = useState("");
+  const [mouldPhotoFile, setMouldPhotoFile] = useState(null);
+  const [mouldPhotoPreview, setMouldPhotoPreview] = useState("");
 
   const serverPreviewFallback = useMemo(() => {
     return imageSrc || buildMediaSrc(API_BASE, mouldData?.product_photo) || "/media/default.jpeg";
   }, [API_BASE, imageSrc, mouldData?.product_photo]);
+
+  const serverMouldPreviewFallback = useMemo(() => {
+    return buildMediaSrc(API_BASE, mouldData?.mould_photo) || "/media/default.jpeg";
+  }, [API_BASE, mouldData?.mould_photo]);
 
   const setDraftField = (key, value) => {
     setMouldDraft((prev) => ({ ...prev, [key]: value }));
@@ -68,6 +75,7 @@ export default function MouldDetails_BasicInfo({
     setMouldEditError(null);
 
     setMouldDraft({
+      mould_number: mouldData.mould_number ?? "",
       company: mouldData.company ?? "",
       tool_weight: mouldData.tool_weight ?? "",
       product: mouldData.product ?? "",
@@ -89,6 +97,8 @@ export default function MouldDetails_BasicInfo({
 
     setProductPhotoFile(null);
     setProductPhotoPreview(serverPreviewFallback);
+    setMouldPhotoFile(null);
+    setMouldPhotoPreview(serverMouldPreviewFallback);
 
     setIsEditModalOpen(true);
   };
@@ -101,6 +111,11 @@ export default function MouldDetails_BasicInfo({
     }
     setProductPhotoPreview("");
     setProductPhotoFile(null);
+    if (mouldPhotoPreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(mouldPhotoPreview);
+    }
+    setMouldPhotoPreview("");
+    setMouldPhotoFile(null);
 
     setIsEditModalOpen(false);
     setMouldEditError(null);
@@ -110,13 +125,18 @@ export default function MouldDetails_BasicInfo({
     if (!isAdmin) return; // ✅ tylko admin
     const currentNumber = mouldData?.mould_number;
     if (!currentNumber) return;
+    const nextNumber = String(mouldDraft.mould_number ?? "").trim();
+    if (!nextNumber) {
+      setMouldEditError("Numer formy jest wymagany.");
+      return;
+    }
 
     try {
       setSavingMould(true);
       setMouldEditError(null);
 
       const fd = new FormData();
-      fd.append("mould_number", currentNumber);
+      fd.append("new_mould_number", nextNumber);
 
       fd.append("company", mouldDraft.company ?? "");
       fd.append("tool_weight", mouldDraft.tool_weight ?? "");
@@ -138,6 +158,10 @@ export default function MouldDetails_BasicInfo({
         fd.append("product_photo", productPhotoFile);
       }
 
+      if (mouldPhotoFile) {
+        fd.append("mould_photo", mouldPhotoFile);
+      }
+
 
         const res = await axios.put(`${API_BASE.replace(/\/+$/, "")}/moulds/${encodeURIComponent(currentNumber)}`, fd, {
         headers: {
@@ -147,7 +171,7 @@ export default function MouldDetails_BasicInfo({
         });
 
 
-      const merged = { ...(mouldData ?? {}), ...res.data };
+      const merged = { ...(mouldData ?? {}), ...res.data, mould_number: nextNumber };
       onMouldUpdated?.(merged);
 
       if (productPhotoPreview?.startsWith("blob:")) {
@@ -155,6 +179,11 @@ export default function MouldDetails_BasicInfo({
       }
       setProductPhotoPreview("");
       setProductPhotoFile(null);
+      if (mouldPhotoPreview?.startsWith("blob:")) {
+        URL.revokeObjectURL(mouldPhotoPreview);
+      }
+      setMouldPhotoPreview("");
+      setMouldPhotoFile(null);
 
       setIsEditModalOpen(false);
     } catch (err) {
@@ -295,6 +324,17 @@ export default function MouldDetails_BasicInfo({
                 <div className="overflow-x-auto rounded-xl border border-white/10">
                   <table className="min-w-full text-sm">
                     <tbody>
+                      <tr className="border-t border-white/10">
+                        <td className="px-4 py-3 w-1/2 font-semibold">Numer formy</td>
+                        <td className="px-4 py-3">
+                          <input
+                            className="w-full rounded-lg p-2 bg-white/5 border border-white/10"
+                            value={mouldDraft.mould_number}
+                            onChange={(e) => setDraftField("mould_number", e.target.value)}
+                          />
+                        </td>
+                      </tr>
+
                       <tr className="border-t border-white/10">
                         <td className="px-4 py-3 w-1/2 font-semibold">Firma</td>
                         <td className="px-4 py-3">
@@ -456,6 +496,62 @@ export default function MouldDetails_BasicInfo({
                         }}
                       >
                         Cofnij wybór
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-white/10 p-4 bg-slate-800 mt-4">
+                  <div className="font-semibold mb-3">Zdj?tcie formy</div>
+
+                  <div className="w-full aspect-square overflow-hidden rounded-xl border border-white/10 bg-black/20 flex items-center justify-center">
+                    <img
+                      src={mouldPhotoPreview || serverMouldPreviewFallback}
+                      alt="Podgl??d zdj?tcia formy"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+
+                  <div className="mt-3">
+                    <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="w-full text-sm text-white file:mr-3 file:rounded-lg file:border-0 file:bg-white/20 file:px-3 file:py-2 file:text-white file:hover:bg-white/30"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          setMouldPhotoFile(file);
+
+                          if (mouldPhotoPreview?.startsWith("blob:")) {
+                            URL.revokeObjectURL(mouldPhotoPreview);
+                          }
+
+                          if (file) {
+                            setMouldPhotoPreview(URL.createObjectURL(file));
+                          } else {
+                            setMouldPhotoPreview(serverMouldPreviewFallback);
+                          }
+                        }}
+                      />
+                    </div>
+
+                    <div className="text-xs opacity-70 mt-2">
+                      Wybierz nowe zdj?tcie, aby podmieni??. Zapisze si?t po klikni?tciu ???Zapisz???.
+                    </div>
+
+                    {mouldPhotoFile && (
+                      <button
+                        type="button"
+                        className="mt-3 w-full px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20"
+                        onClick={() => {
+                          setMouldPhotoFile(null);
+                          if (mouldPhotoPreview?.startsWith("blob:")) {
+                            URL.revokeObjectURL(mouldPhotoPreview);
+                          }
+                          setMouldPhotoPreview(serverMouldPreviewFallback);
+                        }}
+                      >
+                        Cofnij wyb??r
                       </button>
                     )}
                   </div>

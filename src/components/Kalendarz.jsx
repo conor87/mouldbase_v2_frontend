@@ -28,9 +28,9 @@ const getRoleFromToken = () => {
   return payload?.role ?? null;
 };
 
-const isAdminFromToken = () => {
+const isCalendarEditorFromToken = () => {
   const role = getRoleFromToken();
-  return role === "admin" || role === "superadmin";
+  return role === "admindn" || role === "superadmin";
 };
 
 const isSuperAdminFromToken = () => getRoleFromToken() === "superadmin";
@@ -72,7 +72,7 @@ const statusBadge = (isActive) =>
 export default function Kalendarz() {
   const token = localStorage.getItem("access_token");
   const logged = Boolean(token);
-  const isAdmin = isAdminFromToken();
+  const canEditCalendar = isCalendarEditorFromToken();
   const isSuperAdmin = isSuperAdminFromToken();
   const authHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {});
 
@@ -168,7 +168,7 @@ export default function Kalendarz() {
   }, [entries]);
 
   const openAdd = () => {
-    if (!isAdmin) return;
+    if (!canEditCalendar) return;
     setAddError(null);
     setAddDraft({
       mould_id: "",
@@ -187,7 +187,7 @@ export default function Kalendarz() {
   };
 
   const saveAdd = async () => {
-    if (!isAdmin) return;
+    if (!canEditCalendar) return;
 
     const mouldId = String(addDraft.mould_id || "").trim();
     if (!mouldId) {
@@ -222,7 +222,7 @@ export default function Kalendarz() {
   };
 
   const openEdit = (row) => {
-    if (!isAdmin) return;
+    if (!canEditCalendar) return;
     const id = row?.id;
     if (!id) return;
 
@@ -246,7 +246,7 @@ export default function Kalendarz() {
   };
 
   const saveEdit = async () => {
-    if (!isAdmin) return;
+    if (!canEditCalendar) return;
     if (!editId) return;
 
     const mouldId = String(editDraft.mould_id || "").trim();
@@ -282,7 +282,7 @@ export default function Kalendarz() {
   };
 
   const deleteRow = async (row) => {
-    if (!isAdmin) return;
+    if (!canEditCalendar) return;
     const id = row?.id;
     if (!id) return;
 
@@ -304,7 +304,7 @@ export default function Kalendarz() {
   };
 
   const toggleStatus = async (row) => {
-    if (!isAdmin) return;
+    if (!canEditCalendar) return;
     const id = row?.id;
     if (!id) return;
 
@@ -363,9 +363,9 @@ export default function Kalendarz() {
     <div className="p-10 text-white">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <Link to="/" className="px-4 py-2 bg-blue-500 rounded-lg text-white font-semibold hover:scale-105">
+          {/* <Link to="/" className="px-4 py-2 bg-blue-500 rounded-lg text-white font-semibold hover:scale-105">
             {"<- Powrot"}
-          </Link>
+          </Link> */}
           <h1 className="text-4xl text-cyan-400 font-bold">Kalendarz</h1>
         </div>
 
@@ -379,7 +379,7 @@ export default function Kalendarz() {
             Odswiez
           </button>
 
-          {logged && isAdmin && (
+          {logged && canEditCalendar && (
             <button
               type="button"
               onClick={openAdd}
@@ -408,7 +408,7 @@ export default function Kalendarz() {
                 <th className="text-center px-4 py-3 font-semibold">Komentarz</th>
                 <th className="text-center px-4 py-3 font-semibold">Status</th>
                 <th className="text-center px-4 py-3 font-semibold">Wpisujacy</th>
-                {logged && isAdmin && <th className="text-center px-4 py-3 font-semibold">Akcje</th>}
+                {logged && canEditCalendar && <th className="text-center px-4 py-3 font-semibold">Akcje</th>}
               </tr>
             </thead>
 
@@ -443,7 +443,7 @@ export default function Kalendarz() {
 
                     <td className="px-4 py-3 align-middle whitespace-nowrap">{row?.created_by ?? "-"}</td>
 
-                    {logged && isAdmin && (
+                    {logged && canEditCalendar && (
                       <td className="px-4 py-3 align-middle whitespace-nowrap">
                         <div className="flex items-center justify-center gap-2">
                           <button
@@ -497,7 +497,7 @@ export default function Kalendarz() {
       )}
 
       <AddCalendarModal
-        isOpen={logged && isAdmin && isAddOpen}
+        isOpen={logged && canEditCalendar && isAddOpen}
         onClose={closeAdd}
         onSave={saveAdd}
         saving={savingAdd}
@@ -509,7 +509,7 @@ export default function Kalendarz() {
       />
 
       <EditCalendarModal
-        isOpen={logged && isAdmin && isEditOpen}
+        isOpen={logged && canEditCalendar && isEditOpen}
         onClose={closeEdit}
         onSave={saveEdit}
         saving={savingEdit}

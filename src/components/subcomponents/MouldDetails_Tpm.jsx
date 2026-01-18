@@ -20,6 +20,13 @@ const normalizeList = (payload) => {
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
+const formatDateOnly = (value) => {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleDateString("pl-PL");
+};
+
 // enumy (dopasowane do modelu TPM)
 const STATUS_OPTIONS = [
   { value: 0, label: "Otwarty" },
@@ -168,7 +175,16 @@ export default function MouldDetails_Tpm({
   }, [API_BASE, mouldNumber]);
 
   const sortedTpms = useMemo(() => {
-    return [...tpms].sort((a, b) => Number(b?.id ?? 0) - Number(a?.id ?? 0));
+    return [...tpms].sort((a, b) => {
+      const aStatus = Number(a?.status ?? a?.state ?? a?.status_code);
+      const bStatus = Number(b?.status ?? b?.state ?? b?.status_code);
+
+      const aClosed = aStatus === 2;
+      const bClosed = bStatus === 2;
+      if (aClosed !== bClosed) return aClosed ? 1 : -1;
+
+      return Number(b?.id ?? 0) - Number(a?.id ?? 0);
+    });
   }, [tpms]);
 
   const visibleTpms = showAll ? sortedTpms : sortedTpms.slice(0, 10);
@@ -407,6 +423,9 @@ export default function MouldDetails_Tpm({
                       <th className="text-center px-4 py-3 font-semibold">Opis zgłoszenia</th>
                       <th className="text-center px-4 py-3 font-semibold">Czas reakcji</th>
                       <th className="text-center px-4 py-3 font-semibold">Status</th>
+                      <th className="text-center px-4 py-3 font-semibold">Utworzono</th>
+                      <th className="text-center px-4 py-3 font-semibold">Foto 1</th>
+                      <th className="text-center px-4 py-3 font-semibold">Foto 2</th>
 
                       {isAdmin && logged && (
                         <th className="text-center px-4 py-3 font-semibold">Akcje</th>
@@ -428,6 +447,9 @@ export default function MouldDetails_Tpm({
                       const badge = statusBadge(status);
 
                       const trt = pickFirst(m, ["tpm_time_type", "czas_reakcji", "time_type"], null);
+                      const created = pickFirst(m, ["created", "created_at", "timestamp"], null);
+                      const photo1 = normalizeMediaUrl(API_BASE, m?.extra_photo_1);
+                      const photo2 = normalizeMediaUrl(API_BASE, m?.extra_photo_2);
 
                       const isDeletingThis =
                         deletingId !== null && String(deletingId) === String(id);
@@ -455,6 +477,42 @@ export default function MouldDetails_Tpm({
                             >
                               {badge.text}
                             </span>
+                          </td>
+
+                          <td className="px-4 py-3 align-middle whitespace-nowrap">
+                            {formatDateOnly(created)}
+                          </td>
+
+                          <td className="px-4 py-3 align-middle">
+                            <div className="flex justify-center">
+                              {photo1 ? (
+                                <a href={photo1} target="_blank" rel="noreferrer">
+                                  <img
+                                    src={photo1}
+                                    alt="TPM foto 1"
+                                    className="w-12 h-12 object-cover rounded-lg border border-white/10"
+                                  />
+                                </a>
+                              ) : (
+                                <span className="opacity-60">-</span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="px-4 py-3 align-middle">
+                            <div className="flex justify-center">
+                              {photo2 ? (
+                                <a href={photo2} target="_blank" rel="noreferrer">
+                                  <img
+                                    src={photo2}
+                                    alt="TPM foto 2"
+                                    className="w-12 h-12 object-cover rounded-lg border border-white/10"
+                                  />
+                                </a>
+                              ) : (
+                                <span className="opacity-60">-</span>
+                              )}
+                            </div>
                           </td>
 
                           {isAdmin && logged && (

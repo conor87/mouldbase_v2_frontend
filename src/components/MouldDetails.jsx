@@ -40,7 +40,12 @@ const getRoleFromToken = () => {
 
 const isAdminFromToken = () => {
   const role = getRoleFromToken();
-  return role === "admin" || role === "superadmin";
+  return role === "admin" || role === "admindn" || role === "superadmin";
+};
+
+const canEditMouldFromToken = () => {
+  const role = getRoleFromToken();
+  return role === "admindn" || role === "superadmin";
 };
 
 const normalizeList = (payload) => {
@@ -79,11 +84,13 @@ export default function MouldDetails() {
   // UI auth
   const [logged, setLogged] = useState(isLoggedIn());
   const [isAdmin, setIsAdmin] = useState(isAdminFromToken());
+  const [canEditMould, setCanEditMould] = useState(canEditMouldFromToken());
 
   useEffect(() => {
     const syncAuth = () => {
       setLogged(isLoggedIn());
       setIsAdmin(isAdminFromToken());
+      setCanEditMould(canEditMouldFromToken());
     };
 
     // odśwież przy wejściu
@@ -105,7 +112,10 @@ export default function MouldDetails() {
   const handleMouldUpdated = (updated) => {
     setMouldData(updated ?? null);
     if (updated) {
-      navigate(location.pathname, { replace: true, state: { mould: updated } });
+      const nextPath = updated?.mould_number
+        ? `/moulds/${encodeURIComponent(updated.mould_number)}`
+        : location.pathname;
+      navigate(nextPath, { replace: true, state: { mould: updated } });
     }
   };
 
@@ -180,7 +190,7 @@ export default function MouldDetails() {
                   API_BASE={API_BASE}
                   mouldData={mouldData}
                   logged={logged}
-                  isAdmin={isAdmin}
+                  isAdmin={canEditMould}
                   authHeaders={authHeaders}
                   imageSrc={imageSrc}
                   onMouldUpdated={handleMouldUpdated}
@@ -190,7 +200,7 @@ export default function MouldDetails() {
                   API_BASE={API_BASE}
                   mouldData={mouldData}
                   logged={logged}
-                  isAdmin={isAdmin}
+                  isAdmin={canEditMould}
                   authHeaders={authHeaders}
                   onMouldUpdated={handleMouldUpdated}
                 />
@@ -223,7 +233,7 @@ export default function MouldDetails() {
           mouldId={mouldData?.id}
           mouldNumber={mouldData?.mould_number}
           logged={logged}
-          isAdmin={isAdmin}
+          isAdmin={canEditMould}
           authHeaders={authHeaders}
         />
       </div>

@@ -71,8 +71,8 @@ export default function AddMouldModal({
 
   const fileFields = useMemo(
     () => [
-      "mould_photo",
       "product_photo",
+      "mould_photo",
       "hot_system_photo",
       "extra_photo_1",
       "extra_photo_2",

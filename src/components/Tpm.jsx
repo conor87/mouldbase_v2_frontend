@@ -20,6 +20,21 @@ const formatDateOnly = (value) => {
   return d.toLocaleDateString("pl-PL");
 };
 
+const buildMediaSrc = (API_BASE, maybePath) => {
+  if (!maybePath) return "";
+  const v = String(maybePath);
+  if (v.startsWith("http://") || v.startsWith("https://")) return v;
+  if (v.startsWith("/media/")) {
+    try {
+      const apiUrl = new URL(API_BASE);
+      return `${apiUrl.origin}${v}`;
+    } catch {
+      return v;
+    }
+  }
+  return `${API_BASE}/${v.replace(/^\//, "")}`;
+};
+
 const STATUS_OPTIONS = [
   { value: 0, label: "Otwarty", cls: "bg-red-500/20 text-red-200 border-red-500/30" },
   { value: 1, label: "W trakcie", cls: "bg-yellow-500/20 text-yellow-100 border-yellow-500/30" },
@@ -218,9 +233,9 @@ export default function Tpm() {
     <div className="p-10 text-white">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <Link to="/" className="px-4 py-2 bg-blue-500 rounded-lg text-white font-semibold hover:scale-105">
+          {/* <Link to="/" className="px-4 py-2 bg-blue-500 rounded-lg text-white font-semibold hover:scale-105">
             ← Powrót
-          </Link>
+          </Link> */}
           <h1 className="text-4xl text-cyan-400 font-bold">TPM</h1>
         </div>
 
@@ -296,6 +311,8 @@ export default function Tpm() {
                   <th className="text-center px-4 py-3 font-semibold">Opis</th>
                   <th className="text-center px-4 py-3 font-semibold">Czas reakcji</th>
                   <th className="text-center px-4 py-3 font-semibold">Status</th>
+                  <th className="text-center px-4 py-3 font-semibold">Foto 1</th>
+                  <th className="text-center px-4 py-3 font-semibold">Foto 2</th>
                   <th className="text-center px-4 py-3 font-semibold">Data</th>
                 </tr>
               </thead>
@@ -316,6 +333,14 @@ export default function Tpm() {
                   const statusRaw = pickFirst(row, ["status", "state", "status_code"], null);
                   const badge = statusPill(statusRaw);
                   const changed = getRowDate(row);
+                  const photo1 = buildMediaSrc(
+                    API_BASE,
+                    pickFirst(row, ["extra_photo_1", "photo_1", "photo1"], null)
+                  );
+                  const photo2 = buildMediaSrc(
+                    API_BASE,
+                    pickFirst(row, ["extra_photo_2", "photo_2", "photo2"], null)
+                  );
 
                   return (
                     <tr key={String(id)} className="border-t border-white/10 hover:bg-white/5">
@@ -348,6 +373,38 @@ export default function Tpm() {
                         <span className={`inline-flex px-3 py-1 rounded-full border text-xs font-semibold ${badge.cls}`}>
                           {badge.label}
                         </span>
+                      </td>
+
+                      <td className="px-4 py-3 align-middle">
+                        <div className="flex justify-center">
+                        {photo1 ? (
+                          <a href={photo1} target="_blank" rel="noreferrer">
+                            <img
+                              src={photo1}
+                              alt="TPM photo 1"
+                              className="w-12 h-12 object-cover rounded-lg border border-white/10"
+                            />
+                          </a>
+                        ) : (
+                          <span className="opacity-60">-</span>
+                        )}
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-3 align-middle">
+                        <div className="flex justify-center">
+                        {photo2 ? (
+                          <a href={photo2} target="_blank" rel="noreferrer">
+                            <img
+                              src={photo2}
+                              alt="TPM photo 2"
+                              className="w-12 h-12 object-cover rounded-lg border border-white/10"
+                            />
+                          </a>
+                        ) : (
+                          <span className="opacity-60">-</span>
+                        )}
+                        </div>
                       </td>
 
                       <td className="px-4 py-3 align-middle whitespace-nowrap">{formatDateOnly(changed)}</td>

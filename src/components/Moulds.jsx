@@ -1,12 +1,11 @@
 // Moulds.jsx
 import React, { useState, useEffect, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import axios from "axios";
 import Navbar from "./Navbar.jsx";
 import MouldCard from "./MouldCard.jsx";
-import { useNavigate } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
 
-import AddMouldModal from "./subcomponents/AddMouldModal.jsx";       // <- dopasuj ścieżkę jeśli trzeba
 import DeleteMouldModal from "./subcomponents/DeleteMouldModal.jsx"; // <- nowy plik
 
 // ===== JWT helpers =====
@@ -32,20 +31,15 @@ const getRoleFromToken = () => {
   return payload?.role ?? null;
 };
 
-const isAdminFromToken = () => {
-  const role = getRoleFromToken();
-  return role === "admin" || role === "superadmin";
-};
 
 const isSuperAdminFromToken = () => getRoleFromToken() === "superadmin";
 
 export default function Moulds() {
-  const navigate = useNavigate();
+  const location = useLocation();
 
   // auth
   const token = localStorage.getItem("access_token");
   const logged = Boolean(token);
-  const isAdmin = isAdminFromToken();
   const isSuperAdmin = isSuperAdminFromToken();
   const authHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {});
 
@@ -59,7 +53,6 @@ export default function Moulds() {
   const [error, setError] = useState(null);
 
   // modale
-  const [isAddOpen, setIsAddOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   const fetchMoulds = async () => {
@@ -79,7 +72,8 @@ export default function Moulds() {
 
   useEffect(() => {
     fetchMoulds();
-  }, []);
+  }, [location.key]);
+
 
   const companies = useMemo(() => {
     return ["all", ...new Set((moulds || []).map((m) => m.company).filter(Boolean))];
@@ -153,18 +147,6 @@ export default function Moulds() {
       <Navbar />
 
       {/* MODALE */}
-      {logged && isAdmin && (
-        <AddMouldModal
-          open={isAddOpen}
-          canEdit={isAdmin}
-          API_BASE={API_BASE}
-          authHeaders={authHeaders}
-          onClose={() => setIsAddOpen(false)}
-          onCreated={async () => {
-            await fetchMoulds();
-          }}
-        />
-      )}
 
       {logged && isSuperAdmin && (
         <DeleteMouldModal
@@ -212,57 +194,23 @@ export default function Moulds() {
                         className="w-full px-4 py-2 rounded-xl bg-slate-900/60 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                       />
                     </div>
-
-                    {/* ✅ PRZYCISK PRZEZBROJEŃ przeniesiony obok wyszukiwarki */}
-                    {/* <button
-                      onClick={() => navigate("/changeovers")}
-                      className="px-3 py-1.5 rounded-xl text-xs sm:text-sm border border-slate-700 text-gray-300 hover:border-slate-500 bg-white/5 hover:bg-white/10"
-                      title="Przejdź do listy przezbrojeń"
-                    >
-                      Przezbrojenia
-                    </button> */}
-
-                    <button
-                      onClick={() => navigate("/tpm")}
-                      className="px-3 py-1.5 rounded-xl text-xs sm:text-sm border border-slate-700 text-gray-300 hover:border-slate-500 bg-white/5 hover:bg-white/10"
-                      title="Przejdź do listy TPM"
-                    >
-                      TPM
-                    </button>
-                    <button
-                      onClick={() => navigate("/kalendarz")}
-                      className="px-3 py-1.5 rounded-xl text-xs sm:text-sm border border-slate-700 text-gray-300 hover:border-slate-500 bg-white/5 hover:bg-white/10"
-                      title="Kalendarz"
-                    >
-                      Kalendarz
-                    </button>
-
-                    {/* ✅ DODAJ tylko admin/superadmin */}
-                    {logged && isAdmin && (
-                      <button
-                        onClick={() => setIsAddOpen(true)}
-                        className="px-3 py-1.5 rounded-xl text-xs sm:text-sm border border-slate-700 text-gray-300 hover:border-slate-500 bg-white/5 hover:bg-white/10"
-                        title="Dodaj nową formę"
-                      >
-                        Dodaj formę
-                      </button>
-                    )}
-
-                    {/* ✅ USUŃ tylko superadmin */}
-                    {logged && isSuperAdmin && (
-                      <button
-                        onClick={() => setIsDeleteOpen(true)}
-                        className="px-3 py-1.5 rounded-xl text-xs sm:text-sm border border-red-700 text-red-200 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20"
-                        title="Usuń formę (tylko superadmin)"
-                      >
-                        Usuń formę
-                      </button>
-                    )}
                   </div>
 
                   {!logged && (
                     <div className="text-xs opacity-70">
                       Zaloguj się, aby zobaczyć przyciski administracyjne.
+                    </div>
+                  )}
+
+                  {logged && isSuperAdmin && (
+                    <div className="flex items-center">
+                      <button
+                        onClick={() => setIsDeleteOpen(true)}
+                        className="px-3 py-1.5 rounded-xl text-xs sm:text-sm border border-red-700 text-red-200 hover:border-red-500 bg-red-500/10 hover:bg-red-500/20"
+                        title="Usun forme (tylko superadmin)"
+                      >
+                        Usun forme
+                      </button>
                     </div>
                   )}
                 </div>

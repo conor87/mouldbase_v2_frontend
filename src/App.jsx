@@ -20,6 +20,9 @@ import Changeovers from "./components/Changeovers.jsx";
 import Tpm from "./components/Tpm.jsx";
 import Kalendarz from "./components/Kalendarz.jsx";
 import ProductionAdmin from "./components/ProductionAdmin.jsx";
+import AppLayout from "./components/AppLayout.jsx";
+import MouldsAdmin from "./components/MouldsAdmin.jsx";
+import Dashboard from "./components/Dashboard.jsx";
 
 
 
@@ -31,20 +34,33 @@ function App() {
 
           <Routes>
             <Route element={<RequireAuth />}>
-              <Route path="/" element={<Moulds />} />
-              <Route path="/moulds/:number" element={<MouldDetails />} />
-              <Route path="/changeovers" element={<Changeovers />} />
-              <Route path="/tpm" element={<Tpm />} />
-              <Route path="/kalendarz" element={<Kalendarz />} />
+              <Route element={<AppLayout />}>
+                <Route path="/" element={<Moulds />} />
+                <Route path="/moulds/:number" element={<MouldDetails />} />
+                <Route path="/changeovers" element={<Changeovers />} />
+                <Route path="/tpm" element={<Tpm />} />
+                <Route path="/kalendarz" element={<Kalendarz />} />
+              </Route>
             </Route>
 
-            <Route element={<RequireRole allowedRoles={["admin", "superadmin"]} />}>
-              <Route path="/admin-panel" element={<AdminPanel />} />
-              <Route path="/production_admin" element={<ProductionAdmin />} />
+            <Route element={<RequireRole allowedRoles={["admin", "admindn", "superadmin"]} />}>
+              <Route element={<AppLayout />}>
+                <Route path="/admin-panel" element={<AdminPanel />} />
+                <Route path="/production_admin" element={<ProductionAdmin />} />
+              </Route>
+            </Route>
+
+            <Route element={<RequireRole allowedRoles={["admindn", "superadmin"]} />}>
+              <Route element={<AppLayout />}>
+                <Route path="/moulds-admin" element={<MouldsAdmin />} />
+              </Route>
             </Route>
 
             <Route element={<RequireRole allowedRoles={["superadmin"]} />}>
-              <Route path="/superadmin" element={<SuperAdminPanel />} />
+              <Route element={<AppLayout />}>
+                <Route path="/superadmin" element={<SuperAdminPanel />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+              </Route>
             </Route>
 
             <Route path="/login" element={<Login />} />
