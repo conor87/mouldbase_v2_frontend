@@ -572,7 +572,7 @@ export default function MouldDetails_Tpm({
             if (e.target === e.currentTarget) closeAdd();
           }}
         >
-          <div className="w-full max-w-3xl rounded-2xl bg-slate-800 border border-white/10 shadow-2xl p-5 text-white">
+          <div className="w-full max-w-5xl max-h-[85vh] rounded-2xl bg-slate-800 border border-white/10 shadow-2xl p-5 text-white flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-cyan-400">Nowy wpis TPM</h3>
               <button
@@ -587,7 +587,8 @@ export default function MouldDetails_Tpm({
 
             {addError && <div className="mb-3 text-red-400 text-sm">{addError}</div>}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* LEWA 2/3 */}
               <div className="md:col-span-2 space-y-4">
                 <div>
@@ -733,6 +734,7 @@ export default function MouldDetails_Tpm({
                     )}
                   </div>
                 </div>
+              </div>
               </div>
             </div>
 

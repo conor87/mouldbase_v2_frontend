@@ -64,7 +64,7 @@ const getUsernameFromToken = () => {
 
 const isAdminFromToken = () => {
   const role = getRoleFromToken();
-  return role === "admin" || role === "admindn" || role === "superadmin";
+  return role === "admindn" || role === "superadmin";
 };
 
 const isSuperAdminFromToken = () => getRoleFromToken() === "superadmin";

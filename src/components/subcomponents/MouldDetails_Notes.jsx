@@ -49,12 +49,16 @@ export default function MouldDetails_Notes({
       fd.append("mould_number", mouldNumber);
       fd.append("notes", notesDraft);
 
-      const res = await axios.put(`${API_BASE}/moulds/`, fd, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          ...(authHeaders?.() ?? {}),
-        },
-      });
+      const res = await axios.put(
+        `${API_BASE.replace(/\/+$/, "")}/moulds/${encodeURIComponent(mouldNumber)}`,
+        fd,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            ...(authHeaders?.() ?? {}),
+          },
+        }
+      );
 
       const merged = { ...(mouldData ?? {}), ...res.data };
       onMouldUpdated?.(merged);

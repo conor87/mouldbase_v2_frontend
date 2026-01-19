@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Instrukcja: dodawanie nowego TPM</title>
+    <style>
+      :root {
+        --bg-1: #0b1020;
+        --bg-2: #162236;
+        --card: rgba(16, 24, 40, 0.85);
+        --border: rgba(148, 163, 184, 0.2);
+        --muted: #94a3b8;
+        --text: #e2e8f0;
+        --accent: #22d3ee;
+        --accent-2: #f59e0b;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Space Grotesk", "Bahnschrift", "Trebuchet MS", sans-serif;
+        color: var(--text);
+        background: radial-gradient(1200px 600px at 10% 10%, #1f2a44 0%, transparent 60%),
+          radial-gradient(900px 500px at 90% 10%, #0f172a 0%, transparent 55%),
+          linear-gradient(180deg, var(--bg-1), var(--bg-2));
+      }
+
+      .page {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 32px 20px 64px;
+      }
+
+      header {
+        margin-bottom: 24px;
+      }
+
+      h1 {
+        font-size: 32px;
+        margin: 0 0 6px;
+        color: #7dd3fc;
+      }
+
+      p.lead {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .note {
+        margin: 16px 0 28px;
+        padding: 12px 16px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.5);
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .steps {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .step {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 20px;
+        padding: 18px;
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        background: var(--card);
+      }
+
+      .step h2 {
+        margin: 0 0 8px;
+        font-size: 20px;
+      }
+
+      .step p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .shot {
+        position: relative;
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: rgba(15, 23, 42, 0.6);
+        min-height: 240px;
+      }
+
+      .shot img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .step-number {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: var(--accent);
+        color: #081018;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+      }
+
+      .arrow {
+        position: absolute;
+        width: 90px;
+        height: 90px;
+        opacity: 0.9;
+      }
+
+      .arrow svg {
+        width: 100%;
+        height: 100%;
+      }
+
+      .arrow path {
+        stroke: var(--accent-2);
+        stroke-width: 6;
+        fill: none;
+      }
+
+      .arrow polygon {
+        fill: var(--accent-2);
+      }
+
+      /* Adjust arrow positions below after inserting real screenshots */
+      .arrow-step-1 {
+        top: 18%;
+        left: 70%;
+        transform: rotate(-10deg);
+      }
+      .arrow-step-2 {
+        top: 50%;
+        left: 65%;
+        transform: rotate(10deg);
+      }
+      .arrow-step-3 {
+        top: 22%;
+        left: 68%;
+        transform: rotate(-12deg);
+      }
+      .arrow-step-4 {
+        top: 30%;
+        left: 72%;
+        transform: rotate(-6deg);
+      }
+      .arrow-step-5 {
+        top: 20%;
+        left: 62%;
+        transform: rotate(6deg);
+      }
+      .arrow-step-6 {
+        top: 25%;
+        left: 65%;
+        transform: rotate(4deg);
+      }
+
+      .arrow-down {
+        display: flex;
+        justify-content: center;
+        padding: 6px 0 2px;
+      }
+
+      .arrow-down svg {
+        width: 28px;
+        height: 28px;
+      }
+
+      .arrow-down path {
+        stroke: var(--accent);
+        stroke-width: 4;
+        fill: none;
+      }
+
+      .arrow-down polygon {
+        fill: var(--accent);
+      }
+
+      @media (max-width: 880px) {
+        .step {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media print {
+        * {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+
+        header,
+        .note,
+        .step,
+        .shot,
+        .arrow-down {
+          break-inside: avoid;
+          page-break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <h1>Instrukcja: dodawanie nowego TPM</h1>
+        <p class="lead">
+          Szybka sciezka od listy form do zapisu nowego zgloszenia TPM.
+        </p>
+      </header>
+
+      <!-- <div class="note">
+        Wstaw screeny w katalogu <strong>docs/screens/</strong> i podmien src w
+        tagach <code>&lt;img&gt;</code>. Strzalki maja klasy
+        <code>arrow-step-*</code> i mozna je przesunac w CSS.
+      </div> -->
+
+      <div class="steps">
+        <section class="step">
+          <div class="shot">
+            <img src="screens/1.jpg" alt="Krok 1: widok startowy" />
+            <!-- <div class="step-number">1</div> -->
+
+          </div>
+          <div>
+            <h2>Kliknij ikon&#281; domku</h2>
+            <p>
+              Wejdz na stron&#281; z list&#261; form klikaj&#261;c ikon&#281; domku
+              w lewym pasku menu.
+            </p>
+          </div>
+        </section>
+
+        <div class="arrow-down" aria-hidden="true">
+          <svg viewBox="0 0 100 100">
+            <path d="M50,10 L50,70" />
+            <polygon points="40,62 60,62 50,82" />
+          </svg>
+        </div>
+
+        <section class="step">
+          <div class="shot">
+            <img src="screens/2.jpg" alt="Krok 2: lista form" />
+            <!-- <div class="step-number">2</div> -->
+
+          </div>
+          <div>
+            <h2>Otw&#243;rz szczeg&#243;ly formy</h2>
+            <p>
+              Wybierz konkretn&#261; form&#281; z listy i wejd&#378; w
+              szczeg&#243;ly (przycisk &#8222;Szczeg&#243;&#322;y&#8221;).
+            </p>
+          </div>
+        </section>
+
+        <div class="arrow-down" aria-hidden="true">
+          <svg viewBox="0 0 100 100">
+            <path d="M50,10 L50,70" />
+            <polygon points="40,62 60,62 50,82" />
+          </svg>
+        </div>
+
+        <section class="step">
+          <div class="shot">
+            <img src="screens/3.jpg" alt="Krok 3: szczegoly formy" />
+            <!-- <div class="step-number">3</div> -->
+
+          </div>
+          <div>
+            <h2>Przejd&#378; do sekcji TPM</h2>
+            <p>
+              Przewi&#324; w d&#243;&#322; do sekcji
+              <strong> Zg&#322;oszenia TPM</strong>.
+            </p>
+          </div>
+        </section>
+
+        <div class="arrow-down" aria-hidden="true">
+          <svg viewBox="0 0 100 100">
+            <path d="M50,10 L50,70" />
+            <polygon points="40,62 60,62 50,82" />
+          </svg>
+        </div>
+
+        <section class="step">
+          <div class="shot">
+            <img src="screens/4.jpg" alt="Krok 4: przycisk dodaj" />
+            <!-- <div class="step-number">4</div> -->
+
+          </div>
+          <div>
+            <h2>Kliknij przycisk Dodaj</h2>
+            <p>
+              U&#380;yj przycisku z ikon&#261; plusa, aby otworzy&#263; formularz
+              nowego zg&#322;oszenia.
+            </p>
+          </div>
+        </section>
+
+        <div class="arrow-down" aria-hidden="true">
+          <svg viewBox="0 0 100 100">
+            <path d="M50,10 L50,70" />
+            <polygon points="40,62 60,62 50,82" />
+          </svg>
+        </div>
+
+        <section class="step">
+          <div class="shot">
+            <img src="screens/5.jpg" alt="Krok 5: formularz TPM" />
+            <!-- <div class="step-number">5</div> -->
+
+          </div>
+          <div>
+            <h2>Wypelnij formularz</h2>
+            <p>
+              Uzupe&#322;nij opis, czas reakcji i status. Opcjonalnie dodaj
+              zdj&#281;cia w polach Foto 1 / Foto 2.
+            </p>
+          </div>
+        </section>
+
+        <div class="arrow-down" aria-hidden="true">
+          <svg viewBox="0 0 100 100">
+            <path d="M50,10 L50,70" />
+            <polygon points="40,62 60,62 50,82" />
+          </svg>
+        </div>
+
+        <section class="step">
+          <div class="shot">
+            <img src="screens/6.jpg" alt="Krok 6: zapis TPM" />
+            <!-- <div class="step-number">6</div> -->
+
+          </div>
+          <div>
+            <h2>Zapisz wpis</h2>
+            <p>
+              Kliknij <strong>Dodaj wpis</strong>. Nowy TPM pojawi sie na liscie
+              zgloszen.
+            </p>
+          </div>
+        </section>
+      </div>
+    </div>
+  </body>
+</html>

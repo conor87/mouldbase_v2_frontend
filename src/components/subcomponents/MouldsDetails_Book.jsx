@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
-// Wpis dodatkowy
+// Wpis dodatkowygit
 
 // --- helpery ---
 const normalizeList = (payload) => {

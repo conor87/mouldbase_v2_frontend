@@ -1,8 +1,14 @@
 import { Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { getCurrentUser } from '../auth';
 
 export default function Navbar() {
     const [mobileMenuIsOpen, setMobileMenuIsOpen] = useState(false);
+    const [username, setUsername] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const user = getCurrentUser();
+    return user?.sub ?? user?.username ?? "";
+    });
 
     const [isLoggedIn, setIsLoggedIn] = useState(() => {
     if (typeof window === "undefined") return false; // na wszelki wypadek gdyby było SSR
@@ -10,9 +16,23 @@ export default function Navbar() {
     return !!token;
     });
 
+    useEffect(() => {
+        const syncAuth = () => {
+            if (typeof window === "undefined") return;
+            const user = getCurrentUser();
+            setUsername(user?.sub ?? user?.username ?? "");
+            setIsLoggedIn(Boolean(user));
+        };
+
+        syncAuth();
+        window.addEventListener("storage", syncAuth);
+        return () => window.removeEventListener("storage", syncAuth);
+    }, []);
+
     function logout() {
         localStorage.removeItem("access_token");
         setIsLoggedIn(false);
+        setUsername("");
         window.location.href = "/login"; // przekierowanie
     }
 
@@ -49,9 +69,10 @@ export default function Navbar() {
                             ) : (
                                 <button 
                                     onClick={logout}
-                                    className="text-red-400 hover:text-white"
+                                    className="text-red-400 hover:text-white flex items-center gap-2"
                                 >
-                                    Logout
+                                    <span>Logout</span>
+                                    {username && <span className="text-xs text-slate-300">{username}</span>}
                                 </button>
                             )}
                     </div>
@@ -105,7 +126,10 @@ export default function Navbar() {
                                 onClick={() => { logout(); setMobileMenuIsOpen(false); }}
                                 className="block text-red-400 hover:text-white"
                             >
-                                Logout
+                                <span className="flex items-center gap-2">
+                                    <span>Logout</span>
+                                    {username && <span className="text-xs text-slate-300">{username}</span>}
+                                </span>
                             </button>
                         )}
                     </div>

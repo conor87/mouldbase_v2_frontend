@@ -303,7 +303,7 @@ export default function MouldDetails_BasicInfo({
             if (e.target === e.currentTarget) closeEditModal();
           }}
         >
-          <div className="w-full max-w-6xl rounded-2xl bg-slate-800 border border-white/10 shadow-2xl p-5 text-white">
+          <div className="w-full max-w-7xl max-h-[85vh] rounded-2xl bg-slate-800 border border-white/10 shadow-2xl p-5 text-white flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-cyan-400">Edycja danych formy</h3>
               <button
@@ -318,7 +318,8 @@ export default function MouldDetails_BasicInfo({
 
             {mouldEditError && <div className="mb-3 text-red-400 text-sm">{mouldEditError}</div>}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* LEWA: 2/3 */}
               <div className="md:col-span-2">
                 <div className="overflow-x-auto rounded-xl border border-white/10">
@@ -502,12 +503,12 @@ export default function MouldDetails_BasicInfo({
                 </div>
 
                 <div className="rounded-xl border border-white/10 p-4 bg-slate-800 mt-4">
-                  <div className="font-semibold mb-3">Zdj?tcie formy</div>
+                  <div className="font-semibold mb-3">Zdjęcie formy</div>
 
                   <div className="w-full aspect-square overflow-hidden rounded-xl border border-white/10 bg-black/20 flex items-center justify-center">
                     <img
                       src={mouldPhotoPreview || serverMouldPreviewFallback}
-                      alt="Podgl??d zdj?tcia formy"
+                      alt="Podgląd zdjęcia formy"
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -536,7 +537,7 @@ export default function MouldDetails_BasicInfo({
                     </div>
 
                     <div className="text-xs opacity-70 mt-2">
-                      Wybierz nowe zdj?tcie, aby podmieni??. Zapisze si?t po klikni?tciu ???Zapisz???.
+                      Wybierz nowe zdjęcie, aby podmienić. Zapisze się po kliknięciu -Zapisz-.
                     </div>
 
                     {mouldPhotoFile && (
@@ -556,6 +557,7 @@ export default function MouldDetails_BasicInfo({
                     )}
                   </div>
                 </div>
+              </div>
               </div>
             </div>
 
