@@ -69,10 +69,14 @@ export default function Navbar() {
                             ) : (
                                 <button 
                                     onClick={logout}
-                                    className="text-red-400 hover:text-white flex items-center gap-2"
+                                    className="text-red-400 hover:text-white flex items-center gap-2 md:flex-col md:items-start md:gap-1 lg:flex-row lg:items-center lg:gap-2 min-w-0"
                                 >
                                     <span>Logout</span>
-                                    {username && <span className="text-xs text-slate-300">{username}</span>}
+                                    {username && (
+                                        <span className="font-bold text-slate-300 block md:text-left md:whitespace-normal md:break-all lg:whitespace-nowrap lg:truncate min-w-0 max-w-[160px] md:max-w-[180px] lg:max-w-[220px]">
+                                            {username}
+                                        </span>
+                                    )}
                                 </button>
                             )}
                     </div>
@@ -126,9 +130,13 @@ export default function Navbar() {
                                 onClick={() => { logout(); setMobileMenuIsOpen(false); }}
                                 className="block text-red-400 hover:text-white"
                             >
-                                <span className="flex items-center gap-2">
+                                <span className="flex items-center gap-2 min-w-0">
                                     <span>Logout</span>
-                                    {username && <span className="text-xs text-slate-300">{username}</span>}
+                                    {username && (
+                                        <span className="font-bold text-slate-300 block min-w-0 max-w-[200px] truncate">
+                                            {username}
+                                        </span>
+                                    )}
                                 </span>
                             </button>
                         )}

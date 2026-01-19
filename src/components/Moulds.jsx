@@ -163,7 +163,7 @@ export default function Moulds() {
       <section id="pricing" className="py-16 sm:py-20 px-10 sm:px-6 lg:px-8 relative">
         <div className="max-w-full mx-auto lg:mx-8">
           <div className="text-center mb-8 sm:mb-10 lg:mb-12">
-            <h2 className="text-5xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6">
+            <h2 className="text-5xl sm:text-4xl md:text-3xl lg:text-4xl font-bold mb-4 sm:mb-6">
               <span className="bg-gradient-to-b from-white to-gray-300 bg-clip-text text-transparent">
                 Formy wtryskowe{" "}
               </span>
@@ -171,9 +171,9 @@ export default function Moulds() {
                 i rozdmuchowe
               </span>
             </h2>
-            <p className="text-gray-400 text-base text-xl sm:text-lg max-w-2xl mx-auto">
+            {/* <p className="text-gray-400 text-base text-xl sm:text-lg max-w-2xl mx-auto">
               Dane firmy Lamela Sp. z o.o.
-            </p>
+            </p> */}
           </div>
 
           {loading && <div className="text-center text-gray-400 py-10">Ładowanie danych form...</div>}
