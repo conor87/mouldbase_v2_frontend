@@ -14,7 +14,7 @@ export default function MouldCard({ mould }) {
   const imageSrc = useMemo(() => {
     const file = product_photo ?? "";
 
-    if (!file) return "/media/default.jpeg";
+    if (!file) return "/media/default.png";
     if (file.startsWith("http://") || file.startsWith("https://")) return file;
 
     if (file.startsWith("/media/")) {
