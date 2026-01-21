@@ -39,7 +39,7 @@ export default function Navbar() {
     return (
         <nav className="fixed top-0 w-full z-50 transition-all duration-300 bg-slate-800/20 backdrop-blur-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between items-center h-14 sm:h-16 md:h-20">
+                <div className="flex justify-around items-center h-14 sm:h-16 md:h-20">
 
                     {/* Logo */}
                     <div className="flex items-center space-x-1 group cursor-pointer">
@@ -96,7 +96,7 @@ export default function Navbar() {
                 <div className="md:hidden bg-slate-800/95 backdrop-blur-lg border-t border-slate-700 animate-in slide-in-from-top duration-300">
                     <div className="px-4 py-4 sm:py-6 space-y-4">
 
-                        <a href="#features" onClick={() => setMobileMenuIsOpen(false)} className="block text-gray-300 hover:text-white">
+                        {/* <a href="#features" onClick={() => setMobileMenuIsOpen(false)} className="block text-gray-300 hover:text-white">
                             Features
                         </a>
                         <a href="#pricing" onClick={() => setMobileMenuIsOpen(false)} className="block text-gray-300 hover:text-white">
@@ -104,7 +104,7 @@ export default function Navbar() {
                         </a>
                         <a href="#testimonials" onClick={() => setMobileMenuIsOpen(false)} className="block text-gray-300 hover:text-white">
                             Testimonials
-                        </a>
+                        </a> */}
 
                         {/* 🔥 Mobile Login / Logout */}
                         {!isLoggedIn ? (
