@@ -103,7 +103,7 @@ export default function MouldDetails_Tpm({
     opis_zgloszenia: "",
     tpm_time_type: "0",
     status: "0",
-    changed: todayISO(),
+    created: todayISO(),
   });
 
   const [addPhoto1, setAddPhoto1] = useState(null);
@@ -120,7 +120,7 @@ export default function MouldDetails_Tpm({
     opis_zgloszenia: "",
     tpm_time_type: "0",
     status: "0",
-    changed: todayISO(),
+    created: todayISO(),
   });
 
   const [editPhoto1, setEditPhoto1] = useState(null);
@@ -198,7 +198,7 @@ export default function MouldDetails_Tpm({
       opis_zgloszenia: "",
       tpm_time_type: "0",
       status: "0",
-      changed: todayISO(),
+      created: todayISO(),
     });
 
     // reset zdjęć
@@ -243,7 +243,9 @@ export default function MouldDetails_Tpm({
       fd.append("opis_zgloszenia", addDraft.opis_zgloszenia ?? "");
       fd.append("tpm_time_type", String(parseInt(addDraft.tpm_time_type || "0", 10) || 0));
       fd.append("status", String(parseInt(addDraft.status || "0", 10) || 0));
-      fd.append("changed", (addDraft.changed || todayISO()).trim());
+      const createdValue = String(addDraft.created || "").trim() || todayISO();
+      fd.append("created", createdValue);
+      fd.append("changed", createdValue);
 
       // ✅ zdjęcia
       if (addPhoto1) fd.append("extra_photo_1", addPhoto1);
@@ -277,13 +279,14 @@ export default function MouldDetails_Tpm({
     setEditError(null);
     setEditId(id);
 
-    const rowChanged = row?.changed ? String(row.changed).slice(0, 10) : "";
+    const rowCreated = pickFirst(row, ["created", "created_at", "timestamp"], "");
+    const rowCreatedValue = rowCreated ? String(rowCreated).slice(0, 10) : "";
 
     setEditDraft({
       opis_zgloszenia: row?.opis_zgloszenia ?? "",
       tpm_time_type: String(row?.tpm_time_type ?? 0),
       status: String(row?.status ?? 0),
-      changed: rowChanged || todayISO(),
+      created: rowCreatedValue || todayISO(),
     });
 
     // reset uploadów
@@ -331,7 +334,11 @@ export default function MouldDetails_Tpm({
       fd.append("opis_zgloszenia", editDraft.opis_zgloszenia ?? "");
       fd.append("tpm_time_type", String(parseInt(editDraft.tpm_time_type || "0", 10) || 0));
       fd.append("status", String(parseInt(editDraft.status || "0", 10) || 0));
-      fd.append("changed", (editDraft.changed || todayISO()).trim());
+      const createdValue = String(editDraft.created || "").trim();
+      if (createdValue) {
+        fd.append("created", createdValue);
+      }
+      fd.append("changed", todayISO());
 
       // ✅ zdjęcia (jeśli wybrane)
       if (editPhoto1) fd.append("extra_photo_1", editPhoto1);
@@ -424,6 +431,7 @@ export default function MouldDetails_Tpm({
                       <th className="text-center px-4 py-3 font-semibold">Czas reakcji</th>
                       <th className="text-center px-4 py-3 font-semibold">Status</th>
                       <th className="text-center px-4 py-3 font-semibold">Utworzono</th>
+                      <th className="text-center px-4 py-3 font-semibold">Zmieniono</th>
                       <th className="text-center px-4 py-3 font-semibold">Foto 1</th>
                       <th className="text-center px-4 py-3 font-semibold">Foto 2</th>
 
@@ -448,6 +456,11 @@ export default function MouldDetails_Tpm({
 
                       const trt = pickFirst(m, ["tpm_time_type", "czas_reakcji", "time_type"], null);
                       const created = pickFirst(m, ["created", "created_at", "timestamp"], null);
+                      const updated = pickFirst(
+                        m,
+                        ["changed", "updated", "updated_at", "modified", "modified_at"],
+                        null
+                      );
                       const photo1 = normalizeMediaUrl(API_BASE, m?.extra_photo_1);
                       const photo2 = normalizeMediaUrl(API_BASE, m?.extra_photo_2);
 
@@ -481,6 +494,10 @@ export default function MouldDetails_Tpm({
 
                           <td className="px-4 py-3 align-middle whitespace-nowrap">
                             {formatDateOnly(created)}
+                          </td>
+
+                          <td className="px-4 py-3 align-middle whitespace-nowrap">
+                            {formatDateOnly(updated)}
                           </td>
 
                           <td className="px-4 py-3 align-middle">
@@ -637,12 +654,12 @@ export default function MouldDetails_Tpm({
                 </div>
 
                 <div>
-                  <label className="block text-sm opacity-80 mb-1">Changed</label>
+                  <label className="block text-sm opacity-80 mb-1">Data utworzenia</label>
                   <input
                     type="date"
                     className="w-full rounded-xl p-3 bg-white/5 border border-white/10 text-white"
-                    value={addDraft.changed}
-                    onChange={(e) => setAddDraft((p) => ({ ...p, changed: e.target.value }))}
+                    value={addDraft.created}
+                    onChange={(e) => setAddDraft((p) => ({ ...p, created: e.target.value }))}
                   />
                 </div>
               </div>
@@ -768,7 +785,7 @@ export default function MouldDetails_Tpm({
             if (e.target === e.currentTarget) closeEdit();
           }}
         >
-          <div className="w-full max-w-3xl rounded-2xl bg-slate-800 border border-white/10 shadow-2xl p-5 text-white">
+        <div className="w-full max-w-5xl max-h-[85vh] rounded-2xl bg-slate-800 border border-white/10 shadow-2xl p-5 text-white flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-cyan-400">
                 Edycja wpisu TPM (ID: {String(editId)})
@@ -785,160 +802,165 @@ export default function MouldDetails_Tpm({
 
             {editError && <div className="mb-3 text-red-400 text-sm">{editError}</div>}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* LEWA 2/3 */}
-              <div className="md:col-span-2 space-y-4">
-                <div>
-                  <label className="block text-sm opacity-80 mb-1">Opis zgłoszenia</label>
-                  <textarea
-                    className="w-full min-h-[120px] rounded-xl p-3 bg-white/5 border border-white/10 text-white"
-                    value={editDraft.opis_zgloszenia}
-                    onChange={(e) =>
-                      setEditDraft((p) => ({ ...p, opis_zgloszenia: e.target.value }))
-                    }
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* LEWA 2/3 */}
+                <div className="md:col-span-2 space-y-4">
                   <div>
-                    <label className="block text-sm opacity-80 mb-1">Czas reakcji</label>
-                    <select
-                      className="w-full rounded-xl p-3 border border-white/10 bg-white text-slate-900"
-                      value={editDraft.tpm_time_type}
+                    <label className="block text-sm opacity-80 mb-1">Opis zgłoszenia</label>
+                    <textarea
+                      className="w-full min-h-[120px] rounded-xl p-3 bg-white/5 border border-white/10 text-white"
+                      value={editDraft.opis_zgloszenia}
                       onChange={(e) =>
-                        setEditDraft((p) => ({ ...p, tpm_time_type: e.target.value }))
+                        setEditDraft((p) => ({ ...p, opis_zgloszenia: e.target.value }))
                       }
-                    >
-                      {TIME_OPTIONS.map((o) => (
-                        <option key={o.value} value={String(o.value)}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm opacity-80 mb-1">Czas reakcji</label>
+                      <select
+                        className="w-full rounded-xl p-3 border border-white/10 bg-white text-slate-900"
+                        value={editDraft.tpm_time_type}
+                        onChange={(e) =>
+                          setEditDraft((p) => ({ ...p, tpm_time_type: e.target.value }))
+                        }
+                      >
+                        {TIME_OPTIONS.map((o) => (
+                          <option key={o.value} value={String(o.value)}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm opacity-80 mb-1">Status</label>
+                      <select
+                        className="w-full rounded-xl p-3 border border-white/10 bg-white text-slate-900"
+                        value={editDraft.status}
+                        onChange={(e) => setEditDraft((p) => ({ ...p, status: e.target.value }))}
+                      >
+                        {STATUS_OPTIONS.map((o) => (
+                          <option key={o.value} value={String(o.value)}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm opacity-80 mb-1">Status</label>
-                    <select
-                      className="w-full rounded-xl p-3 border border-white/10 bg-white text-slate-900"
-                      value={editDraft.status}
-                      onChange={(e) => setEditDraft((p) => ({ ...p, status: e.target.value }))}
-                    >
-                      {STATUS_OPTIONS.map((o) => (
-                        <option key={o.value} value={String(o.value)}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
+                    <label className="block text-sm opacity-80 mb-1">Data utworzenia</label>
+                    <input
+                      type="date"
+                      className="w-full rounded-xl p-3 bg-white/5 border border-white/10 text-white"
+                      value={editDraft.created}
+                      onChange={(e) => setEditDraft((p) => ({ ...p, created: e.target.value }))}
+                    />
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm opacity-80 mb-1">Changed</label>
-                  <input
-                    type="date"
-                    className="w-full rounded-xl p-3 bg-white/5 border border-white/10 text-white"
-                    value={editDraft.changed}
-                    onChange={(e) => setEditDraft((p) => ({ ...p, changed: e.target.value }))}
-                  />
-                </div>
-              </div>
+                {/* PRAWA 1/3: zdjęcia */}
+                <div className="md:col-span-1">
+                  <div className="rounded-xl border border-white/10 p-4 bg-slate-800">
+                    <div className="font-semibold mb-3">Zdjęcia</div>
 
-              {/* PRAWA 1/3: zdjęcia */}
-              <div className="md:col-span-1">
-                <div className="rounded-xl border border-white/10 p-4 bg-slate-800">
-                  <div className="font-semibold mb-3">Zdjęcia</div>
+                    {/* PHOTO 1 */}
+                    <div className="mb-4">
+                      <div className="text-sm opacity-80 mb-2">Zdjęcie 1</div>
+                      <div className="w-full aspect-square overflow-hidden rounded-xl border border-white/10 bg-black/20 flex items-center justify-center">
+                        {editPreview1 ? (
+                          <img
+                            src={editPreview1}
+                            alt="Podgląd 1"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="text-xs opacity-60">Brak</div>
+                        )}
+                      </div>
+                      <div className="mt-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="w-full text-sm text-white file:mr-3 file:rounded-lg file:border-0 file:bg-white/20 file:px-3 file:py-2 file:text-white file:hover:bg-white/30"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            setEditPhoto1(file);
 
-                  {/* PHOTO 1 */}
-                  <div className="mb-4">
-                    <div className="text-sm opacity-80 mb-2">Zdjęcie 1</div>
-                    <div className="w-full aspect-square overflow-hidden rounded-xl border border-white/10 bg-black/20 flex items-center justify-center">
-                      {editPreview1 ? (
-                        <img
-                          src={editPreview1}
-                          alt="Podgląd 1"
-                          className="w-full h-full object-cover"
+                            if (editPreview1?.startsWith("blob:")) URL.revokeObjectURL(editPreview1);
+
+                            if (file) setEditPreview1(URL.createObjectURL(file));
+                            // jeśli user wyczyści wybór w input (rzadkie) -> wracamy do pustego
+                            else setEditPreview1("");
+                          }}
                         />
-                      ) : (
-                        <div className="text-xs opacity-60">Brak</div>
+                      </div>
+                      {editPhoto1 && (
+                        <button
+                          type="button"
+                          className="mt-2 w-full px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20"
+                          onClick={() => {
+                            setEditPhoto1(null);
+                            if (editPreview1?.startsWith("blob:"))
+                              URL.revokeObjectURL(editPreview1);
+                            // wróć do zdjęcia z backendu, jeśli było (nie mamy już row, więc zostaw aktualny preview jeśli to url http)
+                            setEditPreview1((p) => (p?.startsWith("http") ? p : ""));
+                          }}
+                        >
+                          Cofnij wybór
+                        </button>
                       )}
                     </div>
-                    <div className="mt-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="w-full text-sm text-white file:mr-3 file:rounded-lg file:border-0 file:bg-white/20 file:px-3 file:py-2 file:text-white file:hover:bg-white/30"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] || null;
-                          setEditPhoto1(file);
 
-                          if (editPreview1?.startsWith("blob:")) URL.revokeObjectURL(editPreview1);
+                    {/* PHOTO 2 */}
+                    <div>
+                      <div className="text-sm opacity-80 mb-2">Zdjęcie 2</div>
+                      <div className="w-full aspect-square overflow-hidden rounded-xl border border-white/10 bg-black/20 flex items-center justify-center">
+                        {editPreview2 ? (
+                          <img
+                            src={editPreview2}
+                            alt="Podgląd 2"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="text-xs opacity-60">Brak</div>
+                        )}
+                      </div>
+                      <div className="mt-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="w-full text-sm text-white file:mr-3 file:rounded-lg file:border-0 file:bg-white/20 file:px-3 file:py-2 file:text-white file:hover:bg-white/30"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            setEditPhoto2(file);
 
-                          if (file) setEditPreview1(URL.createObjectURL(file));
-                          // jeśli user wyczyści wybór w input (rzadkie) -> wracamy do pustego
-                          else setEditPreview1("");
-                        }}
-                      />
-                    </div>
-                    {editPhoto1 && (
-                      <button
-                        type="button"
-                        className="mt-2 w-full px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20"
-                        onClick={() => {
-                          setEditPhoto1(null);
-                          if (editPreview1?.startsWith("blob:")) URL.revokeObjectURL(editPreview1);
-                          // wróć do zdjęcia z backendu, jeśli było (nie mamy już row, więc zostaw aktualny preview jeśli to url http)
-                          setEditPreview1((p) => (p?.startsWith("http") ? p : ""));
-                        }}
-                      >
-                        Cofnij wybór
-                      </button>
-                    )}
-                  </div>
+                            if (editPreview2?.startsWith("blob:"))
+                              URL.revokeObjectURL(editPreview2);
 
-                  {/* PHOTO 2 */}
-                  <div>
-                    <div className="text-sm opacity-80 mb-2">Zdjęcie 2</div>
-                    <div className="w-full aspect-square overflow-hidden rounded-xl border border-white/10 bg-black/20 flex items-center justify-center">
-                      {editPreview2 ? (
-                        <img
-                          src={editPreview2}
-                          alt="Podgląd 2"
-                          className="w-full h-full object-cover"
+                            if (file) setEditPreview2(URL.createObjectURL(file));
+                            else setEditPreview2("");
+                          }}
                         />
-                      ) : (
-                        <div className="text-xs opacity-60">Brak</div>
+                      </div>
+                      {editPhoto2 && (
+                        <button
+                          type="button"
+                          className="mt-2 w-full px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20"
+                          onClick={() => {
+                            setEditPhoto2(null);
+                            if (editPreview2?.startsWith("blob:"))
+                              URL.revokeObjectURL(editPreview2);
+                            setEditPreview2((p) => (p?.startsWith("http") ? p : ""));
+                          }}
+                        >
+                          Cofnij wybór
+                        </button>
                       )}
                     </div>
-                    <div className="mt-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="w-full text-sm text-white file:mr-3 file:rounded-lg file:border-0 file:bg-white/20 file:px-3 file:py-2 file:text-white file:hover:bg-white/30"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] || null;
-                          setEditPhoto2(file);
-
-                          if (editPreview2?.startsWith("blob:")) URL.revokeObjectURL(editPreview2);
-
-                          if (file) setEditPreview2(URL.createObjectURL(file));
-                          else setEditPreview2("");
-                        }}
-                      />
-                    </div>
-                    {editPhoto2 && (
-                      <button
-                        type="button"
-                        className="mt-2 w-full px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20"
-                        onClick={() => {
-                          setEditPhoto2(null);
-                          if (editPreview2?.startsWith("blob:")) URL.revokeObjectURL(editPreview2);
-                          setEditPreview2((p) => (p?.startsWith("http") ? p : ""));
-                        }}
-                      >
-                        Cofnij wybór
-                      </button>
-                    )}
                   </div>
                 </div>
               </div>

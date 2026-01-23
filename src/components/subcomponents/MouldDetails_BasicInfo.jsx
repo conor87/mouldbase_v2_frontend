@@ -57,11 +57,11 @@ export default function MouldDetails_BasicInfo({
   const [mouldPhotoPreview, setMouldPhotoPreview] = useState("");
 
   const serverPreviewFallback = useMemo(() => {
-    return imageSrc || buildMediaSrc(API_BASE, mouldData?.product_photo) || "/media/default.jpeg";
+    return imageSrc || buildMediaSrc(API_BASE, mouldData?.product_photo) || "/media/default.png";
   }, [API_BASE, imageSrc, mouldData?.product_photo]);
 
   const serverMouldPreviewFallback = useMemo(() => {
-    return buildMediaSrc(API_BASE, mouldData?.mould_photo) || "/media/default.jpeg";
+    return buildMediaSrc(API_BASE, mouldData?.mould_photo) || "/media/default.png";
   }, [API_BASE, mouldData?.mould_photo]);
 
   const setDraftField = (key, value) => {

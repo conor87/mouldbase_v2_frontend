@@ -105,7 +105,7 @@ export default function MouldDetails() {
   }, []);
 
   const imageSrc = useMemo(
-    () => buildMediaSrc(mouldData?.product_photo) || "/media/default.jpeg",
+    () => buildMediaSrc(mouldData?.product_photo) || "/media/default.png",
     [mouldData?.product_photo]
   );
 
