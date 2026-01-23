@@ -311,6 +311,7 @@ export default function Tpm() {
                   <th className="text-center px-4 py-3 font-semibold">Opis</th>
                   <th className="text-center px-4 py-3 font-semibold">Czas reakcji</th>
                   <th className="text-center px-4 py-3 font-semibold">Status</th>
+                  <th className="text-center px-4 py-3 font-semibold">Autor</th>
                   <th className="text-center px-4 py-3 font-semibold">Foto 1</th>
                   <th className="text-center px-4 py-3 font-semibold">Foto 2</th>
                   <th className="text-center px-4 py-3 font-semibold">Data</th>
@@ -332,6 +333,9 @@ export default function Tpm() {
                   const trt = pickFirst(row, ["tpm_time_type", "czas_reakcji", "time_type"], null);
                   const statusRaw = pickFirst(row, ["status", "state", "status_code"], null);
                   const badge = statusPill(statusRaw);
+                  const author =
+                    pickFirst(row, ["created_by", "author", "username", "user_name", "created_by_username"], null) ??
+                    pickFirst(row?.user, ["username", "name", "email"], null);
                   const changed = getRowDate(row);
                   const photo1 = buildMediaSrc(
                     API_BASE,
@@ -373,6 +377,10 @@ export default function Tpm() {
                         <span className={`inline-flex px-3 py-1 rounded-full border text-xs font-semibold ${badge.cls}`}>
                           {badge.label}
                         </span>
+                      </td>
+
+                      <td className="px-4 py-3 align-middle">
+                        <div className="whitespace-pre-wrap break-words">{author || "-"}</div>
                       </td>
 
                       <td className="px-4 py-3 align-middle">

@@ -1,6 +1,7 @@
 // MouldDetails_Tpm.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import { getCurrentUser } from "../../auth.js";
 
 // Helpery
 const pickFirst = (obj, keys, fallback = "") => {
@@ -77,6 +78,12 @@ const normalizeMediaUrl = (API_BASE, value) => {
   }
   // fallback
   return `${API_BASE}/${s.replace(/^\//, "")}`;
+};
+
+const getUsernameFromSession = () => {
+  if (typeof window === "undefined") return "";
+  const user = getCurrentUser();
+  return user?.sub ?? user?.username ?? localStorage.getItem("username") ?? "";
 };
 
 export default function MouldDetails_Tpm({
@@ -246,6 +253,8 @@ export default function MouldDetails_Tpm({
       const createdValue = String(addDraft.created || "").trim() || todayISO();
       fd.append("created", createdValue);
       fd.append("changed", createdValue);
+      const author = getUsernameFromSession();
+      if (author) fd.append("author", author);
 
       // ✅ zdjęcia
       if (addPhoto1) fd.append("extra_photo_1", addPhoto1);
