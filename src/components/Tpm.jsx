@@ -66,7 +66,7 @@ const statusRank = (rawStatus) => {
 };
 
 const getRowDate = (row) =>
-  pickFirst(row, ["changed", "updated", "created", "created_at", "timestamp"], null);
+  pickFirst(row, ["created","changed", "updated", "created_at", "timestamp"], null);
 
 const getRowYear = (row) => {
   const raw = getRowDate(row);

@@ -13,7 +13,7 @@ const normalizeList = (payload) => {
 };
 
 const getRowDate = (row) =>
-  row?.changed || row?.updated || row?.created || row?.created_at || row?.timestamp || null;
+  row?.created || row?.changed || row?.updated || row?.created_at || row?.timestamp || null;
 
 const getChangeoverDate = (row) =>
   row?.available_date || row?.needed_date || row?.updated || row?.created || null;
