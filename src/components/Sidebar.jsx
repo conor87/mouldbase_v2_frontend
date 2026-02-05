@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { ArrowLeftRight, BarChart3, Calendar, Home, Settings, Wrench } from "lucide-react";
+import { ArrowLeftRight, BarChart3, Calendar, Factory, Home, Settings, Wrench } from "lucide-react";
 
 const parseJwt = (token) => {
   try {
@@ -35,6 +35,7 @@ const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: BarChart3, superAdminOnly: true },
   { to: "/", label: "Moulds", icon: Home, end: true },
   { to: "/changeovers", label: "Przezbrojenia", icon: ArrowLeftRight },
+  { to: "/current_sv", label: "Maszyny", icon: Factory },
   { to: "/kalendarz", label: "Kalendarz", icon: Calendar },
   { to: "/tpm", label: "TPM", icon: Wrench },
   { to: "/moulds-admin", label: "Dodaj forme", icon: Settings, adminOnly: true },

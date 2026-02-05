@@ -72,7 +72,8 @@ const buildMediaSrc = (maybePath) => {
 };
 
 export default function MouldDetails() {
-  const { mould_number } = useParams(); // /moulds/:mould_number
+  const params = useParams();
+  const mould_number = params.mould_number ?? params.number; // /moulds/:mould_number (or legacy :number)
   const location = useLocation();
   const navigate = useNavigate();
 

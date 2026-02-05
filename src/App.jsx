@@ -22,6 +22,7 @@ import ProductionAdmin from "./components/ProductionAdmin.jsx";
 import AppLayout from "./components/AppLayout.jsx";
 import MouldsAdmin from "./components/MouldsAdmin.jsx";
 import Dashboard from "./components/Dashboard.jsx";
+import CurrentSv from "./components/CurrentSv.jsx";
 
 
 
@@ -34,8 +35,9 @@ function App() {
           <Routes>
             <Route element={<AppLayout />}>
               <Route path="/" element={<Moulds />} />
-              <Route path="/moulds/:number" element={<MouldDetails />} />
+              <Route path="/moulds/:mould_number" element={<MouldDetails />} />
               <Route path="/changeovers" element={<Changeovers />} />
+              <Route path="/current_sv" element={<CurrentSv />} />
               <Route path="/tpm" element={<Tpm />} />
               <Route path="/kalendarz" element={<Kalendarz />} />
             </Route>
