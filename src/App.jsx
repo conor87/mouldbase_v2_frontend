@@ -12,7 +12,6 @@ import MouldDetails from "./components/MouldDetails";
 
 import Login from "./components/Login";
 import Register from "./components/Register";
-import RequireAuth from "./components/RequireAuth";
 import RequireRole from './components/RequireRole.jsx';
 import SuperAdminPanel from "./components/SuperAdminPanel";
 import AdminPanel from "./components/AdminPanel";
@@ -33,14 +32,12 @@ function App() {
         {/* <Navbar /> */}
 
           <Routes>
-            <Route element={<RequireAuth />}>
-              <Route element={<AppLayout />}>
-                <Route path="/" element={<Moulds />} />
-                <Route path="/moulds/:number" element={<MouldDetails />} />
-                <Route path="/changeovers" element={<Changeovers />} />
-                <Route path="/tpm" element={<Tpm />} />
-                <Route path="/kalendarz" element={<Kalendarz />} />
-              </Route>
+            <Route element={<AppLayout />}>
+              <Route path="/" element={<Moulds />} />
+              <Route path="/moulds/:number" element={<MouldDetails />} />
+              <Route path="/changeovers" element={<Changeovers />} />
+              <Route path="/tpm" element={<Tpm />} />
+              <Route path="/kalendarz" element={<Kalendarz />} />
             </Route>
 
             <Route element={<RequireRole allowedRoles={["admin", "admindn", "superadmin"]} />}>
