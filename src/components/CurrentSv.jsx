@@ -42,11 +42,30 @@ const formatCell = (value) => {
   }
 };
 
-const labelKey = (key) =>
-  String(key || "")
+const labelKey = (key) => {
+  const raw = String(key || "");
+  const normalized = raw.toLowerCase().replace(/[\s_]+/g, "");
+  const map = {
+    rv1: "Maszyna",
+    tools: "Forma",
+    statusname: "Status",
+    sptxt: "Wyrób",
+  };
+  if (map[normalized]) return map[normalized];
+  return raw
     .replace(/_/g, " ")
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
+const getStatusValue = (row) => {
+  if (!row) return "";
+  const keys = Object.keys(row);
+  const key =
+    keys.find((k) => String(k || "").toLowerCase().replace(/[\s_]+/g, "") === "statusname") ||
+    keys.find((k) => String(k || "").toLowerCase().replace(/[\s_]+/g, "") === "status");
+  return key ? String(row[key] ?? "").trim() : "";
+};
 
 export default function CurrentSv() {
   const token = localStorage.getItem("access_token");
@@ -100,6 +119,30 @@ export default function CurrentSv() {
     return [...base, ...Array.from(extras)];
   }, [rows]);
 
+  const machineKey = useMemo(() => {
+    if (!rows || rows.length === 0) return null;
+    const keys = Object.keys(rows[0] || {});
+    return (
+      keys.find((k) => String(k || "").toLowerCase().replace(/[\s_]+/g, "") === "rv1") ??
+      keys.find((k) => String(k || "").toLowerCase().replace(/[\s_]+/g, "") === "maszyna") ??
+      null
+    );
+  }, [rows]);
+
+  const sortedRows = useMemo(() => {
+    if (!rows || rows.length === 0) return [];
+    if (!machineKey) return [...rows];
+    const collator = new Intl.Collator("pl-PL", { numeric: true, sensitivity: "base" });
+    return [...rows].sort((a, b) => {
+      const av = String(a?.[machineKey] ?? "").trim();
+      const bv = String(b?.[machineKey] ?? "").trim();
+      if (!av && !bv) return 0;
+      if (!av) return 1;
+      if (!bv) return -1;
+      return collator.compare(av, bv);
+    });
+  }, [rows, machineKey]);
+
   const mouldNumberSet = useMemo(() => {
     return new Set((moulds || []).map((m) => String(m?.mould_number ?? "").trim()).filter(Boolean));
   }, [moulds]);
@@ -122,7 +165,7 @@ export default function CurrentSv() {
   return (
     <div className="p-10 text-white">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-4xl text-cyan-400 font-bold">Current SV</h1>
+        <h1 className="text-4xl text-cyan-400 font-bold">Formy na maszynach</h1>
         <button
           type="button"
           onClick={refresh}
@@ -150,10 +193,12 @@ export default function CurrentSv() {
               </tr>
             </thead>
             <tbody className="text-center">
-              {rows.map((row, index) => (
+              {sortedRows.map((row, index) => (
                 <tr
                   key={row?.id ?? `${index}-${columns.length}`}
-                  className="border-t border-white/10 hover:bg-white/5"
+                  className={`border-t border-white/10 hover:bg-white/5 ${
+                    getStatusValue(row).toUpperCase() === "AWARIA FORMY" ? "bg-red-600/50" : ""
+                  }`}
                 >
                   {columns.map((col) => (
                     <td key={col} className="px-4 py-3 align-middle whitespace-nowrap">
