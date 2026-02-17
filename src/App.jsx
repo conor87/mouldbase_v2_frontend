@@ -23,6 +23,12 @@ import AppLayout from "./components/AppLayout.jsx";
 import MouldsAdmin from "./components/MouldsAdmin.jsx";
 import Dashboard from "./components/Dashboard.jsx";
 import CurrentSv from "./components/CurrentSv.jsx";
+import MES from "./components/MES.jsx";
+import MES_MachineGroups from "./components/MES_MachineGroups.jsx";
+import MES_Machines from "./components/MES_Machines.jsx";
+import MES_Operations from "./components/MES_Operations.jsx";
+import MES_MachinePanel from "./components/MES_MachinePanel.jsx";
+import MES_Service from "./components/MES_Service.jsx";
 
 
 
@@ -40,6 +46,17 @@ function App() {
               <Route path="/current_sv" element={<CurrentSv />} />
               <Route path="/tpm" element={<Tpm />} />
               <Route path="/kalendarz" element={<Kalendarz />} />
+            </Route>
+
+            <Route element={<RequireRole allowedRoles={["userdn", "admindn", "superadmin"]} />}>
+              <Route element={<AppLayout />}>
+                <Route path="/mes" element={<MES />} />
+                <Route path="/mes/production" element={<MES_MachineGroups />} />
+                <Route path="/mes/production/group/:groupId" element={<MES_Machines />} />
+                <Route path="/mes/production/machine/:machineId" element={<MES_Operations />} />
+                <Route path="/mes/production/machine/:machineId/panel/:operationId" element={<MES_MachinePanel />} />
+                <Route path="/mes/service" element={<MES_Service />} />
+              </Route>
             </Route>
 
             <Route element={<RequireRole allowedRoles={["admin", "admindn", "superadmin"]} />}>

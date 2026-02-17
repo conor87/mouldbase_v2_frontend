@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { ArrowLeftRight, BarChart3, Calendar, Factory, Home, Settings, Wrench } from "lucide-react";
+import { ArrowLeftRight, BarChart3, Calendar, Cpu, Factory, Home, Settings, Wrench } from "lucide-react";
 
 const parseJwt = (token) => {
   try {
@@ -29,6 +29,11 @@ const isAdminFromToken = () => {
   return role === "admindn" || role === "superadmin";
 };
 
+const isMesUser = () => {
+  const role = getRoleFromToken();
+  return role === "userdn" || role === "admindn" || role === "superadmin";
+};
+
 const isSuperAdminFromToken = () => getRoleFromToken() === "superadmin";
 
 const navItems = [
@@ -39,6 +44,7 @@ const navItems = [
   { to: "/kalendarz", label: "Kalendarz", icon: Calendar },
   { to: "/tpm", label: "TPM", icon: Wrench },
   { to: "/moulds-admin", label: "Dodaj forme", icon: Settings, adminOnly: true },
+  { to: "/mes", label: "MES", icon: Cpu, mesOnly: true },
 ];
 
 const baseItemClasses =
@@ -65,9 +71,11 @@ function NavItem({ to, label, icon: Icon, end }) {
 export default function Sidebar() {
   const canAddMould = isAdminFromToken();
   const isSuperAdmin = isSuperAdminFromToken();
+  const canMes = isMesUser();
   const items = navItems.filter((item) => {
     if (item.superAdminOnly && !isSuperAdmin) return false;
     if (item.adminOnly && !canAddMould) return false;
+    if (item.mesOnly && !canMes) return false;
     return true;
   });
 

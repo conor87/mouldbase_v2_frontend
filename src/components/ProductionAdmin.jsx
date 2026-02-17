@@ -61,6 +61,7 @@ export default function ProductionAdmin() {
   const [workstations, setWorkstations] = useState([]);
   const [operations, setOperations] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [machineGroups, setMachineGroups] = useState([]);
 
   const user = getCurrentUser();
   const role = user?.role;
@@ -69,8 +70,10 @@ export default function ProductionAdmin() {
 
   const [orderSearch, setOrderSearch] = useState("");
   const [operationTaskSearch, setOperationTaskSearch] = useState("");
+  const [operationTaskFilter, setOperationTaskFilter] = useState("");
+  const [operationOrderFilter, setOperationOrderFilter] = useState("");
 
-  const [statusForm, setStatusForm] = useState({ status_no: "", name: "" });
+  const [statusForm, setStatusForm] = useState({ status_no: "", name: "", color: "" });
   const [orderTypeForm, setOrderTypeForm] = useState({ code: "", name: "" });
   const [orderForm, setOrderForm] = useState({
     order_number: "",
@@ -92,6 +95,7 @@ export default function ProductionAdmin() {
     status_id: "",
     current_task_id: "",
     user_id: "",
+    machine_group_id: "",
   });
   const [operationForm, setOperationForm] = useState({
     task_id: "",
@@ -119,7 +123,11 @@ export default function ProductionAdmin() {
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingWorkstationId, setEditingWorkstationId] = useState(null);
   const [editingOperationId, setEditingOperationId] = useState(null);
+  const [showOperationModal, setShowOperationModal] = useState(false);
   const [editingLogId, setEditingLogId] = useState(null);
+  const [showCopyModal, setShowCopyModal] = useState(false);
+  const [copyFromTaskId, setCopyFromTaskId] = useState("");
+  const [copyToTaskId, setCopyToTaskId] = useState("");
 
   const authHeaders = () => {
     const token = localStorage.getItem("access_token");
@@ -161,26 +169,36 @@ export default function ProductionAdmin() {
     onDone?.();
   };
 
-  const loadAll = async () => {
-    try {
-      setMessage(null);
-      await Promise.all([
-        apiGet("/production/machine-statuses", setMachineStatuses),
-        apiGet("/production/order-types", setOrderTypes),
-        apiGet("/production/orders", setOrders),
-        apiGet("/production/tasks", setTasks),
-        apiGet("/production/workstations", setWorkstations),
-        apiGet("/production/operations", setOperations),
-        apiGet("/production/logs", setLogs),
-      ]);
-    } catch (err) {
-      console.error(err);
-      setMessage("Load failed. Check console and API status.");
-    }
-  };
-
   useEffect(() => {
-    loadAll();
+    let ignore = false;
+    (async () => {
+      try {
+        setMessage(null);
+        const [s, ot, o, t, w, op, l, mg] = await Promise.all([
+          fetch(`${API_BASE}/production/machine-statuses`, { headers: authHeaders() }).then((r) => r.json()),
+          fetch(`${API_BASE}/production/order-types`, { headers: authHeaders() }).then((r) => r.json()),
+          fetch(`${API_BASE}/production/orders`, { headers: authHeaders() }).then((r) => r.json()),
+          fetch(`${API_BASE}/production/tasks`, { headers: authHeaders() }).then((r) => r.json()),
+          fetch(`${API_BASE}/production/workstations`, { headers: authHeaders() }).then((r) => r.json()),
+          fetch(`${API_BASE}/production/operations`, { headers: authHeaders() }).then((r) => r.json()),
+          fetch(`${API_BASE}/production/logs`, { headers: authHeaders() }).then((r) => r.json()),
+          fetch(`${API_BASE}/production/machine-groups`, { headers: authHeaders() }).then((r) => r.json()),
+        ]);
+        if (ignore) return;
+        setMachineStatuses(Array.isArray(s) ? s : []);
+        setOrderTypes(Array.isArray(ot) ? ot : []);
+        setOrders(Array.isArray(o) ? o : []);
+        setTasks(Array.isArray(t) ? t : []);
+        setWorkstations(Array.isArray(w) ? w : []);
+        setOperations(Array.isArray(op) ? op : []);
+        setLogs(Array.isArray(l) ? l : []);
+        setMachineGroups(Array.isArray(mg) ? mg : mg?.results ?? mg?.data ?? []);
+      } catch (err) {
+        console.error(err);
+        if (!ignore) setMessage("Load failed. Check console and API status.");
+      }
+    })();
+    return () => { ignore = true; };
   }, []);
 
   const orderOptions = useMemo(() => orders || [], [orders]);
@@ -245,12 +263,51 @@ export default function ProductionAdmin() {
       return fields.some((value) => value.includes(term));
     });
   }, [taskOptions, operationTaskSearch, orderMetaById]);
+  const tasksFilteredByOrder = useMemo(() => {
+    if (!operationOrderFilter) return filteredTaskOptionsForOperations;
+    const orderId = Number(operationOrderFilter);
+    return filteredTaskOptionsForOperations.filter((t) => t.order_id === orderId);
+  }, [filteredTaskOptionsForOperations, operationOrderFilter]);
+  const filteredTasks = useMemo(() => {
+    const term = orderSearch.trim().toLowerCase();
+    if (!term) return tasks;
+    return tasks.filter((task) => {
+      const label = orderLabelById.get(task.order_id) ?? "";
+      const fields = [label, task.detail_number, task.detail_name]
+        .filter(Boolean)
+        .map((v) => String(v).toLowerCase());
+      return fields.some((v) => v.includes(term));
+    });
+  }, [tasks, orderSearch, orderLabelById]);
+  const filteredOperations = useMemo(() => {
+    let list = operations;
+    if (operationOrderFilter) {
+      const orderFilteredTaskIds = new Set(
+        taskOptions.filter((t) => t.order_id === Number(operationOrderFilter)).map((t) => t.id)
+      );
+      list = list.filter((op) => orderFilteredTaskIds.has(op.task_id));
+    }
+    if (operationTaskFilter) {
+      const filterId = Number(operationTaskFilter);
+      list = list.filter((op) => op.task_id === filterId);
+    }
+    const term = operationTaskSearch.trim().toLowerCase();
+    if (!term) return list;
+    return list.filter((op) => {
+      const taskLabel = taskLabelById.get(op.task_id) ?? "";
+      const fields = [taskLabel, op.description, String(op.operation_no ?? "")]
+        .filter(Boolean)
+        .map((v) => String(v).toLowerCase());
+      return fields.some((v) => v.includes(term));
+    });
+  }, [operations, operationTaskSearch, operationTaskFilter, operationOrderFilter, taskLabelById, taskOptions]);
 
   const handleCreateStatus = async (e) => {
     e.preventDefault();
     const payload = {
       status_no: toIntOrZero(statusForm.status_no),
       name: statusForm.name.trim(),
+      color: statusForm.color.trim() || null,
     };
     if (!payload.name) {
       setMessage("Status name is required.");
@@ -259,14 +316,14 @@ export default function ProductionAdmin() {
     if (editingStatusId) {
       await apiPut(`/production/machine-statuses/${editingStatusId}`, payload, async () => {
         setEditingStatusId(null);
-        setStatusForm({ status_no: "", name: "" });
+        setStatusForm({ status_no: "", name: "", color: "" });
         await apiGet("/production/machine-statuses", setMachineStatuses);
         setMessage("Status zaktualizowany.");
       });
       return;
     }
     await apiPost("/production/machine-statuses", payload, async () => {
-      setStatusForm({ status_no: "", name: "" });
+      setStatusForm({ status_no: "", name: "", color: "" });
       await apiGet("/production/machine-statuses", setMachineStatuses);
       setMessage("Status dodany.");
     });
@@ -388,6 +445,7 @@ export default function ProductionAdmin() {
       status_id: toIntOrNull(workstationForm.status_id),
       current_task_id: toIntOrNull(workstationForm.current_task_id),
       user_id: toIntOrNull(workstationForm.user_id),
+      machine_group_id: toIntOrNull(workstationForm.machine_group_id),
     };
     if (!payload.name) {
       setMessage("Workstation name is required.");
@@ -402,6 +460,7 @@ export default function ProductionAdmin() {
           status_id: "",
           current_task_id: "",
           user_id: "",
+          machine_group_id: "",
         });
         await apiGet("/production/workstations", setWorkstations);
         setMessage("Stanowisko zaktualizowane.");
@@ -442,6 +501,7 @@ export default function ProductionAdmin() {
     if (editingOperationId) {
       await apiPut(`/production/operations/${editingOperationId}`, payload, async () => {
         setEditingOperationId(null);
+        setShowOperationModal(false);
         setOperationForm({
           task_id: "",
           operation_no: "",
@@ -460,6 +520,7 @@ export default function ProductionAdmin() {
       return;
     }
     await apiPost("/production/operations", payload, async () => {
+      setShowOperationModal(false);
       setOperationForm({
         task_id: "",
         operation_no: "",
@@ -475,6 +536,47 @@ export default function ProductionAdmin() {
       await apiGet("/production/operations", setOperations);
       setMessage("Operacja dodana.");
     });
+  };
+
+  const handleCopyOperations = async () => {
+    const fromId = toIntOrNull(copyFromTaskId);
+    const toId = toIntOrNull(copyToTaskId);
+    if (!fromId || !toId) {
+      setMessage("Wybierz zlecenie źródłowe i docelowe.");
+      return;
+    }
+    if (fromId === toId) {
+      setMessage("Zlecenie źródłowe i docelowe muszą być różne.");
+      return;
+    }
+    const sourceOps = operations.filter((op) => op.task_id === fromId);
+    if (sourceOps.length === 0) {
+      setMessage("Brak operacji do skopiowania w wybranym zleceniu.");
+      return;
+    }
+    try {
+      for (const op of sourceOps) {
+        await apiPost("/production/operations", {
+          task_id: toId,
+          operation_no: op.operation_no,
+          description: op.description,
+          suggested_duration_min: op.suggested_duration_min,
+          is_done: false,
+          is_released: false,
+          is_started: false,
+          duration_total_min: 0,
+          duration_shift_min: 0,
+          workstation_id: op.workstation_id,
+        });
+      }
+      await apiGet("/production/operations", setOperations);
+      setShowCopyModal(false);
+      setCopyFromTaskId("");
+      setCopyToTaskId("");
+      setMessage(`Skopiowano ${sourceOps.length} operacji.`);
+    } catch (err) {
+      setMessage("Błąd podczas kopiowania operacji.");
+    }
   };
 
   const handleCreateLog = async (e) => {
@@ -520,7 +622,7 @@ export default function ProductionAdmin() {
 
   const startEditStatus = (row) => {
     setEditingStatusId(row.id);
-    setStatusForm({ status_no: String(row.status_no ?? ""), name: row.name ?? "" });
+    setStatusForm({ status_no: String(row.status_no ?? ""), name: row.name ?? "", color: row.color ?? "" });
     setMessage(null);
   };
 
@@ -562,12 +664,14 @@ export default function ProductionAdmin() {
       status_id: row.status_id != null ? String(row.status_id) : "",
       current_task_id: row.current_task_id != null ? String(row.current_task_id) : "",
       user_id: row.user_id != null ? String(row.user_id) : "",
+      machine_group_id: row.machine_group_id != null ? String(row.machine_group_id) : "",
     });
     setMessage(null);
   };
 
   const startEditOperation = (row) => {
     setEditingOperationId(row.id);
+    setShowOperationModal(true);
     setOperationForm({
       task_id: row.task_id != null ? String(row.task_id) : "",
       operation_no: row.operation_no != null ? String(row.operation_no) : "",
@@ -597,7 +701,7 @@ export default function ProductionAdmin() {
 
   const tabs = [
     { id: "machine_statuses", label: "Statusy maszyn" },
-    { id: "order_types", label: "Typy zleceń" },
+    { id: "order_types", label: "Typy zamówień" },
     { id: "workstations", label: "Stanowiska produkcyjne" },
     { id: "orders", label: "Zamówienia" },
     { id: "tasks", label: "Zlecenia" },
@@ -641,7 +745,7 @@ export default function ProductionAdmin() {
             {activeTab === "machine_statuses" && (
               <section className="bg-slate-800/60 border border-slate-700 rounded-xl p-5">
                 <h2 className="text-xl font-semibold mb-4">Statusy maszyn</h2>
-                {isSuperAdmin ? (
+                {canEdit ? (
                   <form onSubmit={handleCreateStatus} className="grid md:grid-cols-3 gap-3 mb-6">
                     <input
                       type="number"
@@ -657,6 +761,13 @@ export default function ProductionAdmin() {
                       onChange={(e) => setStatusForm({ ...statusForm, name: e.target.value })}
                       className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
                     />
+                    <input
+                      type="text"
+                      placeholder="Kolor (np. green, red, yellow)"
+                      value={statusForm.color}
+                      onChange={(e) => setStatusForm({ ...statusForm, color: e.target.value })}
+                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                    />
                     <button className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500">
                       {editingStatusId ? "Zapisz status" : "Dodaj status"}
                     </button>
@@ -665,7 +776,7 @@ export default function ProductionAdmin() {
                         type="button"
                         onClick={() => {
                           setEditingStatusId(null);
-                          setStatusForm({ status_no: "", name: "" });
+                          setStatusForm({ status_no: "", name: "", color: "" });
                         }}
                         className="px-3 py-2 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400 md:col-span-3"
                       >
@@ -675,7 +786,7 @@ export default function ProductionAdmin() {
                   </form>
                 ) : (
                   <div className="text-sm text-slate-400 mb-6">
-                    Tylko superadmin może dodawać i edytować statusy maszyn.
+                    Tylko admin może dodawać i edytować statusy maszyn.
                   </div>
                 )}
                 <div className="text-sm text-slate-400 mb-3">{machineStatuses.length} rekordów</div>
@@ -686,7 +797,8 @@ export default function ProductionAdmin() {
                     { key: "id", header: "ID" },
                     { key: "status_no", header: "Numer statusu" },
                     { key: "name", header: "Nazwa" },
-                    ...(isSuperAdmin
+                    { key: "color", header: "Kolor" },
+                    ...(canEdit
                       ? [
                           {
                             key: "actions",
@@ -710,7 +822,7 @@ export default function ProductionAdmin() {
 
             {activeTab === "order_types" && (
               <section className="bg-slate-800/60 border border-slate-700 rounded-xl p-5">
-                <h2 className="text-xl font-semibold mb-4">Typy zleceń</h2>
+                <h2 className="text-xl font-semibold mb-4">Typy zamówień</h2>
                 {isSuperAdmin ? (
                   <form onSubmit={handleCreateOrderType} className="grid md:grid-cols-3 gap-3 mb-6">
                     <input
@@ -784,7 +896,7 @@ export default function ProductionAdmin() {
                 <form onSubmit={handleCreateOrder} className="grid md:grid-cols-3 gap-3 mb-6">
                   <input
                     type="text"
-                    placeholder="Numer zlecenia"
+                    placeholder="Numer zamówienia"
                     value={orderForm.order_number}
                     onChange={(e) => setOrderForm({ ...orderForm, order_number: e.target.value })}
                     className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
@@ -794,7 +906,7 @@ export default function ProductionAdmin() {
                     onChange={(e) => setOrderForm({ ...orderForm, order_type_id: e.target.value })}
                     className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
                   >
-                    <option value="">Wybierz typ zlecenia</option>
+                    <option value="">Wybierz typ zamówienia</option>
                     {orderTypeOptions.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.code} - {t.name}
@@ -851,8 +963,15 @@ export default function ProductionAdmin() {
                   getRowKey={(row) => row.id}
                   columns={[
                     { key: "id", header: "ID" },
-                    { key: "order_number", header: "Numer zlecenia" },
-                    { key: "order_type_id", header: "Typ (ID)" },
+                    { key: "order_number", header: "Numer zamówienia" },
+                    {
+                      key: "order_type_id",
+                      header: "Typ",
+                      render: (row) => {
+                        const ot = orderTypeOptions.find((t) => t.id === row.order_type_id);
+                        return ot ? ot.code : row.order_type_id;
+                      },
+                    },
                     { key: "is_done", header: "Zakończone", render: (row) => (row.is_done ? "tak" : "nie") },
                     { key: "team", header: "Zespół" },
                     { key: "product_name", header: "Nazwa wyrobu" },
@@ -884,7 +1003,7 @@ export default function ProductionAdmin() {
                 <form onSubmit={handleCreateTask} className="grid md:grid-cols-3 gap-3 mb-6">
                   <input
                     type="text"
-                    placeholder="Szukaj zamówienia..."
+                    placeholder="Szukaj zlecenia..."
                     value={orderSearch}
                     onChange={(e) => setOrderSearch(e.target.value)}
                     className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
@@ -956,15 +1075,15 @@ export default function ProductionAdmin() {
                     </button>
                   )}
                 </form>
-                <div className="text-sm text-slate-400 mb-3">{tasks.length} rekordów</div>
+                <div className="text-sm text-slate-400 mb-3">{filteredTasks.length} / {tasks.length} rekordów</div>
                 <DataTable
-                  rows={tasks}
+                  rows={filteredTasks}
                   getRowKey={(row) => row.id}
                   columns={[
                     { key: "id", header: "ID" },
                     {
                       key: "order_id",
-                      header: "Zamówienie",
+                      header: "Zlecenie",
                       render: (row) => orderLabelById.get(row.order_id) ?? row.order_id,
                     },
                     { key: "detail_number", header: "Numer detalu" },
@@ -1043,6 +1162,18 @@ export default function ProductionAdmin() {
                       onChange={(e) => setWorkstationForm({ ...workstationForm, user_id: e.target.value })}
                       className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
                     />
+                    <select
+                      value={workstationForm.machine_group_id}
+                      onChange={(e) => setWorkstationForm({ ...workstationForm, machine_group_id: e.target.value })}
+                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                    >
+                      <option value="">Grupa maszyn (opcjonalnie)</option>
+                      {machineGroups.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name}
+                        </option>
+                      ))}
+                    </select>
                     <button className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500">
                       {editingWorkstationId ? "Zapisz stanowisko" : "Dodaj stanowisko"}
                     </button>
@@ -1057,6 +1188,7 @@ export default function ProductionAdmin() {
                             status_id: "",
                             current_task_id: "",
                             user_id: "",
+                            machine_group_id: "",
                           });
                         }}
                         className="px-3 py-2 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400 md:col-span-3"
@@ -1081,6 +1213,14 @@ export default function ProductionAdmin() {
                     { key: "status_id", header: "Status (ID)" },
                     { key: "current_task_id", header: "Aktualne zlecenie (ID)" },
                     { key: "user_id", header: "User ID" },
+                    {
+                      key: "machine_group_id",
+                      header: "Grupa maszyn",
+                      render: (row) => {
+                        const group = machineGroups.find((g) => String(g.id) === String(row.machine_group_id));
+                        return group ? group.name : row.machine_group_id ?? "-";
+                      },
+                    },
                     ...(isSuperAdmin
                       ? [
                           {
@@ -1105,134 +1245,267 @@ export default function ProductionAdmin() {
 
             {activeTab === "operations" && (
               <section className="bg-slate-800/60 border border-slate-700 rounded-xl p-5">
-                <h2 className="text-xl font-semibold mb-4">Operacje</h2>
-                <form onSubmit={handleCreateOperation} className="grid md:grid-cols-3 gap-3 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold">Operacje</h2>
+                  {canEdit && (
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingOperationId(null);
+                          setOperationForm({
+                            task_id: "",
+                            operation_no: "",
+                            description: "",
+                            suggested_duration_min: "",
+                            is_done: false,
+                            is_released: false,
+                            is_started: false,
+                            duration_total_min: "",
+                            duration_shift_min: "",
+                            workstation_id: "",
+                          });
+                          setOperationTaskSearch("");
+                          setShowOperationModal(true);
+                        }}
+                        className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm"
+                      >
+                        Dodaj operację
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCopyFromTaskId("");
+                          setCopyToTaskId("");
+                          setShowCopyModal(true);
+                        }}
+                        className="px-4 py-2 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400 text-sm"
+                      >
+                        Kopiuj operacje
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="grid md:grid-cols-3 gap-3 mb-4">
                   <input
                     type="text"
-                    placeholder="Szukaj zlecenia..."
+                    placeholder="Szukaj..."
                     value={operationTaskSearch}
                     onChange={(e) => setOperationTaskSearch(e.target.value)}
                     className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
                   />
                   <select
-                    value={operationForm.task_id}
-                    onChange={(e) => setOperationForm({ ...operationForm, task_id: e.target.value })}
+                    value={operationOrderFilter}
+                    onChange={(e) => {
+                      setOperationOrderFilter(e.target.value);
+                      setOperationTaskFilter("");
+                    }}
                     className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
                   >
-                    <option value="">Wybierz zlecenie</option>
-                    {filteredTaskOptionsForOperations.map((t) => (
+                    <option value="">Wszystkie zamówienia</option>
+                    {orderOptions.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {orderLabelById.get(o.id) ?? o.order_number}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={operationTaskFilter}
+                    onChange={(e) => setOperationTaskFilter(e.target.value)}
+                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                  >
+                    <option value="">Wszystkie zlecenia</option>
+                    {tasksFilteredByOrder.map((t) => (
                       <option key={t.id} value={t.id}>
                         {taskLabelById.get(t.id) ?? t.detail_name}
                       </option>
                     ))}
                   </select>
-                  <input
-                    type="number"
-                    placeholder="Numer operacji"
-                    value={operationForm.operation_no}
-                    onChange={(e) => setOperationForm({ ...operationForm, operation_no: e.target.value })}
-                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
-                  />
-                  <textarea
-                    placeholder="Opis operacji"
-                    value={operationForm.description}
-                    onChange={(e) => setOperationForm({ ...operationForm, description: e.target.value })}
-                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 md:col-span-3"
-                    rows={3}
-                  />
-                  <input
-                    type="number"
-                    placeholder="Sugerowany czas (min)"
-                    value={operationForm.suggested_duration_min}
-                    onChange={(e) => setOperationForm({ ...operationForm, suggested_duration_min: e.target.value })}
-                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Czas wykonania (min)"
-                    value={operationForm.duration_total_min}
-                    onChange={(e) => setOperationForm({ ...operationForm, duration_total_min: e.target.value })}
-                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Czas na zmianie (min)"
-                    value={operationForm.duration_shift_min}
-                    onChange={(e) => setOperationForm({ ...operationForm, duration_shift_min: e.target.value })}
-                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
-                  />
-                  <select
-                    value={operationForm.workstation_id}
-                    onChange={(e) => setOperationForm({ ...operationForm, workstation_id: e.target.value })}
-                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
-                  >
-                    <option value="">Stanowisko (opcjonalnie)</option>
-                    {workstationOptions.map((w) => (
-                      <option key={w.id} value={w.id}>
-                        {w.name}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="flex flex-wrap items-center gap-6 text-sm text-slate-300 md:col-span-3">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={operationForm.is_done}
-                        onChange={(e) => setOperationForm({ ...operationForm, is_done: e.target.checked })}
-                      />
-                      Zakończone
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={operationForm.is_released}
-                        onChange={(e) => setOperationForm({ ...operationForm, is_released: e.target.checked })}
-                      />
-                      Przekazane do realizacji
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={operationForm.is_started}
-                        onChange={(e) => setOperationForm({ ...operationForm, is_started: e.target.checked })}
-                      />
-                      Rozpoczęte
-                    </label>
+                </div>
+                {showOperationModal && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+                    <div className="bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                      <h3 className="text-lg font-semibold mb-4">
+                        {editingOperationId ? "Edytuj operację" : "Dodaj operację"}
+                      </h3>
+                      <form onSubmit={handleCreateOperation} className="grid md:grid-cols-2 gap-3">
+                        <select
+                          value={operationForm.task_id}
+                          onChange={(e) => setOperationForm({ ...operationForm, task_id: e.target.value })}
+                          className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 md:col-span-2"
+                        >
+                          <option value="">Wybierz zlecenie</option>
+                          {(operationOrderFilter ? tasksFilteredByOrder : taskOptions).map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {taskLabelById.get(t.id) ?? t.detail_name}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          placeholder="Numer operacji"
+                          value={operationForm.operation_no}
+                          onChange={(e) => setOperationForm({ ...operationForm, operation_no: e.target.value })}
+                          className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                        />
+                        <select
+                          value={operationForm.workstation_id}
+                          onChange={(e) => setOperationForm({ ...operationForm, workstation_id: e.target.value })}
+                          className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                        >
+                          <option value="">Stanowisko (opcjonalnie)</option>
+                          {workstationOptions.map((w) => (
+                            <option key={w.id} value={w.id}>
+                              {w.name}
+                            </option>
+                          ))}
+                        </select>
+                        <textarea
+                          placeholder="Opis operacji"
+                          value={operationForm.description}
+                          onChange={(e) => setOperationForm({ ...operationForm, description: e.target.value })}
+                          className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 md:col-span-2"
+                          rows={3}
+                        />
+                        <input
+                          type="number"
+                          placeholder="Sugerowany czas (min)"
+                          value={operationForm.suggested_duration_min}
+                          onChange={(e) => setOperationForm({ ...operationForm, suggested_duration_min: e.target.value })}
+                          className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                        />
+                        <div className="flex flex-wrap items-center gap-6 text-sm text-slate-300 md:col-span-2">
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={operationForm.is_done}
+                              onChange={(e) => setOperationForm({ ...operationForm, is_done: e.target.checked })}
+                            />
+                            Zakończone
+                          </label>
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={operationForm.is_released}
+                              onChange={(e) => setOperationForm({ ...operationForm, is_released: e.target.checked })}
+                            />
+                            Przekazane do realizacji
+                          </label>
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={operationForm.is_started}
+                              onChange={(e) => setOperationForm({ ...operationForm, is_started: e.target.checked })}
+                            />
+                            Rozpoczęte
+                          </label>
+                        </div>
+                        <div className="flex gap-3 md:col-span-2 mt-2">
+                          <button className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500">
+                            {editingOperationId ? "Zapisz operację" : "Dodaj operację"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowOperationModal(false);
+                              setEditingOperationId(null);
+                              setOperationForm({
+                                task_id: "",
+                                operation_no: "",
+                                description: "",
+                                suggested_duration_min: "",
+                                is_done: false,
+                                is_released: false,
+                                is_started: false,
+                                duration_total_min: "",
+                                duration_shift_min: "",
+                                workstation_id: "",
+                              });
+                            }}
+                            className="px-4 py-2 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400"
+                          >
+                            Anuluj
+                          </button>
+                        </div>
+                      </form>
+                    </div>
                   </div>
-                  <button className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500">
-                    {editingOperationId ? "Zapisz operację" : "Dodaj operację"}
-                  </button>
-                  {editingOperationId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingOperationId(null);
-                        setOperationForm({
-                          task_id: "",
-                          operation_no: "",
-                          description: "",
-                          suggested_duration_min: "",
-                          is_done: false,
-                          is_released: false,
-                          is_started: false,
-                          duration_total_min: "",
-                          duration_shift_min: "",
-                          workstation_id: "",
-                        });
-                      }}
-                      className="px-3 py-2 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400 md:col-span-3"
-                    >
-                      Anuluj edycję
-                    </button>
-                  )}
-                </form>
-                <div className="text-sm text-slate-400 mb-3">{operations.length} rekordów</div>
+                )}
+                {showCopyModal && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+                    <div className="bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-lg">
+                      <h3 className="text-lg font-semibold mb-4">Kopiuj operacje</h3>
+                      <div className="grid gap-3">
+                        <label className="text-sm text-slate-400">Z czego (zlecenie źródłowe)</label>
+                        <select
+                          value={copyFromTaskId}
+                          onChange={(e) => setCopyFromTaskId(e.target.value)}
+                          className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                        >
+                          <option value="">Wybierz zlecenie źródłowe</option>
+                          {taskOptions.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {taskLabelById.get(t.id) ?? t.detail_name}
+                            </option>
+                          ))}
+                        </select>
+                        <label className="text-sm text-slate-400">Do czego (zlecenie docelowe)</label>
+                        <select
+                          value={copyToTaskId}
+                          onChange={(e) => setCopyToTaskId(e.target.value)}
+                          className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                        >
+                          <option value="">Wybierz zlecenie docelowe</option>
+                          {(operationOrderFilter ? tasksFilteredByOrder : taskOptions).map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {taskLabelById.get(t.id) ?? t.detail_name}
+                            </option>
+                          ))}
+                        </select>
+                        {copyFromTaskId && (
+                          <div className="text-sm text-slate-400">
+                            Operacji do skopiowania: {operations.filter((op) => op.task_id === toIntOrNull(copyFromTaskId)).length}
+                          </div>
+                        )}
+                        <div className="flex gap-3 mt-2">
+                          <button
+                            type="button"
+                            onClick={handleCopyOperations}
+                            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500"
+                          >
+                            Kopiuj
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowCopyModal(false);
+                              setCopyFromTaskId("");
+                              setCopyToTaskId("");
+                            }}
+                            className="px-4 py-2 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400"
+                          >
+                            Anuluj
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className="text-sm text-slate-400 mb-3">{filteredOperations.length} / {operations.length} rekordów</div>
                 <DataTable
-                  rows={operations}
+                  rows={filteredOperations}
                   getRowKey={(row) => row.id}
                   columns={[
                     { key: "id", header: "ID" },
-                    { key: "task_id", header: "Zlecenie (ID)" },
+                    {
+                      key: "task_id",
+                      header: "Zlecenie",
+                      render: (row) => {
+                        const task = taskOptions.find((t) => t.id === row.task_id);
+                        if (!task) return row.task_id;
+                        return orderLabelById.get(task.order_id) ?? row.task_id;
+                      },
+                    },
                     { key: "operation_no", header: "Nr operacji" },
                     { key: "description", header: "Opis" },
                     { key: "suggested_duration_min", header: "Sugerowany czas (min)" },
