@@ -28,7 +28,7 @@ const DataTable = ({ columns, rows, getRowKey }) => {
         <thead className="bg-slate-900/60 text-slate-300">
           <tr>
             {columns.map((col) => (
-              <th key={col.key} className="px-3 py-2 text-left font-medium">
+              <th key={col.key} className="px-3 py-2 text-center font-medium">
                 {col.header}
               </th>
             ))}
@@ -38,7 +38,7 @@ const DataTable = ({ columns, rows, getRowKey }) => {
           {rows.map((row, index) => (
             <tr key={getRowKey(row, index)} className="hover:bg-slate-800/40">
               {columns.map((col) => (
-                <td key={col.key} className="px-3 py-2 text-slate-200">
+                <td key={col.key} className="px-3 py-2 text-slate-200 text-center">
                   {col.render ? col.render(row) : row[col.key]}
                 </td>
               ))}
@@ -396,6 +396,52 @@ export default function ProductionAdmin() {
     });
   };
 
+  const handleToggleOrderDone = async (order) => {
+    const newDone = !order.is_done;
+    if (newDone) {
+      const unfinishedTasks = tasks.filter(
+        (t) => t.order_id === order.id && !t.is_done
+      );
+      if (unfinishedTasks.length > 0) {
+        setMessage(
+          `Nie można zakończyć zamówienia — ${unfinishedTasks.length} niezakończonych zleceń.`
+        );
+        return;
+      }
+    }
+    await apiPut(`/production/orders/${order.id}`, { is_done: newDone }, async () => {
+      await apiGet("/production/orders", setOrders);
+      setMessage(newDone ? "Zamówienie zakończone." : "Zamówienie otwarte ponownie.");
+    });
+  };
+
+  const handleToggleTaskDone = async (task) => {
+    const newDone = !task.is_done;
+    if (newDone) {
+      const unfinishedOps = operations.filter(
+        (op) => op.task_id === task.id && !op.is_done
+      );
+      if (unfinishedOps.length > 0) {
+        setMessage(
+          `Nie można zakończyć zlecenia — ${unfinishedOps.length} niezakończonych operacji.`
+        );
+        return;
+      }
+    }
+    await apiPut(`/production/tasks/${task.id}`, { is_done: newDone }, async () => {
+      await apiGet("/production/tasks", setTasks);
+      setMessage(newDone ? "Zlecenie zakończone." : "Zlecenie otwarte ponownie.");
+    });
+  };
+
+  const handleToggleOperationDone = async (op) => {
+    const newDone = !op.is_done;
+    await apiPut(`/production/operations/${op.id}`, { is_done: newDone }, async () => {
+      await apiGet("/production/operations", setOperations);
+      setMessage(newDone ? "Operacja zakończona." : "Operacja otwarta ponownie.");
+    });
+  };
+
   const handleCreateTask = async (e) => {
     e.preventDefault();
     const payload = {
@@ -710,10 +756,10 @@ export default function ProductionAdmin() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
-      <Navbar />
+    <div className="min-h-screen bg-slate-800/90 text-white">
+      <Navbar titleOverride={<><span className="text-white">Mould</span><span className="text-cyan-400">Production 2.0</span></>} />
       <div className="pt-20 px-6 pb-12">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-[220px_1fr] gap-6">
+        <div className="mx-auto grid md:grid-cols-[220px_1fr] gap-6">
           <aside className="bg-slate-800/60 border border-slate-700 rounded-xl p-4 h-fit">
             <div className="text-sm uppercase tracking-wider text-slate-400 mb-3">
               Administracja produkcji
@@ -744,45 +790,55 @@ export default function ProductionAdmin() {
 
             {activeTab === "machine_statuses" && (
               <section className="bg-slate-800/60 border border-slate-700 rounded-xl p-5">
-                <h2 className="text-xl font-semibold mb-4">Statusy maszyn</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold">Statusy maszyn</h2>
+                  {canEdit && (
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        form="statusForm"
+                        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm"
+                      >
+                        {editingStatusId ? "Zapisz status" : "Dodaj status"}
+                      </button>
+                      {editingStatusId && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingStatusId(null);
+                            setStatusForm({ status_no: "", name: "", color: "" });
+                          }}
+                          className="px-3 py-1.5 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400 text-sm"
+                        >
+                          Anuluj
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
                 {canEdit ? (
-                  <form onSubmit={handleCreateStatus} className="grid md:grid-cols-3 gap-3 mb-6">
+                  <form id="statusForm" onSubmit={handleCreateStatus} className="grid md:grid-cols-3 gap-3 mb-6">
                     <input
                       type="number"
                       placeholder="Numer statusu"
                       value={statusForm.status_no}
                       onChange={(e) => setStatusForm({ ...statusForm, status_no: e.target.value })}
-                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                     />
                     <input
                       type="text"
                       placeholder="Nazwa statusu"
                       value={statusForm.name}
                       onChange={(e) => setStatusForm({ ...statusForm, name: e.target.value })}
-                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                     />
                     <input
                       type="text"
                       placeholder="Kolor (np. green, red, yellow)"
                       value={statusForm.color}
                       onChange={(e) => setStatusForm({ ...statusForm, color: e.target.value })}
-                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                     />
-                    <button className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500">
-                      {editingStatusId ? "Zapisz status" : "Dodaj status"}
-                    </button>
-                    {editingStatusId && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingStatusId(null);
-                          setStatusForm({ status_no: "", name: "", color: "" });
-                        }}
-                        className="px-3 py-2 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400 md:col-span-3"
-                      >
-                        Anuluj edycję
-                      </button>
-                    )}
                   </form>
                 ) : (
                   <div className="text-sm text-slate-400 mb-6">
@@ -822,38 +878,48 @@ export default function ProductionAdmin() {
 
             {activeTab === "order_types" && (
               <section className="bg-slate-800/60 border border-slate-700 rounded-xl p-5">
-                <h2 className="text-xl font-semibold mb-4">Typy zamówień</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold">Typy zamówień</h2>
+                  {isSuperAdmin && (
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        form="orderTypeForm"
+                        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm"
+                      >
+                        {editingOrderTypeId ? "Zapisz typ zamówienia" : "Dodaj typ zamówienia"}
+                      </button>
+                      {editingOrderTypeId && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingOrderTypeId(null);
+                            setOrderTypeForm({ code: "", name: "" });
+                          }}
+                          className="px-3 py-1.5 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400 text-sm"
+                        >
+                          Anuluj
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
                 {isSuperAdmin ? (
-                  <form onSubmit={handleCreateOrderType} className="grid md:grid-cols-3 gap-3 mb-6">
+                  <form id="orderTypeForm" onSubmit={handleCreateOrderType} className="grid md:grid-cols-3 gap-3 mb-6">
                     <input
                       type="text"
                       placeholder="Skrót"
                       value={orderTypeForm.code}
                       onChange={(e) => setOrderTypeForm({ ...orderTypeForm, code: e.target.value })}
-                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                     />
                     <input
                       type="text"
                       placeholder="Pełna nazwa"
                       value={orderTypeForm.name}
                       onChange={(e) => setOrderTypeForm({ ...orderTypeForm, name: e.target.value })}
-                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                     />
-                    <button className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500">
-                      {editingOrderTypeId ? "Zapisz typ" : "Dodaj typ"}
-                    </button>
-                    {editingOrderTypeId && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingOrderTypeId(null);
-                          setOrderTypeForm({ code: "", name: "" });
-                        }}
-                        className="px-3 py-2 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400 md:col-span-3"
-                      >
-                        Anuluj edycję
-                      </button>
-                    )}
                   </form>
                 ) : (
                   <div className="text-sm text-slate-400 mb-6">
@@ -892,19 +958,48 @@ export default function ProductionAdmin() {
 
             {activeTab === "orders" && (
               <section className="bg-slate-800/60 border border-slate-700 rounded-xl p-5">
-                <h2 className="text-xl font-semibold mb-4">Zamówienia</h2>
-                <form onSubmit={handleCreateOrder} className="grid md:grid-cols-3 gap-3 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold">Zamówienia</h2>
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      form="orderForm"
+                      className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm"
+                    >
+                      {editingOrderId ? "Zapisz zamówienie" : "Dodaj zamówienie"}
+                    </button>
+                    {editingOrderId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingOrderId(null);
+                          setOrderForm({
+                            order_number: "",
+                            order_type_id: "",
+                            is_done: false,
+                            team: "",
+                            product_name: "",
+                          });
+                        }}
+                        className="px-3 py-1.5 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400 text-sm"
+                      >
+                        Anuluj
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <form id="orderForm" onSubmit={handleCreateOrder} className="grid md:grid-cols-3 gap-3 mb-6">
                   <input
                     type="text"
                     placeholder="Numer zamówienia"
                     value={orderForm.order_number}
                     onChange={(e) => setOrderForm({ ...orderForm, order_number: e.target.value })}
-                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                   />
                   <select
                     value={orderForm.order_type_id}
                     onChange={(e) => setOrderForm({ ...orderForm, order_type_id: e.target.value })}
-                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                   >
                     <option value="">Wybierz typ zamówienia</option>
                     {orderTypeOptions.map((t) => (
@@ -918,44 +1013,15 @@ export default function ProductionAdmin() {
                     placeholder="Zespół"
                     value={orderForm.team}
                     onChange={(e) => setOrderForm({ ...orderForm, team: e.target.value })}
-                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                   />
                   <input
                     type="text"
                     placeholder="Nazwa wyrobu"
                     value={orderForm.product_name}
                     onChange={(e) => setOrderForm({ ...orderForm, product_name: e.target.value })}
-                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                   />
-                  <label className="flex items-center gap-2 text-sm text-slate-300">
-                    <input
-                      type="checkbox"
-                      checked={orderForm.is_done}
-                      onChange={(e) => setOrderForm({ ...orderForm, is_done: e.target.checked })}
-                    />
-                    Zakończone
-                  </label>
-                  <button className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500">
-                    {editingOrderId ? "Zapisz zamówienie" : "Dodaj zamówienie"}
-                  </button>
-                  {editingOrderId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingOrderId(null);
-                        setOrderForm({
-                          order_number: "",
-                          order_type_id: "",
-                          is_done: false,
-                          team: "",
-                          product_name: "",
-                        });
-                      }}
-                      className="px-3 py-2 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400 md:col-span-3"
-                    >
-                      Anuluj edycję
-                    </button>
-                  )}
                 </form>
                 <div className="text-sm text-slate-400 mb-3">{orders.length} rekordów</div>
                 <DataTable
@@ -972,7 +1038,25 @@ export default function ProductionAdmin() {
                         return ot ? ot.code : row.order_type_id;
                       },
                     },
-                    { key: "is_done", header: "Zakończone", render: (row) => (row.is_done ? "tak" : "nie") },
+                    {
+                      key: "is_done",
+                      header: "Zakończone",
+                      render: (row) => (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleOrderDone(row)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            row.is_done ? "bg-green-600" : "bg-slate-600"
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+                              row.is_done ? "translate-x-6" : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                      ),
+                    },
                     { key: "team", header: "Zespół" },
                     { key: "product_name", header: "Nazwa wyrobu" },
                     ...(canEdit
@@ -999,19 +1083,48 @@ export default function ProductionAdmin() {
 
             {activeTab === "tasks" && (
               <section className="bg-slate-800/60 border border-slate-700 rounded-xl p-5">
-                <h2 className="text-xl font-semibold mb-4">Zlecenia</h2>
-                <form onSubmit={handleCreateTask} className="grid md:grid-cols-3 gap-3 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold">Zlecenia</h2>
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      form="taskForm"
+                      className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm"
+                    >
+                      {editingTaskId ? "Zapisz zlecenie" : "Dodaj zlecenie"}
+                    </button>
+                    {editingTaskId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingTaskId(null);
+                          setTaskForm({
+                            order_id: "",
+                            detail_number: "",
+                            detail_name: "",
+                            is_done: false,
+                            quantity: "",
+                          });
+                        }}
+                        className="px-3 py-1.5 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400 text-sm"
+                      >
+                        Anuluj
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <form id="taskForm" onSubmit={handleCreateTask} className="grid md:grid-cols-3 gap-3 mb-6">
                   <input
                     type="text"
                     placeholder="Szukaj zlecenia..."
                     value={orderSearch}
                     onChange={(e) => setOrderSearch(e.target.value)}
-                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                   />
                   <select
                     value={taskForm.order_id}
                     onChange={(e) => setTaskForm({ ...taskForm, order_id: e.target.value })}
-                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                   >
                     <option value="">Wybierz zamówienie</option>
                     {filteredOrderOptions.map((o) => {
@@ -1029,51 +1142,22 @@ export default function ProductionAdmin() {
                     placeholder="Numer detalu"
                     value={taskForm.detail_number}
                     onChange={(e) => setTaskForm({ ...taskForm, detail_number: e.target.value })}
-                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                   />
                   <input
                     type="text"
                     placeholder="Nazwa detalu"
                     value={taskForm.detail_name}
                     onChange={(e) => setTaskForm({ ...taskForm, detail_name: e.target.value })}
-                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                   />
                   <input
                     type="number"
                     placeholder="Ilość sztuk"
                     value={taskForm.quantity}
                     onChange={(e) => setTaskForm({ ...taskForm, quantity: e.target.value })}
-                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                   />
-                  <label className="flex items-center gap-2 text-sm text-slate-300">
-                    <input
-                      type="checkbox"
-                      checked={taskForm.is_done}
-                      onChange={(e) => setTaskForm({ ...taskForm, is_done: e.target.checked })}
-                    />
-                    Zakończone
-                  </label>
-                  <button className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500">
-                    {editingTaskId ? "Zapisz zlecenie" : "Dodaj zlecenie"}
-                  </button>
-                  {editingTaskId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingTaskId(null);
-                        setTaskForm({
-                          order_id: "",
-                          detail_number: "",
-                          detail_name: "",
-                          is_done: false,
-                          quantity: "",
-                        });
-                      }}
-                      className="px-3 py-2 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400 md:col-span-3"
-                    >
-                      Anuluj edycję
-                    </button>
-                  )}
                 </form>
                 <div className="text-sm text-slate-400 mb-3">{filteredTasks.length} / {tasks.length} rekordów</div>
                 <DataTable
@@ -1089,7 +1173,25 @@ export default function ProductionAdmin() {
                     { key: "detail_number", header: "Numer detalu" },
                     { key: "detail_name", header: "Nazwa detalu" },
                     { key: "quantity", header: "Ilość" },
-                    { key: "is_done", header: "Zakończone", render: (row) => (row.is_done ? "tak" : "nie") },
+                    {
+                      key: "is_done",
+                      header: "Zakończone",
+                      render: (row) => (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleTaskDone(row)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            row.is_done ? "bg-green-600" : "bg-slate-600"
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+                              row.is_done ? "translate-x-6" : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                      ),
+                    },
                     ...(canEdit
                       ? [
                           {
@@ -1114,27 +1216,59 @@ export default function ProductionAdmin() {
 
             {activeTab === "workstations" && (
               <section className="bg-slate-800/60 border border-slate-700 rounded-xl p-5">
-                <h2 className="text-xl font-semibold mb-4">Stanowiska produkcyjne</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold">Stanowiska produkcyjne</h2>
+                  {isSuperAdmin && (
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        form="workstationForm"
+                        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm"
+                      >
+                        {editingWorkstationId ? "Zapisz stanowisko" : "Dodaj stanowisko"}
+                      </button>
+                      {editingWorkstationId && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingWorkstationId(null);
+                            setWorkstationForm({
+                              name: "",
+                              cost_center: "",
+                              status_id: "",
+                              current_task_id: "",
+                              user_id: "",
+                              machine_group_id: "",
+                            });
+                          }}
+                          className="px-3 py-1.5 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400 text-sm"
+                        >
+                          Anuluj
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
                 {isSuperAdmin ? (
-                  <form onSubmit={handleCreateWorkstation} className="grid md:grid-cols-3 gap-3 mb-6">
+                  <form id="workstationForm" onSubmit={handleCreateWorkstation} className="grid md:grid-cols-3 gap-3 mb-6">
                     <input
                       type="text"
                       placeholder="Nazwa stanowiska"
                       value={workstationForm.name}
                       onChange={(e) => setWorkstationForm({ ...workstationForm, name: e.target.value })}
-                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                     />
                     <input
                       type="text"
                       placeholder="Stanowisko kosztów"
                       value={workstationForm.cost_center}
                       onChange={(e) => setWorkstationForm({ ...workstationForm, cost_center: e.target.value })}
-                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                     />
                     <select
                       value={workstationForm.status_id}
                       onChange={(e) => setWorkstationForm({ ...workstationForm, status_id: e.target.value })}
-                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                     >
                       <option value="">Status (opcjonalnie)</option>
                       {statusOptions.map((s) => (
@@ -1146,7 +1280,7 @@ export default function ProductionAdmin() {
                     <select
                       value={workstationForm.current_task_id}
                       onChange={(e) => setWorkstationForm({ ...workstationForm, current_task_id: e.target.value })}
-                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                     >
                       <option value="">Aktualne zlecenie (opcjonalnie)</option>
                       {taskOptions.map((t) => (
@@ -1160,12 +1294,12 @@ export default function ProductionAdmin() {
                       placeholder="User ID (opcjonalnie)"
                       value={workstationForm.user_id}
                       onChange={(e) => setWorkstationForm({ ...workstationForm, user_id: e.target.value })}
-                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                     />
                     <select
                       value={workstationForm.machine_group_id}
                       onChange={(e) => setWorkstationForm({ ...workstationForm, machine_group_id: e.target.value })}
-                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                     >
                       <option value="">Grupa maszyn (opcjonalnie)</option>
                       {machineGroups.map((g) => (
@@ -1174,28 +1308,6 @@ export default function ProductionAdmin() {
                         </option>
                       ))}
                     </select>
-                    <button className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500">
-                      {editingWorkstationId ? "Zapisz stanowisko" : "Dodaj stanowisko"}
-                    </button>
-                    {editingWorkstationId && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingWorkstationId(null);
-                          setWorkstationForm({
-                            name: "",
-                            cost_center: "",
-                            status_id: "",
-                            current_task_id: "",
-                            user_id: "",
-                            machine_group_id: "",
-                          });
-                        }}
-                        className="px-3 py-2 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400 md:col-span-3"
-                      >
-                        Anuluj edycję
-                      </button>
-                    )}
                   </form>
                 ) : (
                   <div className="text-sm text-slate-400 mb-6">
@@ -1511,7 +1623,25 @@ export default function ProductionAdmin() {
                     { key: "suggested_duration_min", header: "Sugerowany czas (min)" },
                     { key: "duration_total_min", header: "Czas wykonania (min)" },
                     { key: "duration_shift_min", header: "Czas na zmianie (min)" },
-                    { key: "is_done", header: "Zakończone", render: (row) => (row.is_done ? "tak" : "nie") },
+                    {
+                      key: "is_done",
+                      header: "Zakończone",
+                      render: (row) => (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleOperationDone(row)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            row.is_done ? "bg-green-600" : "bg-slate-600"
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+                              row.is_done ? "translate-x-6" : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                      ),
+                    },
                     { key: "is_released", header: "Przekazane", render: (row) => (row.is_released ? "tak" : "nie") },
                     { key: "is_started", header: "Rozpoczęte", render: (row) => (row.is_started ? "tak" : "nie") },
                     { key: "workstation_id", header: "Stanowisko (ID)" },
@@ -1539,12 +1669,41 @@ export default function ProductionAdmin() {
 
             {activeTab === "logs" && (
               <section className="bg-slate-800/60 border border-slate-700 rounded-xl p-5">
-                <h2 className="text-xl font-semibold mb-4">Logi</h2>
-                <form onSubmit={handleCreateLog} className="grid md:grid-cols-3 gap-3 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold">Logi</h2>
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      form="logForm"
+                      className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm"
+                    >
+                      {editingLogId ? "Zapisz log" : "Dodaj log"}
+                    </button>
+                    {editingLogId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingLogId(null);
+                          setLogForm({
+                            operation_id: "",
+                            status_id: "",
+                            workstation_id: "",
+                            user_id: "",
+                            note: "",
+                          });
+                        }}
+                        className="px-3 py-1.5 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400 text-sm"
+                      >
+                        Anuluj
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <form id="logForm" onSubmit={handleCreateLog} className="grid md:grid-cols-3 gap-3 mb-6">
                   <select
                     value={logForm.operation_id}
                     onChange={(e) => setLogForm({ ...logForm, operation_id: e.target.value })}
-                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                   >
                     <option value="">Wybierz operację</option>
                     {operationOptions.map((o) => (
@@ -1556,7 +1715,7 @@ export default function ProductionAdmin() {
                   <select
                     value={logForm.status_id}
                     onChange={(e) => setLogForm({ ...logForm, status_id: e.target.value })}
-                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                   >
                     <option value="">Status (opcjonalnie)</option>
                     {statusOptions.map((s) => (
@@ -1568,7 +1727,7 @@ export default function ProductionAdmin() {
                   <select
                     value={logForm.workstation_id}
                     onChange={(e) => setLogForm({ ...logForm, workstation_id: e.target.value })}
-                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                   >
                     <option value="">Stanowisko (opcjonalnie)</option>
                     {workstationOptions.map((w) => (
@@ -1582,36 +1741,15 @@ export default function ProductionAdmin() {
                     placeholder="User ID (opcjonalnie)"
                     value={logForm.user_id}
                     onChange={(e) => setLogForm({ ...logForm, user_id: e.target.value })}
-                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                   />
                   <input
                     type="text"
                     placeholder="Notatka"
                     value={logForm.note}
                     onChange={(e) => setLogForm({ ...logForm, note: e.target.value })}
-                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700"
+                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                   />
-                  <button className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500">
-                    {editingLogId ? "Zapisz log" : "Dodaj log"}
-                  </button>
-                  {editingLogId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingLogId(null);
-                        setLogForm({
-                          operation_id: "",
-                          status_id: "",
-                          workstation_id: "",
-                          user_id: "",
-                          note: "",
-                        });
-                      }}
-                      className="px-3 py-2 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400 md:col-span-3"
-                    >
-                      Anuluj edycję
-                    </button>
-                  )}
                 </form>
                 <div className="text-sm text-slate-400 mb-3">{logs.length} rekordów</div>
                 <DataTable

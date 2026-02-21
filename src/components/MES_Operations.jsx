@@ -17,6 +17,7 @@ export default function MES_Operations() {
   const [orderChanged, setOrderChanged] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedOrderId, setSelectedOrderId] = useState("");
+  const [hideDone, setHideDone] = useState(true);
 
   const dragItem = useRef(null);
   const dragOverItem = useRef(null);
@@ -76,6 +77,9 @@ export default function MES_Operations() {
 
   const filteredOperations = useMemo(() => {
     let list = operations;
+    if (hideDone) {
+      list = list.filter((op) => !op.is_done);
+    }
     if (selectedOrderId) {
       const ordId = Number(selectedOrderId);
       list = list.filter((op) => op.order?.id === ordId);
@@ -96,7 +100,7 @@ export default function MES_Operations() {
         .map((v) => v.toLowerCase());
       return fields.some((v) => v.includes(term));
     });
-  }, [operations, search, selectedOrderId]);
+  }, [operations, search, selectedOrderId, hideDone]);
 
   const handleDragStart = (index) => {
     dragItem.current = index;
@@ -150,14 +154,14 @@ export default function MES_Operations() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-2rem)] p-6">
+    <div className="flex flex-col min-h-[calc(100vh-2rem)] p-6 max-w-7xl mx-auto w-full">
       <button
         onClick={goBack}
         className="flex items-center gap-1 text-sm text-slate-400 hover:text-white transition mb-4"
       >
         <ChevronLeft className="w-4 h-4" /> Powrót
       </button>
-      <h1 className="text-2xl font-bold mb-6">
+      <h1 className="text-2xl font-bold mb-6 text-center">
         Operacje{machineName ? ` — ${machineName}` : ""}
       </h1>
 
@@ -167,7 +171,7 @@ export default function MES_Operations() {
         <p className="text-slate-400">Brak operacji dla tej maszyny.</p>
       ) : (
         <>
-          <div className="flex gap-3 mb-4 w-full max-w-2xl">
+          <div className="flex gap-3 mb-4 w-full max-w-2xl mx-auto items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <input
@@ -190,6 +194,22 @@ export default function MES_Operations() {
                 </option>
               ))}
             </select>
+            <label className="flex items-center gap-2 text-sm text-slate-300 whitespace-nowrap cursor-pointer">
+              <button
+                type="button"
+                onClick={() => setHideDone((v) => !v)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  hideDone ? "bg-blue-600" : "bg-slate-600"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+                    hideDone ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+              Ukryj zakończone
+            </label>
           </div>
           {orderChanged && (
             <button

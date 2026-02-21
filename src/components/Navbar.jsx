@@ -2,7 +2,7 @@ import { Menu, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getCurrentUser } from '../auth';
 
-export default function Navbar() {
+export default function Navbar({ titleOverride } = {}) {
     const [mobileMenuIsOpen, setMobileMenuIsOpen] = useState(false);
     const [username, setUsername] = useState(() => {
     if (typeof window === "undefined") return "";
@@ -44,9 +44,13 @@ export default function Navbar() {
                     {/* Logo */}
                     <div className="flex items-center space-x-1 group cursor-pointer">
                         <span className="text-lg sm:text-xl md:text-2xl font-medium">
-                            <span className="text-white">Mould</span>
-                            <span className="text-cyan-400">Book</span>
-                            <span className="text-cyan-400"> 2.0</span>
+                            {titleOverride || (
+                              <>
+                                <span className="text-white">Mould</span>
+                                <span className="text-cyan-400">Book</span>
+                                <span className="text-cyan-400"> 2.0</span>
+                              </>
+                            )}
                         </span>
                     </div>
 
