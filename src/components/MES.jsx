@@ -8,7 +8,7 @@ const tiles = [
     path: "/mes/production",
     description: "Zarządzanie produkcją na maszynach",
   },
-  {
+{
     label: "Serwis",
     icon: Wrench,
     path: "/mes/service",

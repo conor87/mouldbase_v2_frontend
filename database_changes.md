@@ -49,8 +49,19 @@ ALTER TABLE operations ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 999;
 
 ---
 
+## 5. Tabela `workstations` — nowa kolumna `current_operation_id`
+
+Powiązanie stanowiska z aktualnie wykonywaną operacją. Umożliwia przejście z dashboardu produkcji bezpośrednio do panelu maszyny.
+
+```sql
+ALTER TABLE workstations ADD COLUMN current_operation_id INTEGER NULL
+    REFERENCES operations(id) ON DELETE SET NULL;
+```
+
+---
+
 ## Kolejność wykonania
 
 1. Najpierw utwórz tabelę `machine_groups` (punkt 1)
 2. Potem dodaj kolumnę `machine_group_id` w `workstations` (punkt 3) — wymaga istnienia tabeli `machine_groups`
-3. Punkty 2 i 4 można wykonać niezależnie
+3. Punkty 2, 4 i 5 można wykonać niezależnie

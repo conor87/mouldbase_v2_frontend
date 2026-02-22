@@ -184,6 +184,7 @@ export default function MES_MachinePanel() {
       cost_center: workstation.cost_center || null,
       status_id: btn.id,
       current_task_id: btn.hasTimer ? (operation?.task_id ?? null) : null,
+      current_operation_id: btn.hasTimer ? (operation?.id ?? null) : null,
       user_id: parsedUserId,
     };
 

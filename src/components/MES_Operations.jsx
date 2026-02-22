@@ -76,7 +76,7 @@ export default function MES_Operations() {
   }, [operations]);
 
   const filteredOperations = useMemo(() => {
-    let list = operations;
+    let list = operations.filter((op) => op.is_released);
     if (hideDone) {
       list = list.filter((op) => !op.is_done);
     }
@@ -154,7 +154,7 @@ export default function MES_Operations() {
   };
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-2rem)] p-6 max-w-7xl mx-auto w-full">
+    <div className="flex flex-col min-h-[calc(100vh-2rem)] p-4 sm:p-6 max-w-7xl mx-auto w-full overflow-x-hidden">
       <button
         onClick={goBack}
         className="flex items-center gap-1 text-sm text-slate-400 hover:text-white transition mb-4"
@@ -171,7 +171,7 @@ export default function MES_Operations() {
         <p className="text-slate-400">Brak operacji dla tej maszyny.</p>
       ) : (
         <>
-          <div className="flex gap-3 mb-4 w-full max-w-2xl mx-auto items-center">
+          <div className="flex flex-col sm:flex-row gap-3 mb-4 w-full max-w-2xl mx-auto items-stretch sm:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <input
@@ -220,7 +220,7 @@ export default function MES_Operations() {
               {saving ? "Zapisywanie…" : "Zapisz kolejność"}
             </button>
           )}
-          <div className="overflow-x-auto border border-slate-700 rounded-lg">
+          <div className="overflow-x-auto border border-slate-700 rounded-lg max-w-full">
             <table className="min-w-full text-sm">
               <thead className="bg-slate-900/60 text-slate-300">
                 <tr>

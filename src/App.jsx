@@ -29,6 +29,7 @@ import MES_Machines from "./components/MES_Machines.jsx";
 import MES_Operations from "./components/MES_Operations.jsx";
 import MES_MachinePanel from "./components/MES_MachinePanel.jsx";
 import MES_Service from "./components/MES_Service.jsx";
+import MES_Production_Dashboard from "./components/MES_Production_Dashboard.jsx";
 
 
 
@@ -55,6 +56,7 @@ function App() {
                 <Route path="/mes/production/group/:groupId" element={<MES_Machines />} />
                 <Route path="/mes/production/machine/:machineId" element={<MES_Operations />} />
                 <Route path="/mes/production/machine/:machineId/panel/:operationId" element={<MES_MachinePanel />} />
+                <Route path="/mes/production/dashboard" element={<MES_Production_Dashboard />} />
                 <Route path="/mes/service" element={<MES_Service />} />
               </Route>
             </Route>

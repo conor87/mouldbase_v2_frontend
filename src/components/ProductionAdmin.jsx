@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import Navbar from "./Navbar.jsx";
 import { API_BASE } from "../config/api.js";
 import { getCurrentUser } from "../auth.js";
+import { Gauge, Tag, Building2, ShoppingCart, ClipboardList, Cog, ScrollText } from "lucide-react";
 
 const toIntOrNull = (value) => {
   const v = String(value ?? "").trim();
@@ -442,6 +443,14 @@ export default function ProductionAdmin() {
     });
   };
 
+  const handleToggleOperationReleased = async (op) => {
+    const newReleased = !op.is_released;
+    await apiPut(`/production/operations/${op.id}`, { is_released: newReleased }, async () => {
+      await apiGet("/production/operations", setOperations);
+      setMessage(newReleased ? "Operacja przekazana." : "Operacja cofnięta.");
+    });
+  };
+
   const handleCreateTask = async (e) => {
     e.preventDefault();
     const payload = {
@@ -746,38 +755,39 @@ export default function ProductionAdmin() {
   };
 
   const tabs = [
-    { id: "machine_statuses", label: "Statusy maszyn" },
-    { id: "order_types", label: "Typy zamówień" },
-    { id: "workstations", label: "Stanowiska produkcyjne" },
-    { id: "orders", label: "Zamówienia" },
-    { id: "tasks", label: "Zlecenia" },
-    { id: "operations", label: "Operacje" },
-    { id: "logs", label: "Logi" },
+    { id: "machine_statuses", label: "Statusy maszyn", icon: Gauge },
+    { id: "order_types", label: "Typy zamówień", icon: Tag },
+    { id: "workstations", label: "Stanowiska produkcyjne", icon: Building2 },
+    { id: "orders", label: "Zamówienia", icon: ShoppingCart },
+    { id: "tasks", label: "Zlecenia", icon: ClipboardList },
+    { id: "operations", label: "Operacje", icon: Cog },
+    { id: "logs", label: "Logi", icon: ScrollText },
   ];
 
   return (
     <div className="min-h-screen bg-slate-800/90 text-white">
       <Navbar titleOverride={<><span className="text-white">Mould</span><span className="text-cyan-400">Production 2.0</span></>} />
       <div className="pt-20 px-6 pb-12">
-        <div className="mx-auto grid md:grid-cols-[220px_1fr] gap-6">
-          <aside className="bg-slate-800/60 border border-slate-700 rounded-xl p-4 h-fit">
-            <div className="text-sm uppercase tracking-wider text-slate-400 mb-3">
-              Administracja produkcji
-            </div>
+        <div className="mx-auto grid grid-cols-[auto_1fr] gap-4">
+          <aside className="bg-slate-800/60 border border-slate-700 rounded-xl p-2 h-fit">
             <div className="flex flex-col gap-2">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`text-left px-3 py-2 rounded-lg border ${
-                    activeTab === tab.id
-                      ? "bg-blue-500/20 border-blue-500 text-blue-200"
-                      : "border-slate-700 text-slate-300 hover:border-slate-500"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    title={tab.label}
+                    className={`w-10 h-10 flex items-center justify-center rounded-lg border transition ${
+                      activeTab === tab.id
+                        ? "bg-blue-500/20 border-blue-500 text-blue-200"
+                        : "border-slate-700 text-slate-300 hover:border-slate-500"
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </button>
+                );
+              })}
             </div>
           </aside>
 
@@ -1624,6 +1634,25 @@ export default function ProductionAdmin() {
                     { key: "duration_total_min", header: "Czas wykonania (min)" },
                     { key: "duration_shift_min", header: "Czas na zmianie (min)" },
                     {
+                      key: "is_released",
+                      header: "Przekazane",
+                      render: (row) => (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleOperationReleased(row)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            row.is_released ? "bg-blue-600" : "bg-slate-600"
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+                              row.is_released ? "translate-x-6" : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                      ),
+                    },
+                    {
                       key: "is_done",
                       header: "Zakończone",
                       render: (row) => (
@@ -1642,9 +1671,15 @@ export default function ProductionAdmin() {
                         </button>
                       ),
                     },
-                    { key: "is_released", header: "Przekazane", render: (row) => (row.is_released ? "tak" : "nie") },
                     { key: "is_started", header: "Rozpoczęte", render: (row) => (row.is_started ? "tak" : "nie") },
-                    { key: "workstation_id", header: "Stanowisko (ID)" },
+                    {
+                      key: "workstation_id",
+                      header: "Stanowisko",
+                      render: (row) => {
+                        const ws = workstationOptions.find((w) => w.id === row.workstation_id);
+                        return ws ? ws.name : row.workstation_id ?? "—";
+                      },
+                    },
                     ...(canEdit
                       ? [
                           {
@@ -1759,7 +1794,14 @@ export default function ProductionAdmin() {
                     { key: "id", header: "ID" },
                     { key: "operation_id", header: "Operacja (ID)" },
                     { key: "status_id", header: "Status (ID)" },
-                    { key: "workstation_id", header: "Stanowisko (ID)" },
+                    {
+                      key: "workstation_id",
+                      header: "Stanowisko",
+                      render: (row) => {
+                        const ws = workstationOptions.find((w) => w.id === row.workstation_id);
+                        return ws ? ws.name : row.workstation_id ?? "—";
+                      },
+                    },
                     { key: "user_id", header: "User ID" },
                     { key: "note", header: "Notatka" },
                     { key: "created_at", header: "Utworzono" },
