@@ -68,3 +68,7 @@ No global store — local `useState` + `useEffect` fetch pattern. Data passed be
 - Tailwind utility classes for all styling; custom animations in `src/index.css`
 - ESLint flat config (v9); unused vars allowed if uppercase (constants pattern)
 - HTML lang is `pl`, Google translate disabled
+
+## Tooling Preferences
+
+- **Always use Serena MCP tools** instead of standard Claude Code tools (Read, Edit, Grep, Glob). Use `find_symbol`, `read_file`, `search_for_pattern`, `replace_content`, `replace_symbol_body`, `insert_after_symbol`, `get_symbols_overview`, etc. Fall back to Claude Code tools only if Serena is unavailable.

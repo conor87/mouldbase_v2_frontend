@@ -60,8 +60,28 @@ ALTER TABLE workstations ADD COLUMN current_operation_id INTEGER NULL
 
 ---
 
+## 6. Nowa tabela: `stanowiska_service`
+
+Stanowiska serwisowe dla modułu Service Admin.
+
+```sql
+CREATE TABLE stanowiska_service (
+    id SERIAL PRIMARY KEY,
+    nazwa_stanowiska VARCHAR(100) NOT NULL UNIQUE,
+    st VARCHAR(50) NULL,
+    status VARCHAR(50) NULL,
+    aktualne_przezbrojenie_id INTEGER NULL,
+    aktualne_zlecenie_serwisowe_id INTEGER NULL,
+    aktualny_typ_zlecenia VARCHAR(100) NULL,
+    status_changeovers VARCHAR(50) NULL,
+    user_id INTEGER NULL REFERENCES users(id) ON DELETE SET NULL
+);
+```
+
+---
+
 ## Kolejność wykonania
 
 1. Najpierw utwórz tabelę `machine_groups` (punkt 1)
 2. Potem dodaj kolumnę `machine_group_id` w `workstations` (punkt 3) — wymaga istnienia tabeli `machine_groups`
-3. Punkty 2, 4 i 5 można wykonać niezależnie
+3. Punkty 2, 4, 5 i 6 można wykonać niezależnie

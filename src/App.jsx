@@ -19,6 +19,7 @@ import Changeovers from "./components/Changeovers.jsx";
 import Tpm from "./components/Tpm.jsx";
 import Kalendarz from "./components/Kalendarz.jsx";
 import ProductionAdmin from "./components/ProductionAdmin.jsx";
+import ServiceAdmin from "./components/ServiceAdmin.jsx";
 import AppLayout from "./components/AppLayout.jsx";
 import MouldsAdmin from "./components/MouldsAdmin.jsx";
 import Dashboard from "./components/Dashboard.jsx";
@@ -29,6 +30,10 @@ import MES_Machines from "./components/MES_Machines.jsx";
 import MES_Operations from "./components/MES_Operations.jsx";
 import MES_MachinePanel from "./components/MES_MachinePanel.jsx";
 import MES_Service from "./components/MES_Service.jsx";
+import MES_ServiceWorkstation from "./components/MES_ServiceWorkstation.jsx";
+import MES_ServicePanel from "./components/MES_ServicePanel.jsx";
+import MES_Service_Dashboard from "./components/MES_Service_Dashboard.jsx";
+import MES_ChangeoverPanel from "./components/MES_ChangeoverPanel.jsx";
 import MES_Production_Dashboard from "./components/MES_Production_Dashboard.jsx";
 
 
@@ -58,6 +63,10 @@ function App() {
                 <Route path="/mes/production/machine/:machineId/panel/:operationId" element={<MES_MachinePanel />} />
                 <Route path="/mes/production/dashboard" element={<MES_Production_Dashboard />} />
                 <Route path="/mes/service" element={<MES_Service />} />
+                <Route path="/mes/service/workstation/:workstationId" element={<MES_ServiceWorkstation />} />
+                <Route path="/mes/service/workstation/:workstationId/panel/:mouldNumber" element={<MES_ServicePanel />} />
+                <Route path="/mes/service/workstation/:workstationId/changeover/:changeoverId" element={<MES_ChangeoverPanel />} />
+                <Route path="/mes/service/dashboard" element={<MES_Service_Dashboard />} />
               </Route>
             </Route>
 
@@ -65,6 +74,7 @@ function App() {
               <Route element={<AppLayout />}>
                 <Route path="/admin-panel" element={<AdminPanel />} />
                 <Route path="/production_admin" element={<ProductionAdmin />} />
+                <Route path="/service_admin" element={<ServiceAdmin />} />
               </Route>
             </Route>
 
