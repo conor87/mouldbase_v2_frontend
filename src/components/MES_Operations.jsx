@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
 import { ChevronLeft, GripVertical, Search } from "lucide-react";
+import MES_UserBar from "./MES_UserBar.jsx";
 
 const normalizeList = (data) =>
   Array.isArray(data) ? data : data?.results ?? data?.data ?? [];
@@ -12,6 +13,7 @@ export default function MES_Operations() {
 
   const [operations, setOperations] = useState([]);
   const [machineName, setMachineName] = useState("");
+  const [groupId, setGroupId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [orderChanged, setOrderChanged] = useState(false);
@@ -46,7 +48,10 @@ export default function MES_Operations() {
         const orderMap = Object.fromEntries(orders.map((o) => [o.id, o]));
 
         const ws = workstations.find((w) => String(w.id) === machineId);
-        if (ws) setMachineName(ws.name);
+        if (ws) {
+          setMachineName(ws.name);
+          if (ws.machine_group_id) setGroupId(ws.machine_group_id);
+        }
 
         const filtered = ops
           .filter((op) => String(op.workstation_id) === machineId)
@@ -150,16 +155,21 @@ export default function MES_Operations() {
   };
 
   const goBack = () => {
-    navigate("/mes/production");
+    if (groupId) {
+      navigate(`/mes/production/group/${groupId}`);
+    } else {
+      navigate("/mes/production");
+    }
   };
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-2rem)] p-4 sm:p-6 max-w-7xl mx-auto w-full overflow-x-hidden">
+    <div className="flex flex-col min-h-[calc(100vh-2rem)] px-4 sm:px-6 pt-16 pb-6 max-w-7xl mx-auto w-full overflow-x-hidden">
+      <MES_UserBar />
       <button
         onClick={goBack}
-        className="flex items-center gap-1 text-sm text-slate-400 hover:text-white transition mb-4"
+        className="flex items-center gap-1 text-sm text-slate-400 hover:text-white transition mb-4 self-start"
       >
-        <ChevronLeft className="w-4 h-4" /> Powrót
+        <ChevronLeft className="w-4 h-4" /> Powrót do maszyn
       </button>
       <h1 className="text-2xl font-bold mb-6 text-center">
         Operacje{machineName ? ` — ${machineName}` : ""}

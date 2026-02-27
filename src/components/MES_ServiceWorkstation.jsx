@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
 import { ChevronLeft, Wrench, Settings, LogOut } from "lucide-react";
+import MES_UserBar from "./MES_UserBar.jsx";
 
 export default function MES_ServiceWorkstation() {
   const { workstationId } = useParams();
@@ -158,7 +159,8 @@ export default function MES_ServiceWorkstation() {
   const isOwnedByOther = !isUnassigned && !isOwnedByMe;
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-2rem)] p-6">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-2rem)] p-6 pt-14">
+      <MES_UserBar />
       <button
         onClick={() => navigate("/mes/service")}
         className="flex items-center gap-1 text-sm text-slate-400 hover:text-white transition mb-4"

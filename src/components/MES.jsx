@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Factory, Wrench } from "lucide-react";
+import MES_UserBar from "./MES_UserBar.jsx";
 
 const tiles = [
   {
@@ -20,7 +21,8 @@ export default function MES() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-2rem)] p-6">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-2rem)] p-6 pt-14">
+      <MES_UserBar />
       <h1 className="text-2xl font-bold mb-6">MES</h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl">
         {tiles.map((tile) => (

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
 import { ChevronLeft } from "lucide-react";
+import MES_UserBar from "./MES_UserBar.jsx";
 
 export default function MES_Service() {
   const navigate = useNavigate();
@@ -23,7 +24,8 @@ export default function MES_Service() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-2rem)] p-6">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-2rem)] p-6 pt-14">
+      <MES_UserBar />
       <button
         onClick={() => navigate("/mes")}
         className="flex items-center gap-1 text-sm text-slate-400 hover:text-white transition mb-4"

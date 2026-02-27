@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
 import { ChevronLeft } from "lucide-react";
+import MES_UserBar from "./MES_UserBar.jsx";
 
 const normalizeList = (data) =>
   Array.isArray(data) ? data : data?.results ?? data?.data ?? [];
@@ -207,7 +208,8 @@ export default function MES_ChangeoverPanel() {
   ];
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-2rem)] p-6">
+    <div className="flex flex-col min-h-[calc(100vh-2rem)] p-6 pt-14">
+      <MES_UserBar />
       <button
         onClick={() => navigate(`/mes/service/workstation/${workstationId}`)}
         className="flex items-center gap-1 text-sm text-slate-400 hover:text-white transition mb-4 self-start"

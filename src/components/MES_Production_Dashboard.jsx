@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
 import { ChevronLeft } from "lucide-react";
+import MES_UserBar from "./MES_UserBar.jsx";
 
 const normalizeList = (data) =>
   Array.isArray(data) ? data : data?.results ?? data?.data ?? [];
@@ -99,7 +100,8 @@ export default function MES_Production_Dashboard() {
   }, [workstations, selectedGroupId]);
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-2rem)] p-4 sm:p-6 max-w-7xl mx-auto w-full">
+    <div className="flex flex-col min-h-[calc(100vh-2rem)] p-4 sm:p-6 pt-14 max-w-7xl mx-auto w-full">
+      <MES_UserBar />
       <button
         onClick={() => navigate("/mes")}
         className="flex items-center gap-1 text-sm text-slate-400 hover:text-white transition mb-4 self-start"
