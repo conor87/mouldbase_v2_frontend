@@ -117,7 +117,7 @@ export default function MES_ChangeoverPanel() {
       const operator = localStorage.getItem("username") || null;
       const payload = {
         operator,
-        created_at: new Date().toISOString(),
+        created_at: (() => { const d = new Date(); const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; })(),
         status_service: null,
         mes_activ_service_id: workstation?.aktualne_zlecenie_serwisowe_id || null,
         mes_activ_changeover_id: parseInt(changeoverId, 10) || null,
