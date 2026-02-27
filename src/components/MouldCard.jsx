@@ -88,7 +88,7 @@ export default function MouldCard({ mould }) {
 
         <div>
           <div className="text-center">
-            <h3 className="text-3xl sm:text-2xl lg:text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent pt-3">
+            <h3 className="text-3xl sm:text-2xl lg:text-2xl font-bold text-blue-400 pt-3">
               {mould_number}
             </h3>
             <p className="text-xl sm:text-xl lg:text-lg font-bold mb-2">{product}</p>

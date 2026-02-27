@@ -45,11 +45,11 @@ export default function Features() {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-12 sm:mb-16 lg:mb-20">
           <h2 className="text-5xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6">
-            <span className="bg-gradient-to-b from-white to-gray-300 bg-clip-text text-transparent">
+            <span className="text-gray-200">
               Your Complete Development
             </span>
             <br />
-            <span className="bg-gradient-to-b from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+            <span className="text-blue-400">
               Workflow
             </span>
           </h2>

@@ -216,73 +216,73 @@ export default function MouldDetails_BasicInfo({
 
         <div className="w-full grid grid-cols-2 gap-4 text-xl mt-2">
           <div>
-            <span className="bg-gradient-to-b from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+            <span className="text-blue-400">
               Firma:{" "}
             </span>
-            <span className="bg-gradient-to-b from-white to-gray-300 bg-clip-text text-transparent">
+            <span className="text-gray-200">
               {mouldData.company}
             </span>
           </div>
 
           <div>
-            <span className="bg-gradient-to-b from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+            <span className="text-blue-400">
               Waga formy:{" "}
             </span>
-            <span className="bg-gradient-to-b from-white to-gray-300 bg-clip-text text-transparent">
+            <span className="text-gray-200">
               {mouldData.tool_weight}
             </span>
           </div>
 
           <div>
-            <span className="bg-gradient-to-b from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+            <span className="text-blue-400">
               Produkt:{" "}
             </span>
-            <span className="bg-gradient-to-b from-white to-gray-300 bg-clip-text text-transparent">
+            <span className="text-gray-200">
               {mouldData.product}
             </span>
           </div>
 
           <div>
-            <span className="bg-gradient-to-b from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+            <span className="text-blue-400">
               Całkowita ilość cykli:{" "}
             </span>
-            <span className="bg-gradient-to-b from-white to-gray-300 bg-clip-text text-transparent">
+            <span className="text-gray-200">
               {mouldData.total_cycles}
             </span>
           </div>
 
           <div>
-            <span className="bg-gradient-to-b from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+            <span className="text-blue-400">
               Oddana do produkcji:{" "}
             </span>
-            <span className="bg-gradient-to-b from-white to-gray-300 bg-clip-text text-transparent">
+            <span className="text-gray-200">
               {String(mouldData.released)}
             </span>
           </div>
 
           <div>
-            <span className="bg-gradient-to-b from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+            <span className="text-blue-400">
               Resurs:{" "}
             </span>
-            <span className="bg-gradient-to-b from-white to-gray-300 bg-clip-text text-transparent">
+            <span className="text-gray-200">
               {mouldData.to_maint_cycles}
             </span>
           </div>
 
           <div>
-            <span className="bg-gradient-to-b from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+            <span className="text-blue-400">
               Liczba gniazd:{" "}
             </span>
-            <span className="bg-gradient-to-b from-white to-gray-300 bg-clip-text text-transparent">
+            <span className="text-gray-200">
               {mouldData.num_of_cavities}
             </span>
           </div>
 
           <div>
-            <span className="bg-gradient-to-b from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+            <span className="text-blue-400">
               Ilość cykli od przeglądu:{" "}
             </span>
-            <span className="bg-gradient-to-b from-white to-gray-300 bg-clip-text text-transparent">
+            <span className="text-gray-200">
               {mouldData.from_maint_cycles}
             </span>
           </div>
