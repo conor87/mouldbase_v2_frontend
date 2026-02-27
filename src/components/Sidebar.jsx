@@ -91,32 +91,54 @@ export default function Sidebar() {
   const handleMesClick = useCallback(async (e) => {
     e.preventDefault();
     const token = localStorage.getItem("access_token");
-    const userId = Number(localStorage.getItem("user_id"));
-    if (!token || !userId) { navigate("/mes"); return; }
+    if (!token) { navigate("/mes"); return; }
+    let userId = localStorage.getItem("user_id");
+    if (!userId && token) {
+      try {
+        const decoded = JSON.parse(atob(token.split(".")[1]));
+        userId = decoded.id ?? decoded.user_id ?? decoded.sub ?? null;
+        if (userId != null) localStorage.setItem("user_id", String(userId));
+      } catch { /* ignore */ }
+    }
+    userId = userId ? parseInt(userId, 10) : null;
+    if (!userId) { navigate("/mes"); return; }
     const headers = { Authorization: `Bearer ${token}` };
     try {
       const [prodRes, svcRes] = await Promise.all([
         fetch(`${API_BASE}/production/workstations`, { headers }).then((r) => r.json()),
         fetch(`${API_BASE}/service/workstations`, { headers }).then((r) => r.json()),
       ]);
-      const prodWs = normalizeList(prodRes).find((ws) => ws.user_id === userId);
-      if (prodWs && prodWs.current_operation_id) {
-        navigate(`/mes/production/machine/${prodWs.id}/panel/${prodWs.current_operation_id}`);
+      const prodList = normalizeList(prodRes);
+      const svcList = normalizeList(svcRes);
+
+      // Match by user_id — compare both as numbers
+      const prodWs = prodList.find((ws) => ws.user_id != null && Number(ws.user_id) === userId);
+      if (prodWs) {
+        const dest = prodWs.current_operation_id
+          ? `/mes/production/machine/${prodWs.id}/panel/${prodWs.current_operation_id}`
+          : `/mes/production/machine/${prodWs.id}`;
+        console.log(`[MES Nav] prod ws=${prodWs.id} → ${dest}`);
+        navigate(dest);
         return;
       }
-      const svcWs = normalizeList(svcRes).find((ws) => ws.user_id === userId);
+      const svcWs = svcList.find((ws) => ws.user_id != null && Number(ws.user_id) === userId);
       if (svcWs) {
+        let dest;
         if (svcWs.aktualne_przezbrojenie_id) {
-          navigate(`/mes/service/workstation/${svcWs.id}/changeover/${svcWs.aktualne_przezbrojenie_id}`);
+          dest = `/mes/service/workstation/${svcWs.id}/changeover/${svcWs.aktualne_przezbrojenie_id}`;
         } else if (svcWs.st) {
-          navigate(`/mes/service/workstation/${svcWs.id}/panel/${svcWs.st}`);
+          dest = `/mes/service/workstation/${svcWs.id}/panel/${svcWs.st}`;
         } else {
-          navigate(`/mes/service/workstation/${svcWs.id}`);
+          dest = `/mes/service/workstation/${svcWs.id}`;
         }
+        console.log(`[MES Nav] svc ws=${svcWs.id} → ${dest}`);
+        navigate(dest);
         return;
       }
+      console.log("[MES Nav] no match, userId:", userId);
       navigate("/mes");
-    } catch {
+    } catch (err) {
+      console.error("[MES Nav] error:", err);
       navigate("/mes");
     }
   }, [navigate]);
