@@ -1,0 +1,433 @@
+{% extends 'base_time.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+
+
+
+
+
+{% block title %}mes produkcja{% endblock %}
+
+{% block content %}
+{% if user.is_authenticated %}
+<div class="container mt-3" style="width: 95%; font-size: 14px">
+    
+
+    <form method="POST" class="card p-3 mt-5" autocomplete="off" novalidate>
+        {% csrf_token %}
+
+        {% if mes_task.stanowisko.user.username == request.user.username %}{% comment %} WARUNEK 1 {% endcomment %}
+
+        <div class="row">
+            <div class="col-6">
+                <div class="row">
+                    
+                    <table class="table_borders table-responsive table-striped table-condensed table-hover"
+                        width="auto">
+                        <tr>
+                            <td class="label_zlecenie td-no-right-borders">zlecenie:</td>
+                            <td class="label_zlecenie2 td-no-left-borders">{{ mes_task}}</td>
+                        </tr>
+                        <tr>
+                            <td class="label_zlecenie td-no-right-borders">rodzaj zlecenia:</td>
+                            <td class="label_zlecenie2 td-no-left-borders">{{ mes_task.mes_zlecenie_id.zlecenie.typ_zlecenia }}</td>
+                        </tr>
+                        <tr>
+                            <td class="label_zlecenie td-no-right-borders">wyrób:</td>
+                            <td class="label_zlecenie2 td-no-left-borders">{{ mes_task.mes_zlecenie_id.zlecenie.nazwa_wyrobu }}</td>
+                        </tr>
+                        <tr>
+                            <td class="label_zlecenie td-no-right-borders">zespół:</td>
+                            <td class="label_zlecenie2 td-no-left-borders">{{ mes_task.mes_zlecenie_id.zlecenie.zespol }}</td>
+                        </tr>
+                        <tr>
+                            <td class="label_zlecenie td-no-right-borders">nr detalu:</td>
+                            <td class="label_zlecenie2 td-no-left-borders">{{ mes_task.mes_zlecenie_id.numer_detalu }}</td>
+                        </tr>
+                        <tr>
+                            <td class="label_zlecenie td-no-right-borders">detal:</td>
+                            <td class="label_zlecenie2 td-no-left-borders">{{ mes_task.mes_zlecenie_id.nazwa_detalu }}</td>
+                        </tr>
+                        <tr>
+                            <td class="label_zlecenie td-no-right-borders">nr operacji:</td>
+                            <td class="label_zlecenie2 td-no-left-borders">{{ mes_task.nr_operacji }}</td>
+                        </tr>
+                        <tr>
+                            <td class="label_zlecenie td-no-right-borders">stanowisko:</td>
+                            <td class="label_zlecenie2 td-no-left-borders">{{ mes_task.stanowisko }}</td>
+                        </tr>
+                        {% comment %}
+                        <tr>
+                            <td class="label_zlecenie">operator:</td>
+                            <td class="label_zlecenie2">{{ mes_activity.operator }}</td>
+                        </tr>
+                        {% endcomment %}
+                        {% comment %} <tr>
+                            <td class="label_zlecenie td-no-right-borders">narzędzie:</td>
+                            <td class="label_zlecenie2 td-no-left-borders">{{ mes_task.narzedzie }}</td>
+                        </tr> {% endcomment %}
+                        {% comment %} <tr>
+                            <td class="label_zlecenie">operator:</td>
+                            <td class="label_zlecenie2">{{ mes_task.operator }}</td>
+                        </tr> {% endcomment %}
+
+                    </table>
+
+
+
+
+                </div>
+            </div>
+
+            <div class="col-6">
+                <table class="table table-responsive table-condensed"
+                    width="auto">
+                    <tr>
+                        <td>
+
+                            <div class="label_zlecenie td-no-right-borders" style="font-size: 20px; ">
+                                <b>Status stanowiska:</b>
+                            </div>
+
+                        </td>
+                        <td>
+                            <div class="tresc_operacji td-no-left-borders" style="font-size: 20px; ">
+                                {{ mes_task.stanowisko.jaki_status }}
+                                {% comment %} {{ mes_task.stanowisko.jaki_status }} {% endcomment %}
+                                {% comment %} {{ status_stanowisk.status }} {% endcomment %}
+                                {% comment %} {{ mes_activity.jaki_status }} {% endcomment %}
+                            </div>
+                        </td>
+                    </tr>
+
+
+                </table>
+
+                <div class="container">
+
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="col text-center">
+                                <button type="submit" name='praca_z_oper' class="btn btn-outline-primary mt-3"
+                                    style="width: 180px;">Praca z operatorem</button>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="col text-center">
+                                <button type="submit" name='praca_bez_oper' class="btn btn-outline-primary mt-3"
+                                    style="width: 180px;">Praca bez operatora</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="col text-center">
+                                <button type="submit" name='ustawianie' class="btn btn-outline-primary mt-3"
+                                    style="width: 180px;">Ustawianie</button>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="col text-center">
+                                <button type="submit" name='koniec_operacji' class="btn btn-outline-primary mt-3"
+                                    style="width: 180px;">Koniec operacji</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="col text-center">
+                                <button type="submit" name='zmien_zlecenie' class="btn btn-outline-primary mt-3"
+                                    style="width: 180px;">Zmień zlecenie</button>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="col text-center">
+                                <button type="submit" name='-------' class="btn btn-outline-primary mt-3"
+                                    style="width: 180px;">------</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="col text-center">
+                                <button type="submit" name='awaria' class="btn btn-outline-primary mt-3"
+                                    style="width: 180px;">Awaria</button>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="col text-center">
+                                <button type="submit" name='koniec_zmiany' class="btn btn-outline-primary mt-3"
+                                    style="width: 180px;">Koniec zmiany</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+
+                </div>
+                <table class="table" width="auto">
+                    <tr>
+                        <br><br><br>
+                    </tr>
+                    
+                    <tr>
+                        <td>
+                            <div class="label_opis_operacji" style="font-size: 20px; ">
+                                <b>Opis operacji:</b>
+                            </div>
+                    </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="row">
+                                <div class="tresc_operacji2" style="font-size: 22px;">
+                                    {{ mes_task.opis_operacji|linebreaksbr }}
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
+
+
+
+            </div>
+
+        </div>
+
+    {% comment %} RAPORTOWANIE {% endcomment %}
+        <div class="row">
+            <div class="col-12">
+                <div class="row">
+                    <h4 class="label_zlecenie"><br>raport</h4>
+                </div>
+                <div class="row">
+                    <div class="col-1">
+                        <div class="col text-center">
+                            <button type="submit" name='plus' class="btn btn-outline-primary mt-3"
+                                style="height:55px; width: 55px; font-size: 20px;">&#10004;</button>
+                        </div>
+                    </div>
+                    <div class="col-1">
+                        <div class="col text-center">
+                            <button type="submit" name='1' class="btn btn-outline-primary mt-3"
+                                style="height:55px; width: 55px; font-size: 20px;">+1</button>
+                        </div>
+                    </div>
+                    <div class="col-1">
+                        <div class="col text-center">
+                            <button type="submit" name='2' class="btn btn-outline-primary mt-3"
+                                style="height:55px; width: 55px; font-size: 20px;">+2</button>
+                        </div>
+                    </div>
+                    <div class="col-1">
+                        <div class="col text-center">
+                            <button type="submit" name='3' class="btn btn-outline-primary mt-3"
+                                style="height:55px; width: 55px; font-size: 20px;">+3</button>
+                        </div>
+                    </div>
+                    <div class="col-1">
+                        <div class="col text-center">
+                            <button type="submit" name='4' class="btn btn-outline-primary mt-3"
+                                style="height:55px; width: 55px; font-size: 20px;">+4</button>
+                        </div>
+                    </div>
+                    <div class="col-1">
+                        <div class="col text-center">
+                            <button type="submit" name='5' class="btn btn-outline-primary mt-3"
+                                style="height:55px; width: 55px; font-size: 20px;">+5</button>
+                        </div>
+                    </div>
+                    <div class="col-1">
+                        <div class="col text-center">
+                            <button type="submit" name='6' class="btn btn-outline-primary mt-3"
+                                style="height:55px; width: 55px; font-size: 20px;">+6</button>
+                        </div>
+                    </div>
+                    <div class="col-1">
+                        <div class="col text-center">
+                            <button type="submit" name='7' class="btn btn-outline-primary mt-3"
+                                style="height:55px; width: 55px; font-size: 20px;">+7</button>
+                        </div>
+                    </div>
+                    <div class="col-1">
+                        <div class="col text-center">
+                            <button type="submit" name='8' class="btn btn-outline-primary mt-3"
+                                style="height:55px; width: 55px; font-size: 20px;">+8</button>
+                        </div>
+                    </div>
+                    <div class="col-1">
+                        <div class="col text-center">
+                            <button type="submit" name='koniec_zmiany' class="btn btn-outline-primary mt-3"
+                                style="height:55px; width: 185px; font-size: 20px;">Koniec zmiany</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% comment %} KONIEC RAPORTOWANIA {% endcomment %}
+
+    </div>
+    <div>
+        <div class="row">
+            <div class="col-6">
+                <!-- ------------- CZAS WYKONANIA OPERACJI ----------------------------  -->
+
+                <div class="stopwatch">
+                    <h3>Czas operacji:</h3>
+                    <span class="time" id="display">00:00:00</span>
+                    <!-- <div class="circle">
+                
+                </div> -->
+                </div>
+
+                <!-- ------------- JAVA SCRIPT - CZAS WYKONANIA OPERACJI ----------------------------  -->
+
+                <script>
+                    function timeToString(time) {
+                        let diffInHrs = time / 3600000;
+                        let hh = Math.floor(diffInHrs);
+
+                        let diffInMin = (diffInHrs - hh) * 60;
+                        let mm = Math.floor(diffInMin);
+
+                        let diffInSec = (diffInMin - mm) * 60;
+                        let ss = Math.floor(diffInSec);
+
+                        let diffInMs = (diffInSec - ss) * 100;
+                        let ms = Math.floor(diffInMs);
+
+                        // hh = hh + 6;
+                        // mm = mm + 59;
+                        let formattedHH = hh.toString().padStart(2, "0");
+                        let formattedMM = mm.toString().padStart(2, "0");
+                        let formattedSS = ss.toString().padStart(2, "0");
+                        let formattedMS = ms.toString().padStart(2, "0");
+
+                        return `${formattedHH}:${formattedMM}:${formattedSS}`;
+                    }
+
+                    // Declare variables to use in our functions below
+
+                    let startTime;
+                    let elapsedTime = "{{ mes_task.czas_wykonywania_operacji }}";
+                    let timerInterval;
+
+                    // Create function to modify innerHTML
+
+                    function print(txt) {
+                        document.getElementById("display").innerHTML = txt;
+                    }
+
+                    // Create "start", "pause" and "reset" functions
+
+                    function start() {
+                        startTime = Date.now() - elapsedTime;
+                        timerInterval = setInterval(function printTime() {
+                            elapsedTime = Date.now() - startTime;
+                            print(timeToString(elapsedTime));
+                        }, 10);
+                        showButton("PAUSE");
+                    }
+                    start()
+
+                </script>
+
+                <!-- ------------- KONIEC JAVA SCRIPT - CZAS WYKONANIA OPERACJI ----------------------------  -->
+            </div>
+            <div class="col-6">
+                <!-- ------------- CZAS WYKONANIA OPERACJI NA ZMIANIE----------------------------  -->
+
+                <div class="stopwatch">
+                    <h3>Czas operacji na zmianie:</h3>
+                    <span class="time" id="display2">00:00:00</span>
+                </div>
+                <script>
+                    function timeToString(time) {
+                        let diffInHrs = time / 3600000;
+                        let hh = Math.floor(diffInHrs);
+
+                        let diffInMin = (diffInHrs - hh) * 60;
+                        let mm = Math.floor(diffInMin);
+
+                        let diffInSec = (diffInMin - mm) * 60;
+                        let ss = Math.floor(diffInSec);
+
+                        let diffInMs = (diffInSec - ss) * 100;
+                        let ms = Math.floor(diffInMs);
+
+                        // hh = hh + 6;
+                        // mm = mm + 59;
+                        let formattedHH = hh.toString().padStart(2, "0");
+                        let formattedMM = mm.toString().padStart(2, "0");
+                        let formattedSS = ss.toString().padStart(2, "0");
+                        let formattedMS = ms.toString().padStart(2, "0");
+
+                        return `${formattedHH}:${formattedMM}:${formattedSS}`;
+                    }
+
+                    // Declare variables to use in our functions below
+
+                    let startTime2;
+                    let elapsedTime2 = "{{ mes_task.czas_wykonywania_operacji_na_zmianie }}";
+                    let timerInterval2;
+
+                    // Create function to modify innerHTML
+
+                    function print2(txt) {
+                        document.getElementById("display2").innerHTML = txt;
+                    }
+
+                    // Create "start", "pause" and "reset" functions
+
+                    function start2() {
+                        startTime2 = Date.now() - elapsedTime2;
+                        timerInterval2 = setInterval(function printTime() {
+                            elapsedTime2 = Date.now() - startTime2;
+                            print2(timeToString(elapsedTime2));
+                        }, 10);
+                        showButton("PAUSE");
+                    }
+                    start2()
+
+                </script>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+    {% elif mes_task.stanowisko.user.username == None %}{% comment %} WARUNEK 1 {% endcomment %}
+        <h6>Aktualnie stanowisko {{ mes_task.stanowisko }} nie jest przejęte przez żadnego użytkownika.</h6>
+        <div class="text-center">
+            <button type="submit" name='przejmij_stanowisko' class="btn btn-warning mt-3" style="height:90px; width: 180px; font-size: 20px;">PRZEJMIJ STANOWISKO</button>
+        </div>
+
+
+
+
+    {% else %}
+    <h6>Aktualnie zalogowany użytkownik: {{mes_task.stanowisko.user.username}}</h6>
+    <br>
+    
+
+    </form>
+    
+
+    <!-- Message from backend-->
+    <div class="mt-5">
+        {% for message in messages %}
+        {% if message.tags == 'success' %}
+        <div class="text-center alert alert-primary alert-dismisible fade show" role="alert">{{message}}
+            <a href="{% url 'home' %}" type="button" class="btn btn-close" data-bs-dismiss="alert"
+                aria-label="Close"></a>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

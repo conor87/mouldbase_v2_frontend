@@ -1,0 +1,46 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="{% static 'css/bootstrap.css' %}">
+  <!-- <link rel="stylesheet" href="{% static 'css/all.css' %}"> -->
+  {% comment %} <link rel="stylesheet" href="{% static 'css/style.css' %}"> {% endcomment %}
+  <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+
+
+
+  <title>{% block title %}{% endblock %}</title>
+  <!-- Favicon -->
+  <link href={% static "img/favicon.ico" %} rel="shortcut icon">
+  <!-- Icon tabs -->
+  <link href={% static "img/logo.ico" %} rel="shortcut icon">
+  <!-- Static CSS -->
+  <link href={% static "css/style_time.css" %} rel="stylesheet">
+
+
+</head>
+
+
+
+<body>
+  {% include 'partials/navbar_production.html' %}
+  {% comment %} <div class="wrapper">
+</div> {% endcomment %}
+
+    {% comment %} PASEK NAWIGACJI {% endcomment %}
+
+
+    <!-- ===== Block contente (ROOT) ===== -->
+    {% block content %} {% endblock content %}
+  
+
+
+
+</body>
+
+</html>
