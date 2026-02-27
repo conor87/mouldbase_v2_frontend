@@ -46,7 +46,7 @@ const navItems = [
   { to: "/moulds-admin", label: "Dodaj forme", icon: Settings, adminOnly: true },
   { to: "/mes/production/dashboard", label: "Dashboard produkcji", icon: LayoutDashboard, mesOnly: true },
   { to: "/mes/service/dashboard", label: "Dashboard serwisu", icon: LayoutDashboard, mesOnly: true },
-  // { to: "/mes", label: "MES", icon: Cpu, mesOnly: true, end: true },
+  { to: "/mes", label: "MES", icon: Cpu, mesOnly: true, end: true },
   { to: "/production_admin", label: "Production Admin", icon: ShieldCheck, adminOnly: true },
   { to: "/service_admin", label: "Service Admin", icon: Hammer, adminOnly: true },
 ];
