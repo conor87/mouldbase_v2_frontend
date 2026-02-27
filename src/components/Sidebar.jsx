@@ -1,5 +1,6 @@
-import React from "react";
-import { NavLink } from "react-router-dom";
+import React, { useCallback } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { API_BASE } from "../config/api.js";
 import { ArrowLeftRight, BarChart3, Calendar, Cpu, Factory, Hammer, Home, LayoutDashboard, Settings, ShieldCheck, Wrench } from "lucide-react";
 
 const parseJwt = (token) => {
@@ -46,7 +47,7 @@ const navItems = [
   { to: "/moulds-admin", label: "Dodaj forme", icon: Settings, adminOnly: true },
   { to: "/mes/production/dashboard", label: "Dashboard produkcji", icon: LayoutDashboard, mesOnly: true },
   { to: "/mes/service/dashboard", label: "Dashboard serwisu", icon: LayoutDashboard, mesOnly: true },
-  { to: "/mes", label: "MES", icon: Cpu, mesOnly: true, end: true },
+  { to: "/mes", label: "MES", icon: Cpu, mesOnly: true, end: true, smartMes: true },
   { to: "/production_admin", label: "Production Admin", icon: ShieldCheck, adminOnly: true },
   { to: "/service_admin", label: "Service Admin", icon: Hammer, adminOnly: true },
 ];
@@ -72,7 +73,11 @@ function NavItem({ to, label, icon: Icon, end }) {
   );
 }
 
+const normalizeList = (data) =>
+  Array.isArray(data) ? data : data?.results ?? data?.data ?? [];
+
 export default function Sidebar() {
+  const navigate = useNavigate();
   const canAddMould = isAdminFromToken();
   const isSuperAdmin = isSuperAdminFromToken();
   const canMes = isMesUser();
@@ -83,12 +88,57 @@ export default function Sidebar() {
     return true;
   });
 
+  const handleMesClick = useCallback(async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem("access_token");
+    const userId = Number(localStorage.getItem("user_id"));
+    if (!token || !userId) { navigate("/mes"); return; }
+    const headers = { Authorization: `Bearer ${token}` };
+    try {
+      const [prodRes, svcRes] = await Promise.all([
+        fetch(`${API_BASE}/production/workstations`, { headers }).then((r) => r.json()),
+        fetch(`${API_BASE}/service/workstations`, { headers }).then((r) => r.json()),
+      ]);
+      const prodWs = normalizeList(prodRes).find((ws) => ws.user_id === userId);
+      if (prodWs && prodWs.current_operation_id) {
+        navigate(`/mes/production/machine/${prodWs.id}/panel/${prodWs.current_operation_id}`);
+        return;
+      }
+      const svcWs = normalizeList(svcRes).find((ws) => ws.user_id === userId);
+      if (svcWs) {
+        if (svcWs.aktualne_przezbrojenie_id) {
+          navigate(`/mes/service/workstation/${svcWs.id}/changeover/${svcWs.aktualne_przezbrojenie_id}`);
+        } else if (svcWs.st) {
+          navigate(`/mes/service/workstation/${svcWs.id}/panel/${svcWs.st}`);
+        } else {
+          navigate(`/mes/service/workstation/${svcWs.id}`);
+        }
+        return;
+      }
+      navigate("/mes");
+    } catch {
+      navigate("/mes");
+    }
+  }, [navigate]);
+
   return (
     <aside className="fixed left-0 top-0 h-full w-16 bg-slate-800/90 border-r border-slate-800/80 backdrop-blur-md z-[60] opacity-100">
       <div className="flex h-full flex-col items-center gap-3 py-4">
-        {items.map((item) => (
-          <NavItem key={item.to} {...item} />
-        ))}
+        {items.map((item) =>
+          item.smartMes ? (
+            <button
+              key={item.to}
+              onClick={handleMesClick}
+              title={item.label}
+              aria-label={item.label}
+              className={`${baseItemClasses} ${idleClasses}`}
+            >
+              <item.icon className="w-5 h-5" />
+            </button>
+          ) : (
+            <NavItem key={item.to} {...item} />
+          )
+        )}
       </div>
     </aside>
   );
