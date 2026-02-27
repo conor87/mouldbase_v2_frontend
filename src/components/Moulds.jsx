@@ -164,10 +164,10 @@ export default function Moulds() {
         <div className="max-w-full mx-auto lg:mx-8">
           <div className="text-center mb-8 sm:mb-10 lg:mb-12">
             <h2 className="text-5xl sm:text-4xl md:text-3xl lg:text-4xl font-bold mb-4 sm:mb-6">
-              <span className="bg-gradient-to-b from-white to-gray-300 bg-clip-text text-transparent">
+              <span className="text-gray-200">
                 Formy wtryskowe{" "}
               </span>
-              <span className="bg-gradient-to-b from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+              <span className="text-blue-400">
                 i rozdmuchowe
               </span>
             </h2>
