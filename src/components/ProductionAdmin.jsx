@@ -1686,13 +1686,37 @@ export default function ProductionAdmin() {
                             key: "actions",
                             header: "Akcje",
                             render: (row) => (
-                              <button
-                                type="button"
-                                onClick={() => startEditOperation(row)}
-                                className="px-2 py-1 rounded-md border border-slate-600 text-slate-200 hover:border-slate-400"
-                              >
-                                Edytuj
-                              </button>
+                              <div className="flex gap-2 justify-center">
+                                <button
+                                  type="button"
+                                  onClick={() => startEditOperation(row)}
+                                  className="px-2 py-1 rounded-md border border-slate-600 text-slate-200 hover:border-slate-400"
+                                >
+                                  Edytuj
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    try {
+                                      const res = await fetch(`${API_BASE}/production/operations/${row.id}`, {
+                                        method: "DELETE",
+                                        headers: authHeaders(),
+                                      });
+                                      if (!res.ok) {
+                                        const err = await res.text();
+                                        throw new Error(err || "Delete failed");
+                                      }
+                                      await apiGet("/production/operations", setOperations);
+                                      setMessage("Operacja usunięta.");
+                                    } catch (err) {
+                                      setMessage("Błąd usuwania operacji: " + err.message);
+                                    }
+                                  }}
+                                  className="px-2 py-1 rounded-md border border-red-600 text-red-400 hover:border-red-400 hover:text-red-300"
+                                >
+                                  Usuń
+                                </button>
+                              </div>
                             ),
                           },
                         ]
