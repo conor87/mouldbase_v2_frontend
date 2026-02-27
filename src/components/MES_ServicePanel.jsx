@@ -175,6 +175,34 @@ export default function MES_ServicePanel() {
     [workstation],
   );
 
+  const createServiceLog = useCallback(
+    async (statusLabel) => {
+      const token = localStorage.getItem("access_token");
+      const operator = localStorage.getItem("username") || null;
+      const payload = {
+        operator,
+        created_at: new Date().toISOString(),
+        status_service: statusLabel,
+        mes_activ_service_id: workstation?.aktualne_zlecenie_serwisowe_id || null,
+        mes_activ_changeover_id: workstation?.aktualne_przezbrojenie_id || null,
+        status_changeover: null,
+      };
+      try {
+        await fetch(`${API_BASE}/service/logs`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+      } catch (err) {
+        console.error("Failed to create service log:", err);
+      }
+    },
+    [workstation],
+  );
+
   const handleStatusClick = useCallback(
     (btn) => {
       if (btn.hasTimer) {
@@ -193,6 +221,7 @@ export default function MES_ServicePanel() {
         totalStartRef.current = null;
         statusStartRef.current = null;
         setStatusElapsed(0);
+        createServiceLog(btn.label);
         updateWorkstationStatus(btn.label).then(() => {
           // Clear current mould from workstation
           const token = localStorage.getItem("access_token");
@@ -211,8 +240,9 @@ export default function MES_ServicePanel() {
       }
       setActiveStatusId(btn.id);
       updateWorkstationStatus(btn.label);
+      createServiceLog(btn.label);
     },
-    [updateWorkstationStatus],
+    [updateWorkstationStatus, createServiceLog],
   );
 
   const activeBtn = activeStatusId ? allButtonsById[activeStatusId] : null;

@@ -110,12 +110,41 @@ export default function MES_ChangeoverPanel() {
     [workstation],
   );
 
+  const createServiceLog = useCallback(
+    async (statusChangeover) => {
+      const token = localStorage.getItem("access_token");
+      const operator = localStorage.getItem("username") || null;
+      const payload = {
+        operator,
+        created_at: new Date().toISOString(),
+        status_service: null,
+        mes_activ_service_id: workstation?.aktualne_zlecenie_serwisowe_id || null,
+        mes_activ_changeover_id: parseInt(changeoverId, 10) || null,
+        status_changeover: statusChangeover,
+      };
+      try {
+        await fetch(`${API_BASE}/service/logs`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+      } catch (err) {
+        console.error("Failed to create service log:", err);
+      }
+    },
+    [workstation, changeoverId],
+  );
+
   const handleStart = () => {
     if (!workstation) return;
     setStarted(true);
     startRef.current = Date.now();
     setElapsed(0);
     updateWorkstationStatus("Przezbrajanie");
+    createServiceLog("Przezbrajanie");
   };
 
   const handlePause = () => {
@@ -123,6 +152,7 @@ export default function MES_ChangeoverPanel() {
     setStarted(false);
     if (!workstation) { navigate(`/mes/service/workstation/${workstationId}`); return; }
     updateWorkstationStatus("Przerwane przezbrajanie");
+    createServiceLog("Przerwane przezbrajanie");
     const token = localStorage.getItem("access_token");
     fetch(`${API_BASE}/service/workstations/${workstation.id}`, {
       method: "PUT",
@@ -140,6 +170,7 @@ export default function MES_ChangeoverPanel() {
     startRef.current = null;
     setStarted(false);
     if (!workstation) { navigate(`/mes/service/workstation/${workstationId}`); return; }
+    createServiceLog("Koniec przezbrojenia");
     const token = localStorage.getItem("access_token");
     const fd = new FormData();
     fd.append("czy_wykonano", "true");

@@ -80,8 +80,26 @@ CREATE TABLE stanowiska_service (
 
 ---
 
+## 7. Nowa tabela: `service_log`
+
+Zunifikowana tabela logów serwisowych — rejestruje każdą zmianę statusu zarówno z serwisowania form jak i z przezbrojeń.
+
+```sql
+CREATE TABLE service_log (
+    id SERIAL PRIMARY KEY,
+    operator VARCHAR(100) NULL,
+    created_at VARCHAR(50) NULL,
+    status_service VARCHAR(50) NULL,
+    mes_activ_service_id INTEGER NULL,
+    mes_activ_changeover_id INTEGER NULL,
+    status_changeover VARCHAR(50) NULL
+);
+```
+
+---
+
 ## Kolejność wykonania
 
 1. Najpierw utwórz tabelę `machine_groups` (punkt 1)
 2. Potem dodaj kolumnę `machine_group_id` w `workstations` (punkt 3) — wymaga istnienia tabeli `machine_groups`
-3. Punkty 2, 4, 5 i 6 można wykonać niezależnie
+3. Punkty 2, 4, 5, 6 i 7 można wykonać niezależnie

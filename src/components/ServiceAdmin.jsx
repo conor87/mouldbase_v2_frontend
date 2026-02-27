@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Navbar from "./Navbar.jsx";
 import { API_BASE } from "../config/api.js";
 import { getCurrentUser } from "../auth.js";
-import { Wrench } from "lucide-react";
+import { Wrench, ScrollText } from "lucide-react";
 
 const Field = ({ label, children }) => (
   <div>
@@ -52,6 +52,7 @@ export default function ServiceAdmin() {
   const [message, setMessage] = useState(null);
 
   const [workstations, setWorkstations] = useState([]);
+  const [logs, setLogs] = useState([]);
 
   const user = getCurrentUser();
   const role = user?.role;
@@ -69,6 +70,16 @@ export default function ServiceAdmin() {
     user_id: "",
   });
   const [editingWsId, setEditingWsId] = useState(null);
+
+  const [logForm, setLogForm] = useState({
+    operator: "",
+    created_at: "",
+    status_service: "",
+    mes_activ_service_id: "",
+    mes_activ_changeover_id: "",
+    status_changeover: "",
+  });
+  const [editingLogId, setEditingLogId] = useState(null);
 
   // ─── API helpers ───────────────────────────────────────────────────────────
   const getHeaders = () => {
@@ -145,6 +156,7 @@ export default function ServiceAdmin() {
   // ─── Fetch data ────────────────────────────────────────────────────────────
   useEffect(() => {
     apiGet("/service/workstations", setWorkstations);
+    apiGet("/service/logs", setLogs);
   }, []);
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
@@ -218,6 +230,86 @@ export default function ServiceAdmin() {
     });
   }, []);
 
+  // ─── Log handlers ──────────────────────────────────────────────────────────
+  const resetLogForm = () => {
+    setLogForm({
+      operator: "",
+      created_at: "",
+      status_service: "",
+      mes_activ_service_id: "",
+      mes_activ_changeover_id: "",
+      status_changeover: "",
+    });
+    setEditingLogId(null);
+  };
+
+  const handleCreateOrUpdateLog = async (e) => {
+    e.preventDefault();
+    const payload = {
+      operator: logForm.operator || null,
+      created_at: logForm.created_at || null,
+      status_service: logForm.status_service || null,
+      mes_activ_service_id: toIntOrNull(logForm.mes_activ_service_id),
+      mes_activ_changeover_id: toIntOrNull(logForm.mes_activ_changeover_id),
+      status_changeover: logForm.status_changeover || null,
+    };
+
+    if (editingLogId) {
+      await apiPut(`/service/logs/${editingLogId}`, payload, async () => {
+        await apiGet("/service/logs", setLogs);
+        setMessage("Log zaktualizowany.");
+        resetLogForm();
+      });
+    } else {
+      await apiPost("/service/logs", payload, async () => {
+        await apiGet("/service/logs", setLogs);
+        setMessage("Log dodany.");
+        resetLogForm();
+      });
+    }
+  };
+
+  const handleEditLog = useCallback((log) => {
+    setLogForm({
+      operator: log.operator || "",
+      created_at: log.created_at || "",
+      status_service: log.status_service || "",
+      mes_activ_service_id: log.mes_activ_service_id ?? "",
+      mes_activ_changeover_id: log.mes_activ_changeover_id ?? "",
+      status_changeover: log.status_changeover || "",
+    });
+    setEditingLogId(log.id);
+  }, []);
+
+  const handleDeleteLog = useCallback(async (id) => {
+    await apiDelete(`/service/logs/${id}`, async () => {
+      await apiGet("/service/logs", setLogs);
+      setMessage("Log usunięty.");
+    });
+  }, []);
+
+  const logColumns = useMemo(() => [
+    { key: "id", header: "ID" },
+    { key: "operator", header: "Operator" },
+    { key: "created_at", header: "Data" },
+    { key: "status_service", header: "Status serwis" },
+    { key: "mes_activ_service_id", header: "Zlecenie serwisowe ID" },
+    { key: "status_changeover", header: "Status przezbrojenia" },
+    { key: "mes_activ_changeover_id", header: "Przezbrojenie ID" },
+    ...(canEdit
+      ? [{
+          key: "_actions",
+          header: "Akcje",
+          render: (row) => (
+            <div className="flex gap-2 justify-center">
+              <button onClick={() => handleEditLog(row)} className="text-blue-400 hover:text-blue-300 text-xs">edytuj</button>
+              <button onClick={() => handleDeleteLog(row.id)} className="text-red-400 hover:text-red-300 text-xs">usuń</button>
+            </div>
+          ),
+        }]
+      : []),
+  ], [canEdit, handleEditLog, handleDeleteLog]);
+
   const wsColumns = useMemo(() => [
     { key: "id", header: "ID" },
     { key: "nazwa_stanowiska", header: "Nazwa stanowiska" },
@@ -245,6 +337,7 @@ export default function ServiceAdmin() {
   // ─── Tabs ──────────────────────────────────────────────────────────────────
   const tabs = [
     { id: "service_workstations", label: "Stanowiska serwisowe", icon: Wrench },
+    { id: "logs", label: "Logi", icon: ScrollText },
   ];
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -384,6 +477,89 @@ export default function ServiceAdmin() {
                 <DataTable
                   columns={wsColumns}
                   rows={workstations}
+                  getRowKey={(row) => row.id}
+                />
+              </section>
+            )}
+
+            {/* ══════════════════════════ Logi ══════════════════════════ */}
+            {activeTab === "logs" && (
+              <section>
+                <h2 className="text-lg font-bold mb-4">Logi serwisowe</h2>
+
+                {canEdit && (
+                  <form onSubmit={handleCreateOrUpdateLog} className="mb-6 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <Field label="Operator">
+                        <input
+                          className={inputClass}
+                          value={logForm.operator}
+                          onChange={(e) => setLogForm(prev => ({ ...prev, operator: e.target.value }))}
+                        />
+                      </Field>
+                      <Field label="Data (created_at)">
+                        <input
+                          type="datetime-local"
+                          className={inputClass}
+                          value={logForm.created_at}
+                          onChange={(e) => setLogForm(prev => ({ ...prev, created_at: e.target.value }))}
+                        />
+                      </Field>
+                      <Field label="Status serwis">
+                        <input
+                          className={inputClass}
+                          value={logForm.status_service}
+                          onChange={(e) => setLogForm(prev => ({ ...prev, status_service: e.target.value }))}
+                        />
+                      </Field>
+                      <Field label="Zlecenie serwisowe ID">
+                        <input
+                          type="number"
+                          className={inputClass}
+                          value={logForm.mes_activ_service_id}
+                          onChange={(e) => setLogForm(prev => ({ ...prev, mes_activ_service_id: e.target.value }))}
+                        />
+                      </Field>
+                      <Field label="Status przezbrojenia">
+                        <input
+                          className={inputClass}
+                          value={logForm.status_changeover}
+                          onChange={(e) => setLogForm(prev => ({ ...prev, status_changeover: e.target.value }))}
+                        />
+                      </Field>
+                      <Field label="Przezbrojenie ID">
+                        <input
+                          type="number"
+                          className={inputClass}
+                          value={logForm.mes_activ_changeover_id}
+                          onChange={(e) => setLogForm(prev => ({ ...prev, mes_activ_changeover_id: e.target.value }))}
+                        />
+                      </Field>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-medium transition"
+                      >
+                        {editingLogId ? "Zapisz zmiany" : "Dodaj log"}
+                      </button>
+                      {editingLogId && (
+                        <button
+                          type="button"
+                          onClick={resetLogForm}
+                          className="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm font-medium transition"
+                        >
+                          Anuluj
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                )}
+
+                <div className="text-sm text-slate-400 mb-3">{logs.length} rekordów</div>
+                <DataTable
+                  columns={logColumns}
+                  rows={logs}
                   getRowKey={(row) => row.id}
                 />
               </section>
