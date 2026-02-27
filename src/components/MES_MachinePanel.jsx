@@ -33,7 +33,7 @@ function buildColorClasses(colorName) {
 // bg-emerald-600/50 hover:bg-emerald-500/70 border-emerald-600 bg-emerald-600/20 border-emerald-500 text-emerald-400 ring-emerald-400
 
 function formatTime(ms) {
-  const totalSec = Math.floor(ms / 1000);
+  const totalSec = Math.floor(Math.max(0, ms) / 1000);
   const hh = Math.floor(totalSec / 3600).toString().padStart(2, "0");
   const mm = Math.floor((totalSec % 3600) / 60).toString().padStart(2, "0");
   const ss = (totalSec % 60).toString().padStart(2, "0");
