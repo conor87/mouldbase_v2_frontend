@@ -113,11 +113,11 @@ export default function MES_AddMachineModal({ onClose, onAdded, myWorkstationIds
           <select
             value={selectedGroup}
             onChange={(e) => setSelectedGroup(e.target.value)}
-            className="rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+            className="rounded-lg bg-slate-800 border border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
           >
-            <option value="">Wszystkie grupy</option>
+            <option value="" className="bg-slate-800">Wszystkie grupy</option>
             {groups.map((g) => (
-              <option key={g.id} value={String(g.id)}>
+              <option key={g.id} value={String(g.id)} className="bg-slate-800">
                 {g.name}
               </option>
             ))}
