@@ -109,7 +109,24 @@ export default function MES_ServiceWorkstation() {
         if (!r.ok) throw new Error("Takeover failed");
         return r.json();
       })
-      .then((updated) => setWorkstation(updated))
+      .then((updated) => {
+        setWorkstation(updated);
+        // Log takeover
+        const operator = localStorage.getItem("username") || null;
+        const now = (() => { const d = new Date(); const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; })();
+        fetch(`${API_BASE}/service/logs`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            operator,
+            created_at: now,
+            status_service: "Przejęcie stanowiska",
+            mes_activ_service_id: updated.aktualne_zlecenie_serwisowe_id || null,
+            mes_activ_changeover_id: updated.aktualne_przezbrojenie_id || null,
+            status_changeover: null,
+          }),
+        }).catch(() => {});
+      })
       .catch(() => alert("Nie udało się przejąć stanowiska."));
   };
 

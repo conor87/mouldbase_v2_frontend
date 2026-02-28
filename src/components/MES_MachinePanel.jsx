@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
 import { ChevronLeft } from "lucide-react";
 import MES_UserBar from "./MES_UserBar.jsx";
+import MES_MachineTabs from "./MES_MachineTabs.jsx";
 
 const normalizeList = (data) =>
   Array.isArray(data) ? data : data?.results ?? data?.data ?? [];
@@ -53,6 +54,7 @@ export default function MES_MachinePanel() {
 
   // Status & timers
   const [activeStatusId, setActiveStatusId] = useState(null);
+  const [tabsRefresh, setTabsRefresh] = useState(0);
   const [operationElapsed, setOperationElapsed] = useState(0);
   const [statusElapsed, setStatusElapsed] = useState(0);
 
@@ -240,8 +242,12 @@ export default function MES_MachinePanel() {
       setStatusElapsed(0);
     }
     setActiveStatusId(btn.id);
-    updateWorkstationStatus(btn);
-  }, [updateWorkstationStatus]);
+    setTabsRefresh((n) => n + 1);
+    updateWorkstationStatus(btn).then(() => {
+      if (btn.statusNo === 6) navigate("/mes");
+      if (btn.statusNo === 7) navigate(`/mes/production/machine/${machineId}`);
+    });
+  }, [updateWorkstationStatus, navigate]);
 
   const activeBtn = activeStatusId ? statusMetaById[activeStatusId] : null;
 
@@ -268,6 +274,7 @@ export default function MES_MachinePanel() {
       >
         <ChevronLeft className="w-4 h-4" /> Powrót do operacji
       </button>
+      <MES_MachineTabs activeMachineId={machineId} refreshKey={tabsRefresh} />
       <h1 className="text-2xl font-bold mb-6 text-center">Panel maszyny</h1>
 
       {loading ? (

@@ -111,9 +111,10 @@ export default function Sidebar() {
       const prodList = normalizeList(prodRes);
       const svcList = normalizeList(svcRes);
 
-      // Match by user_id — compare both as numbers
-      const prodWs = prodList.find((ws) => ws.user_id != null && Number(ws.user_id) === userId);
-      if (prodWs) {
+      // Match by user_id — compare both as numbers; prefer workstation with active operation
+      const prodAll = prodList.filter((ws) => ws.user_id != null && Number(ws.user_id) === userId);
+      if (prodAll.length > 0) {
+        const prodWs = prodAll.find((ws) => ws.current_operation_id) || prodAll[0];
         const dest = prodWs.current_operation_id
           ? `/mes/production/machine/${prodWs.id}/panel/${prodWs.current_operation_id}`
           : `/mes/production/machine/${prodWs.id}`;

@@ -1835,13 +1835,31 @@ export default function ProductionAdmin() {
                             key: "actions",
                             header: "Akcje",
                             render: (row) => (
-                              <button
-                                type="button"
-                                onClick={() => startEditLog(row)}
-                                className="px-2 py-1 rounded-md border border-slate-600 text-slate-200 hover:border-slate-400"
-                              >
-                                Edytuj
-                              </button>
+                              <div className="flex gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => startEditLog(row)}
+                                  className="px-2 py-1 rounded-md border border-slate-600 text-slate-200 hover:border-slate-400"
+                                >
+                                  Edytuj
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (!confirm(`Usunąć log #${row.id}?`)) return;
+                                    try {
+                                      await fetch(`${API_BASE}/production/logs/${row.id}`, {
+                                        method: "DELETE",
+                                        headers: authHeaders(),
+                                      });
+                                      await apiGet("/production/logs", setLogs);
+                                    } catch { /* ignore */ }
+                                  }}
+                                  className="px-2 py-1 rounded-md border border-red-700 text-red-400 hover:border-red-500 hover:text-red-300"
+                                >
+                                  Usuń
+                                </button>
+                              </div>
                             ),
                           },
                         ]
