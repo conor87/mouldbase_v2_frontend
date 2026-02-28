@@ -250,6 +250,7 @@ export default function MES_MachinePanel() {
   }, [updateWorkstationStatus, navigate]);
 
   const activeBtn = activeStatusId ? statusMetaById[activeStatusId] : null;
+  const isMyMachine = workstation && workstation.user_id != null && Number(workstation.user_id) === getUserId();
 
   const orderLabel = order
     ? `${order.order_number} | ${order.team?.trim() || "—"} | ${order.product_name?.trim() || "—"}`
@@ -318,13 +319,20 @@ export default function MES_MachinePanel() {
               </div>
 
               {/* Action buttons — generated from machine_statuses */}
+              {!isMyMachine && (
+                <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-300 text-center">
+                  Podgląd — maszyna przypisana do innego operatora
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 {statusButtons.map((btn) => (
                   <button
                     key={btn.id}
-                    onClick={() => handleStatusClick(btn)}
+                    onClick={() => isMyMachine && handleStatusClick(btn)}
+                    disabled={!isMyMachine}
                     className={`${btn.color} rounded-xl px-4 py-3 text-sm font-medium transition
-                      ${activeStatusId === btn.id ? `ring-2 ring-offset-2 ${btn.ringClass}` : ""}`}
+                      ${activeStatusId === btn.id ? `ring-2 ring-offset-2 ${btn.ringClass}` : ""}
+                      ${!isMyMachine ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     {btn.label}
                   </button>
