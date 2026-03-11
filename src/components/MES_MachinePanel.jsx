@@ -8,8 +8,8 @@ import MES_MachineTabs from "./MES_MachineTabs.jsx";
 const normalizeList = (data) =>
   Array.isArray(data) ? data : data?.results ?? data?.data ?? [];
 
-// No-timer statuses by status_no (koniec operacji, koniec zmiany, zmiana zlecenia)
-const NO_TIMER_NOS = new Set([5, 6, 7]);
+// No-timer statuses by status_no (koniec operacji, koniec zmiany, zmiana zlecenia, przerwij pracę)
+const NO_TIMER_NOS = new Set([5, 6, 7, 8]);
 
 // Build Tailwind classes from a color name (e.g. "green", "red", "slate")
 function buildColorClasses(colorName) {
@@ -182,13 +182,14 @@ export default function MES_MachinePanel() {
     const token = localStorage.getItem("access_token");
     const parsedUserId = getUserId();
 
+    const isRelease = btn.statusNo === 6 || btn.statusNo === 8; // Koniec zmiany / Przerwij pracę
     const putPayload = {
       name: workstation.name,
       cost_center: workstation.cost_center || null,
-      status_id: btn.id,
+      status_id: isRelease ? null : btn.id,
       current_task_id: btn.hasTimer ? (operation?.task_id ?? null) : null,
       current_operation_id: btn.hasTimer ? (operation?.id ?? null) : null,
-      user_id: parsedUserId,
+      user_id: isRelease ? null : parsedUserId,
     };
 
     const authHeaders = {
@@ -197,14 +198,7 @@ export default function MES_MachinePanel() {
     };
 
     try {
-      await fetch(`${API_BASE}/production/workstations/${workstation.id}`, {
-        method: "PUT",
-        headers: authHeaders,
-        body: JSON.stringify(putPayload),
-      });
-      setWorkstation((prev) => ({ ...prev, ...putPayload }));
-
-      // Create operation log
+      // Create operation log first (before releasing the machine)
       if (operation) {
         await fetch(`${API_BASE}/production/logs`, {
           method: "POST",
@@ -219,6 +213,14 @@ export default function MES_MachinePanel() {
           }),
         });
       }
+
+      // Update workstation (clears user_id on end-shift / stop-work)
+      await fetch(`${API_BASE}/production/workstations/${workstation.id}`, {
+        method: "PUT",
+        headers: authHeaders,
+        body: JSON.stringify(putPayload),
+      });
+      setWorkstation((prev) => ({ ...prev, ...putPayload }));
     } catch (err) {
       console.error("Failed to update workstation status:", err);
     }
@@ -242,9 +244,9 @@ export default function MES_MachinePanel() {
       setStatusElapsed(0);
     }
     setActiveStatusId(btn.id);
-    setTabsRefresh((n) => n + 1);
     updateWorkstationStatus(btn).then(() => {
-      if (btn.statusNo === 6) navigate("/mes");
+      setTabsRefresh((n) => n + 1);
+      if (btn.statusNo === 6 || btn.statusNo === 8) navigate("/mes");
       if (btn.statusNo === 7) navigate(`/mes/production/machine/${machineId}`);
     });
   }, [updateWorkstationStatus, navigate]);

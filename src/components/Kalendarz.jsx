@@ -30,7 +30,7 @@ const getRoleFromToken = () => {
 
 const isCalendarEditorFromToken = () => {
   const role = getRoleFromToken();
-  return role === "admindn" || role === "superadmin";
+  return role === "userdn" || role === "admindn" || role === "superadmin";
 };
 
 const isSuperAdminFromToken = () => getRoleFromToken() === "superadmin";

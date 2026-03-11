@@ -21,7 +21,14 @@
       "Bash(xargs ls:*)",
       "mcp__serena__insert_after_symbol",
       "Bash(python:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git:*)",
+      "Bash(curl:*)",
+      "mcp__serena__replace_symbol_body",
+      "Bash(head:*)",
+      "mcp__serena__list_memories",
+      "mcp__serena__execute_shell_command",
+      "Skill(commit-commands:commit-push-pr)"
     ]
   }
 }

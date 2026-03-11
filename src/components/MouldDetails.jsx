@@ -40,7 +40,7 @@ const getRoleFromToken = () => {
 
 const isAdminFromToken = () => {
   const role = getRoleFromToken();
-  return role === "admin" || role === "admindn" || role === "superadmin";
+  return role === "userdn" || role === "admin" || role === "admindn" || role === "superadmin";
 };
 
 const canEditMouldFromToken = () => {

@@ -38,7 +38,7 @@ export default function MES_Production_Dashboard() {
   const [orders, setOrders] = useState([]);
   const [machineGroups, setMachineGroups] = useState([]);
   const [users, setUsers] = useState([]);
-  const [selectedGroupId, setSelectedGroupId] = useState("");
+  const [selectedGroupId, setSelectedGroupId] = useState("active");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -92,7 +92,9 @@ export default function MES_Production_Dashboard() {
 
   const filteredWorkstations = useMemo(() => {
     let list = workstations;
-    if (selectedGroupId) {
+    if (selectedGroupId === "active") {
+      list = list.filter((ws) => ws.current_task_id || ws.current_operation_id);
+    } else if (selectedGroupId) {
       const gid = Number(selectedGroupId);
       list = list.filter((ws) => ws.machine_group_id === gid);
     }
@@ -117,6 +119,7 @@ export default function MES_Production_Dashboard() {
           onChange={(e) => setSelectedGroupId(e.target.value)}
           className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm min-w-[220px]"
         >
+          <option value="active">Aktywne stanowiska</option>
           <option value="">Wszystkie grupy maszyn</option>
           {machineGroups.map((g) => (
             <option key={g.id} value={g.id}>

@@ -111,6 +111,19 @@ export default function MES_UserBar() {
       } catch { /* ignore — proceed with logout */ }
     }
 
+    // Log session logout
+    if (token && userId) {
+      const now = (() => { const d = new Date(); const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; })();
+      try {
+        const res = await fetch(`${API_BASE}/mes-session/logs`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ user_id: userId, username: localStorage.getItem("username") || "", action: "logout", created_at: now }),
+        });
+        await res.text();
+      } catch { /* ignore */ }
+    }
+
     localStorage.removeItem("access_token");
     localStorage.removeItem("username");
     localStorage.removeItem("role");

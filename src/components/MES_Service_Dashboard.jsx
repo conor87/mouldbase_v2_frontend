@@ -56,6 +56,7 @@ export default function MES_Service_Dashboard() {
   const [workstations, setWorkstations] = useState([]);
   const [users, setUsers] = useState([]);
   const [moulds, setMoulds] = useState([]);
+  const [selectedFilter, setSelectedFilter] = useState("active");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -86,6 +87,13 @@ export default function MES_Service_Dashboard() {
     [moulds],
   );
 
+  const filteredWorkstations = useMemo(() => {
+    if (selectedFilter === "active") {
+      return workstations.filter((ws) => ws.user_id);
+    }
+    return workstations;
+  }, [workstations, selectedFilter]);
+
   return (
     <div className="flex flex-col min-h-[calc(100vh-2rem)] p-4 sm:p-6 pt-14 max-w-7xl mx-auto w-full">
       <MES_UserBar />
@@ -97,13 +105,25 @@ export default function MES_Service_Dashboard() {
       </button>
       <h1 className="text-2xl font-bold mb-6 text-center">Dashboard serwisu</h1>
 
+      {/* Filter bar */}
+      <div className="flex justify-center mb-6">
+        <select
+          value={selectedFilter}
+          onChange={(e) => setSelectedFilter(e.target.value)}
+          className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm min-w-[220px]"
+        >
+          <option value="active">Aktywne stanowiska</option>
+          <option value="">Wszystkie stanowiska</option>
+        </select>
+      </div>
+
       {loading ? (
         <p className="text-slate-400 text-center">Ładowanie…</p>
-      ) : workstations.length === 0 ? (
+      ) : filteredWorkstations.length === 0 ? (
         <p className="text-slate-400 text-center">Brak stanowisk serwisowych.</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {workstations.map((ws) => {
+          {filteredWorkstations.map((ws) => {
             const statusLabel = ws.status_changeovers || null;
             const colorName = statusLabel ? STATUS_COLOR_MAP[statusLabel] : null;
             const colors = buildColorClasses(colorName);

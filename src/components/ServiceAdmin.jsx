@@ -337,7 +337,6 @@ export default function ServiceAdmin() {
   // ─── Tabs ──────────────────────────────────────────────────────────────────
   const tabs = [
     { id: "service_workstations", label: "Stanowiska serwisowe", icon: Wrench },
-    { id: "logs", label: "Logi", icon: ScrollText },
   ];
 
   // ─── Render ────────────────────────────────────────────────────────────────

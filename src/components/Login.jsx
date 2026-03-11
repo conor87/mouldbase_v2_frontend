@@ -62,6 +62,27 @@ export default function Login() {
         console.warn("Nie udało się pobrać roli użytkownika");
       }
 
+      // Decode user info from JWT token as fallback
+      try {
+        const decoded = JSON.parse(atob(data.access_token.split(".")[1]));
+        const userId = decoded.id ?? decoded.user_id ?? null;
+        const uname = decoded.sub ?? decoded.username ?? username;
+        // Ensure user_id and role are in localStorage (fallback if /auth/{username} failed)
+        if (userId && !localStorage.getItem("user_id")) localStorage.setItem("user_id", String(userId));
+        if (decoded.role && !localStorage.getItem("role")) localStorage.setItem("role", decoded.role);
+        if (uname && !localStorage.getItem("username")) localStorage.setItem("username", uname);
+        if (userId) {
+          const now = new Date();
+          const p = (n) => String(n).padStart(2, "0");
+          const created_at = `${now.getFullYear()}-${p(now.getMonth()+1)}-${p(now.getDate())}T${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+          await fetch(`${API_BASE}/mes-session/logs`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.access_token}` },
+            body: JSON.stringify({ user_id: userId, username: uname, action: "login", created_at }),
+          });
+        }
+      } catch { /* ignore */ }
+
       navigate(from, { replace: true });
     } catch (err) {
       console.error(err);

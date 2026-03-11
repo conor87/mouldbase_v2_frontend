@@ -1,7 +1,7 @@
-import React, { useCallback } from "react";
+import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
-import { ArrowLeftRight, BarChart3, Calendar, Cpu, Factory, Hammer, Home, LayoutDashboard, Settings, ShieldCheck, Wrench } from "lucide-react";
+import { ArrowLeftRight, BarChart3, Calendar, ClipboardList, Cpu, Factory, Hammer, Home, LayoutDashboard, Settings, ShieldCheck, Wrench } from "lucide-react";
 
 const parseJwt = (token) => {
   try {
@@ -50,6 +50,7 @@ const navItems = [
   { to: "/mes", label: "MES", icon: Cpu, mesOnly: true, end: true, smartMes: true },
   { to: "/production_admin", label: "Production Admin", icon: ShieldCheck, adminOnly: true },
   { to: "/service_admin", label: "Service Admin", icon: Hammer, adminOnly: true },
+  { to: "/analytics", label: "Analityka", icon: ClipboardList, adminOnly: true },
 ];
 
 const baseItemClasses =
@@ -57,7 +58,7 @@ const baseItemClasses =
 const idleClasses = "text-slate-300 hover:text-white hover:bg-slate-800/70";
 const activeClasses = "bg-blue-500/90 text-white shadow-lg shadow-blue-500/20";
 
-function NavItem({ to, label, icon: Icon, end }) {
+function NavItem({ to, label, icon, end }) {
   return (
     <NavLink
       to={to}
@@ -68,7 +69,7 @@ function NavItem({ to, label, icon: Icon, end }) {
         `${baseItemClasses} ${isActive ? activeClasses : idleClasses}`
       }
     >
-      <Icon className="w-5 h-5" />
+      {React.createElement(icon, { className: "w-5 h-5" })}
     </NavLink>
   );
 }
@@ -88,7 +89,7 @@ export default function Sidebar() {
     return true;
   });
 
-  const handleMesClick = useCallback(async (e) => {
+  const handleMesClick = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem("access_token");
     if (!token) { navigate("/mes"); return; }
@@ -142,7 +143,7 @@ export default function Sidebar() {
       console.error("[MES Nav] error:", err);
       navigate("/mes");
     }
-  }, [navigate]);
+  };
 
   return (
     <aside className="fixed left-0 top-0 h-full w-16 bg-slate-800/90 border-r border-slate-800/80 backdrop-blur-md z-[60] opacity-100">

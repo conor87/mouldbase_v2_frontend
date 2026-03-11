@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import Navbar from "./Navbar.jsx";
 import { API_BASE } from "../config/api.js";
 import { getCurrentUser } from "../auth.js";
-import { Gauge, Tag, Building2, ShoppingCart, ClipboardList, Cog, ScrollText } from "lucide-react";
+import { Gauge, Tag, Building2, ShoppingCart, ClipboardList, Cog, ScrollText, Printer } from "lucide-react";
 
 const toIntOrNull = (value) => {
   const v = String(value ?? "").trim();
@@ -116,6 +116,7 @@ export default function ProductionAdmin() {
     workstation_id: "",
     user_id: "",
     note: "",
+    created_at: "",
   });
 
   const [editingStatusId, setEditingStatusId] = useState(null);
@@ -293,14 +294,16 @@ export default function ProductionAdmin() {
       list = list.filter((op) => op.task_id === filterId);
     }
     const term = operationTaskSearch.trim().toLowerCase();
-    if (!term) return list;
-    return list.filter((op) => {
-      const taskLabel = taskLabelById.get(op.task_id) ?? "";
-      const fields = [taskLabel, op.description, String(op.operation_no ?? "")]
-        .filter(Boolean)
-        .map((v) => String(v).toLowerCase());
-      return fields.some((v) => v.includes(term));
-    });
+    if (term) {
+      list = list.filter((op) => {
+        const taskLabel = taskLabelById.get(op.task_id) ?? "";
+        const fields = [taskLabel, op.description, String(op.operation_no ?? "")]
+          .filter(Boolean)
+          .map((v) => String(v).toLowerCase());
+        return fields.some((v) => v.includes(term));
+      });
+    }
+    return list.slice().sort((a, b) => (a.task_id ?? 0) - (b.task_id ?? 0) || (a.operation_no ?? 0) - (b.operation_no ?? 0));
   }, [operations, operationTaskSearch, operationTaskFilter, operationOrderFilter, taskLabelById, taskOptions]);
 
   const handleCreateStatus = async (e) => {
@@ -604,7 +607,10 @@ export default function ProductionAdmin() {
       setMessage("Zlecenie źródłowe i docelowe muszą być różne.");
       return;
     }
-    const sourceOps = operations.filter((op) => op.task_id === fromId);
+    const sourceOps = operations
+      .filter((op) => op.task_id === fromId)
+      .slice()
+      .sort((a, b) => (a.operation_no ?? 0) - (b.operation_no ?? 0));
     if (sourceOps.length === 0) {
       setMessage("Brak operacji do skopiowania w wybranym zleceniu.");
       return;
@@ -642,6 +648,7 @@ export default function ProductionAdmin() {
       workstation_id: toIntOrNull(logForm.workstation_id),
       user_id: toIntOrNull(logForm.user_id),
       note: logForm.note.trim() || null,
+      created_at: logForm.created_at || null,
     };
     if (!payload.operation_id) {
       setMessage("Operation is required.");
@@ -656,6 +663,7 @@ export default function ProductionAdmin() {
           workstation_id: "",
           user_id: "",
           note: "",
+          created_at: "",
         });
         await apiGet("/production/logs", setLogs);
         setMessage("Log zaktualizowany.");
@@ -669,6 +677,7 @@ export default function ProductionAdmin() {
         workstation_id: "",
         user_id: "",
         note: "",
+        created_at: "",
       });
       await apiGet("/production/logs", setLogs);
       setMessage("Log dodany.");
@@ -750,6 +759,7 @@ export default function ProductionAdmin() {
       workstation_id: row.workstation_id != null ? String(row.workstation_id) : "",
       user_id: row.user_id != null ? String(row.user_id) : "",
       note: row.note ?? "",
+      created_at: row.created_at ? row.created_at.slice(0, 16) : "",
     });
     setMessage(null);
   };
@@ -761,7 +771,6 @@ export default function ProductionAdmin() {
     { id: "orders", label: "Zamówienia", icon: ShoppingCart },
     { id: "tasks", label: "Zlecenia", icon: ClipboardList },
     { id: "operations", label: "Operacje", icon: Cog },
-    { id: "logs", label: "Logi", icon: ScrollText },
   ];
 
   return (
@@ -1405,6 +1414,16 @@ export default function ProductionAdmin() {
                       >
                         Kopiuj operacje
                       </button>
+                      {operationTaskFilter && (
+                        <button
+                          type="button"
+                          onClick={() => {/* TODO: print */}}
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm font-medium transition"
+                        >
+                          <Printer className="w-4 h-4" />
+                          Drukuj
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1749,6 +1768,7 @@ export default function ProductionAdmin() {
                             workstation_id: "",
                             user_id: "",
                             note: "",
+                            created_at: "",
                           });
                         }}
                         className="px-3 py-1.5 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400 text-sm"
@@ -1807,6 +1827,13 @@ export default function ProductionAdmin() {
                     placeholder="Notatka"
                     value={logForm.note}
                     onChange={(e) => setLogForm({ ...logForm, note: e.target.value })}
+                    className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
+                  />
+                  <input
+                    type="datetime-local"
+                    placeholder="Utworzono"
+                    value={logForm.created_at}
+                    onChange={(e) => setLogForm({ ...logForm, created_at: e.target.value })}
                     className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
                   />
                 </form>
