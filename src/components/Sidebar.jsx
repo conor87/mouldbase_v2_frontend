@@ -51,6 +51,7 @@ const navItems = [
   { to: "/production_admin", label: "Production Admin", icon: ShieldCheck, adminOnly: true },
   { to: "/service_admin", label: "Service Admin", icon: Hammer, adminOnly: true },
   { to: "/analytics", label: "Analityka", icon: ClipboardList, adminOnly: true },
+  
 ];
 
 const baseItemClasses =

@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
 import { getCurrentUser } from "../auth.js";
 import {
   BarChart3, Save, RotateCcw, ChevronDown, ChevronUp, Clock,
-  User, Loader2, Cpu, Users, ScrollText, Wrench, LogIn,
+  User, Loader2, Cpu, Users, ScrollText, Wrench, LogIn, Plus, Pencil, Trash2, X,
 } from "lucide-react";
 import Navbar from "./Navbar.jsx";
 
@@ -23,6 +24,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 const tabs = [
   { id: "workers", label: "Pracownicy", icon: Users },
   { id: "machines", label: "Maszyny", icon: Cpu },
+  { id: "service", label: "Serwis", icon: Wrench },
   { id: "production_logs", label: "Logi produkcji", icon: ScrollText },
   { id: "service_logs", label: "Logi serwisu", icon: Wrench },
   { id: "session_logs", label: "Logi sesji MES", icon: LogIn },
@@ -161,7 +163,8 @@ function CardRow({
 }
 
 export default function Analytics() {
-  const [activeTab, setActiveTab] = useState("workers");
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => searchParams.get("tab") || "workers");
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
@@ -177,15 +180,45 @@ export default function Analytics() {
   const [expandedMachine, setExpandedMachine] = useState(null);
   const [machineEdits, setMachineEdits] = useState({});
 
+  // Service workers state
+  const [serviceWorkers, setServiceWorkers] = useState([]);
+  const [expandedServiceWorker, setExpandedServiceWorker] = useState(null);
+  const [serviceWorkerEdits, setServiceWorkerEdits] = useState({});
+
   // Logs state
   const [productionLogs, setProductionLogs] = useState([]);
   const [serviceLogs, setServiceLogs] = useState([]);
   const [sessionLogs, setSessionLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
 
+  // Service log form state
+  const emptyServiceLogForm = {
+    operator: "", created_at: "", status_service: "", mould_number: "",
+    mes_activ_service_id: "", mes_activ_changeover_id: "", status_changeover: "",
+  };
+  const [serviceLogForm, setServiceLogForm] = useState(emptyServiceLogForm);
+  const [editingServiceLogId, setEditingServiceLogId] = useState(null);
+  const [serviceLogFormOpen, setServiceLogFormOpen] = useState(false);
+
+  // Moulds list for searchable select
+  const [allMoulds, setAllMoulds] = useState([]);
+  const [mouldSearch, setMouldSearch] = useState("");
+  const [mouldDropdownOpen, setMouldDropdownOpen] = useState(false);
+
   const user = getCurrentUser();
   const role = user?.role;
   const canEdit = role === "admin" || role === "admindn" || role === "superadmin";
+
+  // Fetch moulds list once
+  useEffect(() => {
+    fetch(`${API_BASE}/moulds`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((data) => {
+        const list = Array.isArray(data) ? data : data?.results ?? data?.data ?? [];
+        setAllMoulds(list.map((m) => m.mould_number).filter(Boolean).sort());
+      })
+      .catch(() => {});
+  }, []);
 
   // ===== Fetch =====
   const fetchWorkers = useCallback(async () => {
@@ -219,6 +252,28 @@ export default function Analytics() {
     } catch {
       setMessage("Błąd pobierania danych maszyn.");
       setMachines([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedDate]);
+
+  const fetchServiceWorkers = useCallback(async () => {
+    if (!selectedDate) return;
+    setLoading(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/analytics/service-cards?date=${selectedDate}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const workers = (data.workers || []).map((w) => ({
+        ...w,
+        entries: w.entries.map((e) => ({ ...e, _key: `${e.activity_type}|${e.mould_number || ""}` })),
+      }));
+      setServiceWorkers(workers);
+      setServiceWorkerEdits({});
+    } catch {
+      setMessage("Błąd pobierania danych serwisu.");
+      setServiceWorkers([]);
     } finally {
       setLoading(false);
     }
@@ -260,10 +315,11 @@ export default function Analytics() {
   const fetchData = useCallback(() => {
     if (activeTab === "workers") return fetchWorkers();
     if (activeTab === "machines") return fetchMachines();
+    if (activeTab === "service") return fetchServiceWorkers();
     if (activeTab === "production_logs") return fetchProductionLogs();
     if (activeTab === "service_logs") return fetchServiceLogs();
     if (activeTab === "session_logs") return fetchSessionLogs();
-  }, [activeTab, fetchWorkers, fetchMachines, fetchProductionLogs, fetchServiceLogs, fetchSessionLogs]);
+  }, [activeTab, fetchWorkers, fetchMachines, fetchServiceWorkers, fetchProductionLogs, fetchServiceLogs, fetchSessionLogs]);
 
   useEffect(() => {
     if (selectedDate) fetchData();
@@ -372,6 +428,125 @@ export default function Analytics() {
       setMessage(`Błąd resetowania: ${machine.workstation_name}`);
     } finally {
       setSaving((p) => ({ ...p, [`m${machine.workstation_id}`]: false }));
+    }
+  };
+
+  // ===== Service workers logic =====
+  const getServiceEntries = (w) => serviceWorkerEdits[w.user_id] || w.entries;
+  const getServiceTotal = (w) => getServiceEntries(w).reduce((s, e) => s + e.minutes, 0);
+
+  const handleServiceSlider = (userId, keyVal, mins) => {
+    setServiceWorkerEdits((prev) => {
+      const worker = serviceWorkers.find((w) => w.user_id === userId);
+      const cur = prev[userId] || worker.entries.map((e) => ({ ...e }));
+      return { ...prev, [userId]: cur.map((e) => e._key === keyVal ? { ...e, minutes: mins } : e) };
+    });
+  };
+
+  const saveServiceWorker = async (worker) => {
+    const entries = getServiceEntries(worker);
+    setSaving((p) => ({ ...p, [`s${worker.user_id}`]: true }));
+    try {
+      const res = await fetch(`${API_BASE}/analytics/service-cards`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({
+          user_id: worker.user_id,
+          date: selectedDate,
+          entries: entries.map((e) => ({ activity_type: e.activity_type, mould_number: e.mould_number || null, minutes: e.minutes })),
+        }),
+      });
+      if (!res.ok) throw new Error();
+      setMessage(`Zapisano kartę serwisu: ${worker.username}`);
+      await fetchServiceWorkers();
+    } catch {
+      setMessage(`Błąd zapisu: ${worker.username}`);
+    } finally {
+      setSaving((p) => ({ ...p, [`s${worker.user_id}`]: false }));
+    }
+  };
+
+  const resetServiceWorker = async (worker) => {
+    setSaving((p) => ({ ...p, [`s${worker.user_id}`]: true }));
+    try {
+      const res = await fetch(
+        `${API_BASE}/analytics/service-cards?user_id=${worker.user_id}&date=${selectedDate}`,
+        { method: "DELETE", headers: authHeaders() }
+      );
+      if (!res.ok) throw new Error();
+      setMessage(`Zresetowano kartę serwisu: ${worker.username}`);
+      setServiceWorkerEdits((p) => { const c = { ...p }; delete c[worker.user_id]; return c; });
+      await fetchServiceWorkers();
+    } catch {
+      setMessage(`Błąd resetowania: ${worker.username}`);
+    } finally {
+      setSaving((p) => ({ ...p, [`s${worker.user_id}`]: false }));
+    }
+  };
+
+  // ===== Service log CRUD =====
+  const toIntOrNull = (v) => { const s = String(v ?? "").trim(); if (!s) return null; const n = parseInt(s, 10); return isNaN(n) ? null : n; };
+
+  const resetServiceLogForm = () => {
+    setServiceLogForm(emptyServiceLogForm);
+    setEditingServiceLogId(null);
+    setServiceLogFormOpen(false);
+  };
+
+  const handleEditServiceLog = (log) => {
+    setServiceLogForm({
+      operator: log.operator || "",
+      created_at: log.created_at || "",
+      status_service: log.status_service || "",
+      mould_number: log.mould_number || "",
+      mes_activ_service_id: log.mes_activ_service_id ?? "",
+      mes_activ_changeover_id: log.mes_activ_changeover_id ?? "",
+      status_changeover: log.status_changeover || "",
+    });
+    setEditingServiceLogId(log.id);
+    setServiceLogFormOpen(true);
+  };
+
+  const handleSaveServiceLog = async (e) => {
+    e.preventDefault();
+    const payload = {
+      operator: serviceLogForm.operator || null,
+      created_at: serviceLogForm.created_at || null,
+      status_service: serviceLogForm.status_service || null,
+      mould_number: serviceLogForm.mould_number || null,
+      mes_activ_service_id: toIntOrNull(serviceLogForm.mes_activ_service_id),
+      mes_activ_changeover_id: toIntOrNull(serviceLogForm.mes_activ_changeover_id),
+      status_changeover: serviceLogForm.status_changeover || null,
+    };
+    try {
+      const url = editingServiceLogId
+        ? `${API_BASE}/service/logs/${editingServiceLogId}`
+        : `${API_BASE}/service/logs`;
+      const res = await fetch(url, {
+        method: editingServiceLogId ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error();
+      setMessage(editingServiceLogId ? "Log zaktualizowany." : "Log dodany.");
+      resetServiceLogForm();
+      await fetchServiceLogs();
+    } catch {
+      setMessage("Błąd zapisu logu.");
+    }
+  };
+
+  const handleDeleteServiceLog = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE}/service/logs/${id}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      if (!res.ok) throw new Error();
+      setMessage("Log usunięty.");
+      await fetchServiceLogs();
+    } catch {
+      setMessage("Błąd usuwania logu.");
     }
   };
 
@@ -525,6 +700,45 @@ export default function Analytics() {
               </section>
             )}
 
+            {/* ===== Service tab ===== */}
+            {activeTab === "service" && !loading && (
+              <section>
+                {serviceWorkers.length === 0 && selectedDate && (
+                  <div className="text-center py-12 text-slate-400">
+                    Brak danych serwisu na dzień {selectedDate}
+                  </div>
+                )}
+                {serviceWorkers.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="text-sm text-slate-400 mb-2">
+                      {serviceWorkers.length} pracowników serwisu &middot; {selectedDate}
+                    </div>
+                    {serviceWorkers.map((worker) => (
+                      <CardRow
+                        key={worker.user_id}
+                        id={worker.user_id}
+                        label={worker.username}
+                        icon={Wrench}
+                        source={worker.source}
+                        edited={!!serviceWorkerEdits[worker.user_id]}
+                        total={getServiceTotal(worker)}
+                        isOpen={expandedServiceWorker === worker.user_id}
+                        onToggle={() => setExpandedServiceWorker(expandedServiceWorker === worker.user_id ? null : worker.user_id)}
+                        entries={getServiceEntries(worker)}
+                        entryKey="_key"
+                        entryLabel={(e) => e.activity_label || e.activity_type}
+                        canEdit={canEdit}
+                        onSlider={handleServiceSlider}
+                        onSave={() => saveServiceWorker(worker)}
+                        onReset={() => resetServiceWorker(worker)}
+                        isSaving={saving[`s${worker.user_id}`]}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+
             {/* ===== Production logs tab ===== */}
             {activeTab === "production_logs" && !logsLoading && (
               <section>
@@ -549,7 +763,107 @@ export default function Analytics() {
             {/* ===== Service logs tab ===== */}
             {activeTab === "service_logs" && !logsLoading && (
               <section>
-                <h2 className="text-lg font-bold mb-4">Logi serwisu</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold">Logi serwisu</h2>
+                  {canEdit && !serviceLogFormOpen && (
+                    <button
+                      onClick={() => { resetServiceLogForm(); setServiceLogFormOpen(true); }}
+                      className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition"
+                    >
+                      <Plus className="w-4 h-4" /> Dodaj log
+                    </button>
+                  )}
+                </div>
+
+                {canEdit && serviceLogFormOpen && (
+                  <form onSubmit={handleSaveServiceLog} className="mb-6 bg-slate-800 rounded-xl border border-slate-700 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium text-slate-300">
+                        {editingServiceLogId ? "Edytuj log" : "Nowy log"}
+                      </span>
+                      <button type="button" onClick={resetServiceLogForm} className="text-slate-400 hover:text-white">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Operator</label>
+                        <input className="w-full px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
+                          value={serviceLogForm.operator} onChange={(e) => setServiceLogForm((p) => ({ ...p, operator: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Data (created_at)</label>
+                        <input type="datetime-local" className="w-full px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
+                          value={serviceLogForm.created_at?.replace("T", "T")?.slice(0, 16)} onChange={(e) => setServiceLogForm((p) => ({ ...p, created_at: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Status serwis</label>
+                        <input className="w-full px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
+                          value={serviceLogForm.status_service} onChange={(e) => setServiceLogForm((p) => ({ ...p, status_service: e.target.value }))} />
+                      </div>
+                      <div className="relative">
+                        <label className="block text-xs text-slate-400 mb-1">Nr formy</label>
+                        <input
+                          className="w-full px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
+                          value={mouldDropdownOpen ? mouldSearch : serviceLogForm.mould_number}
+                          placeholder="Szukaj formy..."
+                          onFocus={() => { setMouldSearch(serviceLogForm.mould_number); setMouldDropdownOpen(true); }}
+                          onChange={(e) => { setMouldSearch(e.target.value); setMouldDropdownOpen(true); }}
+                          onBlur={() => setTimeout(() => setMouldDropdownOpen(false), 150)}
+                        />
+                        {serviceLogForm.mould_number && !mouldDropdownOpen && (
+                          <button type="button" onClick={() => { setServiceLogForm((p) => ({ ...p, mould_number: "" })); setMouldSearch(""); }}
+                            className="absolute right-2 top-7 text-slate-400 hover:text-white">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {mouldDropdownOpen && (
+                          <div className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto rounded-lg bg-slate-800 border border-slate-600 shadow-lg">
+                            {allMoulds
+                              .filter((m) => m.toLowerCase().includes((mouldSearch || "").toLowerCase()))
+                              .slice(0, 50)
+                              .map((m) => (
+                                <button key={m} type="button"
+                                  className={`w-full text-left px-3 py-1.5 text-sm hover:bg-slate-700 ${m === serviceLogForm.mould_number ? "bg-blue-600/30 text-blue-200" : "text-slate-200"}`}
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onClick={() => { setServiceLogForm((p) => ({ ...p, mould_number: m })); setMouldDropdownOpen(false); setMouldSearch(""); }}
+                                >
+                                  {m}
+                                </button>
+                              ))}
+                            {allMoulds.filter((m) => m.toLowerCase().includes((mouldSearch || "").toLowerCase())).length === 0 && (
+                              <div className="px-3 py-2 text-sm text-slate-500">Brak wyników</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Zlecenie serwisowe ID</label>
+                        <input type="number" className="w-full px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
+                          value={serviceLogForm.mes_activ_service_id} onChange={(e) => setServiceLogForm((p) => ({ ...p, mes_activ_service_id: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Status przezbrojenia</label>
+                        <input className="w-full px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
+                          value={serviceLogForm.status_changeover} onChange={(e) => setServiceLogForm((p) => ({ ...p, status_changeover: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Przezbrojenie ID</label>
+                        <input type="number" className="w-full px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
+                          value={serviceLogForm.mes_activ_changeover_id} onChange={(e) => setServiceLogForm((p) => ({ ...p, mes_activ_changeover_id: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <button type="submit" className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-sm font-medium transition">
+                        {editingServiceLogId ? "Zapisz zmiany" : "Dodaj log"}
+                      </button>
+                      <button type="button" onClick={resetServiceLogForm} className="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-sm font-medium transition">
+                        Anuluj
+                      </button>
+                    </div>
+                  </form>
+                )}
+
                 <div className="text-sm text-slate-400 mb-3">{serviceLogs.length} rekordów</div>
                 <DataTable
                   rows={serviceLogs}
@@ -559,9 +873,24 @@ export default function Analytics() {
                     { key: "operator", header: "Operator" },
                     { key: "created_at", header: "Data" },
                     { key: "status_service", header: "Status serwis" },
+                    { key: "mould_number", header: "Nr formy" },
                     { key: "mes_activ_service_id", header: "Zlecenie serwisowe ID" },
                     { key: "status_changeover", header: "Status przezbrojenia" },
                     { key: "mes_activ_changeover_id", header: "Przezbrojenie ID" },
+                    ...(canEdit ? [{
+                      key: "_actions",
+                      header: "Akcje",
+                      render: (row) => (
+                        <div className="flex gap-2 justify-center">
+                          <button onClick={() => handleEditServiceLog(row)} className="text-blue-400 hover:text-blue-300" title="Edytuj">
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDeleteServiceLog(row.id)} className="text-red-400 hover:text-red-300" title="Usuń">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ),
+                    }] : []),
                   ]}
                 />
               </section>
