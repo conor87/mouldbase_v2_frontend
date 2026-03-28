@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
 import { getCurrentUser } from "../auth.js";
@@ -186,6 +186,8 @@ export default function Analytics() {
   const [serviceWorkerEdits, setServiceWorkerEdits] = useState({});
 
   // Logs state
+  const [allUsers, setAllUsers] = useState([]);
+  const [allWorkstations, setAllWorkstations] = useState([]);
   const [productionLogs, setProductionLogs] = useState([]);
   const [serviceLogs, setServiceLogs] = useState([]);
   const [sessionLogs, setSessionLogs] = useState([]);
@@ -282,10 +284,24 @@ export default function Analytics() {
   const fetchProductionLogs = useCallback(async () => {
     setLogsLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/production/logs`, { headers: authHeaders() });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setProductionLogs(Array.isArray(data) ? data : []);
+      const [logsRes, usersRes, wsRes] = await Promise.all([
+        fetch(`${API_BASE}/production/logs`, { headers: authHeaders() }),
+        fetch(`${API_BASE}/production/users`, { headers: authHeaders() }),
+        fetch(`${API_BASE}/production/workstations`, { headers: authHeaders() }),
+      ]);
+      if (!logsRes.ok) throw new Error();
+      const logsData = await logsRes.json();
+      setProductionLogs(Array.isArray(logsData) ? logsData : []);
+      if (usersRes.ok) {
+        const ud = await usersRes.json();
+        const list = Array.isArray(ud) ? ud : ud?.results ?? ud?.data ?? [];
+        setAllUsers(list);
+      }
+      if (wsRes.ok) {
+        const wd = await wsRes.json();
+        const list = Array.isArray(wd) ? wd : wd?.results ?? wd?.data ?? [];
+        setAllWorkstations(list);
+      }
     } catch { setProductionLogs([]); }
     finally { setLogsLoading(false); }
   }, []);
@@ -550,6 +566,10 @@ export default function Analytics() {
     }
   };
 
+  // Lookup maps for production logs
+  const userMap = useMemo(() => Object.fromEntries(allUsers.map((u) => [u.id, u])), [allUsers]);
+  const wsMap = useMemo(() => Object.fromEntries(allWorkstations.map((w) => [w.id, w])), [allWorkstations]);
+
   // ===== Render =====
   return (
     <div className="min-h-screen bg-slate-800/90 text-white">
@@ -751,8 +771,8 @@ export default function Analytics() {
                     { key: "id", header: "ID" },
                     { key: "operation_id", header: "Operacja" },
                     { key: "status_id", header: "Status" },
-                    { key: "workstation_id", header: "Stanowisko" },
-                    { key: "user_id", header: "User ID" },
+                    { key: "workstation_id", header: "Stanowisko", render: (row) => wsMap[row.workstation_id]?.name || row.workstation_id },
+                    { key: "user_id", header: "Użytkownik", render: (row) => userMap[row.user_id]?.username || row.user_id },
                     { key: "note", header: "Notatka" },
                     { key: "created_at", header: "Utworzono" },
                   ]}

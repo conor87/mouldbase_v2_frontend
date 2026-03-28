@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
-import { ChevronLeft, GripVertical, Search } from "lucide-react";
+import { ChevronLeft, GripVertical, Search, ArrowRightLeft, X } from "lucide-react";
 import MES_UserBar from "./MES_UserBar.jsx";
 
 const normalizeList = (data) =>
@@ -20,6 +20,10 @@ export default function MES_Operations() {
   const [search, setSearch] = useState("");
   const [selectedOrderId, setSelectedOrderId] = useState("");
   const [hideDone, setHideDone] = useState(true);
+  const [allWorkstations, setAllWorkstations] = useState([]);
+  const [transferOp, setTransferOp] = useState(null);
+  const [transferShowAll, setTransferShowAll] = useState(false);
+  const [transferring, setTransferring] = useState(false);
 
   const dragItem = useRef(null);
   const dragOverItem = useRef(null);
@@ -47,6 +51,7 @@ export default function MES_Operations() {
         const taskMap = Object.fromEntries(tasks.map((t) => [t.id, t]));
         const orderMap = Object.fromEntries(orders.map((o) => [o.id, o]));
 
+        setAllWorkstations(workstations);
         const ws = workstations.find((w) => String(w.id) === machineId);
         if (ws) {
           setMachineName(ws.name);
@@ -151,6 +156,33 @@ export default function MES_Operations() {
       // ignore
     } finally {
       setSaving(false);
+    }
+  };
+
+  const transferTargets = useMemo(() => {
+    const list = transferShowAll
+      ? allWorkstations.filter((w) => String(w.id) !== machineId)
+      : allWorkstations.filter((w) => String(w.id) !== machineId && w.machine_group_id === groupId);
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  }, [allWorkstations, machineId, groupId, transferShowAll]);
+
+  const handleTransfer = async (targetWsId) => {
+    if (!transferOp) return;
+    setTransferring(true);
+    try {
+      const res = await fetch(`${API_BASE}/production/operations/${transferOp.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ workstation_id: targetWsId }),
+      });
+      if (!res.ok) throw new Error();
+      setOperations((prev) => prev.filter((op) => op.id !== transferOp.id));
+      setTransferOp(null);
+      setTransferShowAll(false);
+    } catch {
+      // silent
+    } finally {
+      setTransferring(false);
     }
   };
 
@@ -275,14 +307,23 @@ export default function MES_Operations() {
                       )}
                     </td>
                     <td className="px-3 py-2">
-                      <button
-                        onClick={() =>
-                          navigate(`/mes/production/machine/${machineId}/panel/${op.id}`)
-                        }
-                        className="px-3 py-1 text-xs rounded-lg bg-blue-600 hover:bg-blue-500 transition"
-                      >
-                        Wykonaj
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() =>
+                            navigate(`/mes/production/machine/${machineId}/panel/${op.id}`)
+                          }
+                          className="px-3 py-1 text-xs rounded-lg bg-blue-600 hover:bg-blue-500 transition"
+                        >
+                          Wykonaj
+                        </button>
+                        <button
+                          onClick={() => { setTransferOp(op); setTransferShowAll(false); }}
+                          className="px-3 py-1 text-xs rounded-lg border border-slate-600 text-slate-300 hover:border-slate-400 hover:text-white transition flex items-center gap-1"
+                        >
+                          <ArrowRightLeft className="w-3 h-3" />
+                          Przenieś
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -290,6 +331,49 @@ export default function MES_Operations() {
             </table>
           </div>
         </>
+      )}
+
+      {/* Transfer modal */}
+      {transferOp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-3xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Przenieś operację</h3>
+              <button onClick={() => { setTransferOp(null); setTransferShowAll(false); }} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="text-sm text-slate-400 mb-3">
+              <span className="text-slate-200 font-medium">{transferOp.operation_no}</span> — {transferOp.description}
+            </div>
+            <div className="flex items-center gap-2 mb-4">
+              <label className="text-sm text-slate-400">Pokaż wszystkie maszyny</label>
+              <button
+                onClick={() => setTransferShowAll((p) => !p)}
+                className={`w-10 h-5 rounded-full transition ${transferShowAll ? "bg-blue-600" : "bg-slate-600"} relative`}
+              >
+                <span className={`block w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${transferShowAll ? "left-[22px]" : "left-0.5"}`} />
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {transferTargets.length === 0 && (
+                <div className="text-sm text-slate-500 text-center py-4">Brak dostępnych maszyn</div>
+              )}
+              <div className="grid grid-cols-3 gap-2">
+                {transferTargets.map((ws) => (
+                  <button
+                    key={ws.id}
+                    onClick={() => handleTransfer(ws.id)}
+                    disabled={transferring}
+                    className="px-4 py-3 rounded-lg bg-violet-900/30 border border-violet-700/40 hover:border-violet-500 hover:bg-violet-800/40 transition text-sm text-center group disabled:opacity-50"
+                  >
+                    <span className="text-slate-200 group-hover:text-white">{ws.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
