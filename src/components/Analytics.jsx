@@ -193,6 +193,14 @@ export default function Analytics() {
   const [sessionLogs, setSessionLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
 
+  // Production log form state
+  const emptyProdLogForm = {
+    operation_id: "", status_id: "", workstation_id: "", user_id: "", note: "", created_at: "",
+  };
+  const [prodLogForm, setProdLogForm] = useState(emptyProdLogForm);
+  const [editingProdLogId, setEditingProdLogId] = useState(null);
+  const [prodLogFormOpen, setProdLogFormOpen] = useState(false);
+
   // Service log form state
   const emptyServiceLogForm = {
     operator: "", created_at: "", status_service: "", mould_number: "",
@@ -500,6 +508,68 @@ export default function Analytics() {
     }
   };
 
+  // ===== Production log CRUD =====
+  const resetProdLogForm = () => {
+    setProdLogForm(emptyProdLogForm);
+    setEditingProdLogId(null);
+    setProdLogFormOpen(false);
+  };
+
+  const handleEditProdLog = (log) => {
+    setProdLogForm({
+      operation_id: log.operation_id ?? "",
+      status_id: log.status_id ?? "",
+      workstation_id: log.workstation_id ?? "",
+      user_id: log.user_id ?? "",
+      note: log.note || "",
+      created_at: log.created_at || "",
+    });
+    setEditingProdLogId(log.id);
+    setProdLogFormOpen(true);
+  };
+
+  const handleSaveProdLog = async (e) => {
+    e.preventDefault();
+    const payload = {
+      operation_id: toIntOrNull(prodLogForm.operation_id),
+      status_id: toIntOrNull(prodLogForm.status_id),
+      workstation_id: toIntOrNull(prodLogForm.workstation_id),
+      user_id: toIntOrNull(prodLogForm.user_id),
+      note: prodLogForm.note || null,
+      created_at: prodLogForm.created_at || null,
+    };
+    try {
+      const url = editingProdLogId
+        ? `${API_BASE}/production/logs/${editingProdLogId}`
+        : `${API_BASE}/production/logs`;
+      const res = await fetch(url, {
+        method: editingProdLogId ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error();
+      setMessage(editingProdLogId ? "Log produkcji zaktualizowany." : "Log produkcji dodany.");
+      resetProdLogForm();
+      await fetchProductionLogs();
+    } catch {
+      setMessage("Błąd zapisu logu produkcji.");
+    }
+  };
+
+  const handleDeleteProdLog = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE}/production/logs/${id}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      if (!res.ok) throw new Error();
+      setMessage("Log produkcji usunięty.");
+      await fetchProductionLogs();
+    } catch {
+      setMessage("Błąd usuwania logu produkcji.");
+    }
+  };
+
   // ===== Service log CRUD =====
   const toIntOrNull = (v) => { const s = String(v ?? "").trim(); if (!s) return null; const n = parseInt(s, 10); return isNaN(n) ? null : n; };
 
@@ -762,7 +832,81 @@ export default function Analytics() {
             {/* ===== Production logs tab ===== */}
             {activeTab === "production_logs" && !logsLoading && (
               <section>
-                <h2 className="text-lg font-bold mb-4">Logi produkcji</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold">Logi produkcji</h2>
+                  {canEdit && !prodLogFormOpen && (
+                    <button
+                      onClick={() => { resetProdLogForm(); setProdLogFormOpen(true); }}
+                      className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition"
+                    >
+                      <Plus className="w-4 h-4" /> Dodaj log
+                    </button>
+                  )}
+                </div>
+
+                {canEdit && prodLogFormOpen && (
+                  <form onSubmit={handleSaveProdLog} className="mb-6 bg-slate-800 rounded-xl border border-slate-700 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium text-slate-300">
+                        {editingProdLogId ? "Edytuj log" : "Nowy log"}
+                      </span>
+                      <button type="button" onClick={resetProdLogForm} className="text-slate-400 hover:text-white">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Operacja ID</label>
+                        <input type="number" className="w-full px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
+                          value={prodLogForm.operation_id} onChange={(e) => setProdLogForm((p) => ({ ...p, operation_id: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Status ID</label>
+                        <input type="number" className="w-full px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
+                          value={prodLogForm.status_id} onChange={(e) => setProdLogForm((p) => ({ ...p, status_id: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Stanowisko</label>
+                        <select className="w-full px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
+                          value={prodLogForm.workstation_id} onChange={(e) => setProdLogForm((p) => ({ ...p, workstation_id: e.target.value }))}>
+                          <option value="">— wybierz —</option>
+                          {allWorkstations.map((ws) => (
+                            <option key={ws.id} value={ws.id}>{ws.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Użytkownik</label>
+                        <select className="w-full px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
+                          value={prodLogForm.user_id} onChange={(e) => setProdLogForm((p) => ({ ...p, user_id: e.target.value }))}>
+                          <option value="">— wybierz —</option>
+                          {allUsers.map((u) => (
+                            <option key={u.id} value={u.id}>{u.username}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Notatka</label>
+                        <input className="w-full px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
+                          value={prodLogForm.note} onChange={(e) => setProdLogForm((p) => ({ ...p, note: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Data</label>
+                        <input type="datetime-local" className="w-full px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
+                          value={prodLogForm.created_at?.replace("T", "T")?.slice(0, 16)} onChange={(e) => setProdLogForm((p) => ({ ...p, created_at: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <button type="submit" className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-sm font-medium transition">
+                        {editingProdLogId ? "Zapisz zmiany" : "Dodaj log"}
+                      </button>
+                      <button type="button" onClick={resetProdLogForm} className="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-sm font-medium transition">
+                        Anuluj
+                      </button>
+                    </div>
+                  </form>
+                )}
+
                 <div className="text-sm text-slate-400 mb-3">{productionLogs.length} rekordów</div>
                 <DataTable
                   rows={productionLogs}
@@ -775,6 +919,20 @@ export default function Analytics() {
                     { key: "user_id", header: "Użytkownik", render: (row) => userMap[row.user_id]?.username || row.user_id },
                     { key: "note", header: "Notatka" },
                     { key: "created_at", header: "Utworzono" },
+                    ...(canEdit ? [{
+                      key: "_actions",
+                      header: "Akcje",
+                      render: (row) => (
+                        <div className="flex gap-2 justify-center">
+                          <button onClick={() => handleEditProdLog(row)} className="text-blue-400 hover:text-blue-300" title="Edytuj">
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDeleteProdLog(row.id)} className="text-red-400 hover:text-red-300" title="Usuń">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ),
+                    }] : []),
                   ]}
                 />
               </section>
