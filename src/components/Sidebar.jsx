@@ -1,7 +1,7 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
-import { ArrowLeftRight, BarChart3, Calendar, ClipboardList, Cpu, Factory, Hammer, Home, LayoutDashboard, Settings, ShieldCheck, Wrench } from "lucide-react";
+import { ArrowLeftRight, BarChart3, Calendar, ClipboardList, Cpu, Factory, Hammer, Home, LayoutDashboard, ListTree, Settings, ShieldCheck, Wrench } from "lucide-react";
 
 const parseJwt = (token) => {
   try {
@@ -48,6 +48,7 @@ const navItems = [
   { to: "/mes/production/dashboard", label: "Dashboard produkcji", icon: LayoutDashboard, mesOnly: true },
   { to: "/mes/service/dashboard", label: "Dashboard serwisu", icon: LayoutDashboard, mesOnly: true },
   { to: "/mes", label: "MES", icon: Cpu, mesOnly: true, end: true, smartMes: true },
+  { to: "/orders-tree", label: "Tree", icon: ListTree, mesOnly: true },
   { to: "/production_admin", label: "Production Admin", icon: ShieldCheck, adminOnly: true },
   { to: "/service_admin", label: "Service Admin", icon: Hammer, adminOnly: true },
   { to: "/analytics", label: "Analityka", icon: ClipboardList, adminOnly: true },

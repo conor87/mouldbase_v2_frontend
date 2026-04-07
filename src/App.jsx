@@ -36,6 +36,7 @@ import MES_Service_Dashboard from "./components/MES_Service_Dashboard.jsx";
 import MES_ChangeoverPanel from "./components/MES_ChangeoverPanel.jsx";
 import MES_Production_Dashboard from "./components/MES_Production_Dashboard.jsx";
 import Analytics from "./components/Analytics.jsx";
+import OrdersTree from "./components/OrdersTree.jsx";
 
 
 
@@ -68,6 +69,7 @@ function App() {
                 <Route path="/mes/service/workstation/:workstationId/panel/:mouldNumber" element={<MES_ServicePanel />} />
                 <Route path="/mes/service/workstation/:workstationId/changeover/:changeoverId" element={<MES_ChangeoverPanel />} />
                 <Route path="/mes/service/dashboard" element={<MES_Service_Dashboard />} />
+                <Route path="/orders-tree" element={<OrdersTree />} />
               </Route>
             </Route>
 

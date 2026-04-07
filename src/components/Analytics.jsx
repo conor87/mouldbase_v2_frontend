@@ -4,7 +4,7 @@ import { API_BASE } from "../config/api.js";
 import { getCurrentUser } from "../auth.js";
 import {
   BarChart3, Save, RotateCcw, ChevronDown, ChevronUp, Clock,
-  User, Loader2, Cpu, Users, ScrollText, Wrench, LogIn, Plus, Pencil, Trash2, X,
+  User, Loader2, Cpu, Users, ScrollText, Wrench, LogIn, Plus, Pencil, Trash2, X, Factory,
 } from "lucide-react";
 import Navbar from "./Navbar.jsx";
 
@@ -24,6 +24,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 const tabs = [
   { id: "workers", label: "Pracownicy", icon: Users },
   { id: "machines", label: "Maszyny", icon: Cpu },
+  { id: "operators", label: "Operatorzy", icon: Factory },
   { id: "service", label: "Serwis", icon: Wrench },
   { id: "production_logs", label: "Logi produkcji", icon: ScrollText },
   { id: "service_logs", label: "Logi serwisu", icon: Wrench },
@@ -185,6 +186,11 @@ export default function Analytics() {
   const [expandedServiceWorker, setExpandedServiceWorker] = useState(null);
   const [serviceWorkerEdits, setServiceWorkerEdits] = useState({});
 
+  // Operators state
+  const [operators, setOperators] = useState([]);
+  const [expandedOperator, setExpandedOperator] = useState(null);
+  const [operatorEdits, setOperatorEdits] = useState({});
+
   // Logs state
   const [allUsers, setAllUsers] = useState([]);
   const [allWorkstations, setAllWorkstations] = useState([]);
@@ -289,6 +295,24 @@ export default function Analytics() {
     }
   }, [selectedDate]);
 
+  const fetchOperators = useCallback(async () => {
+    if (!selectedDate) return;
+    setLoading(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/analytics/worker-cards?date=${selectedDate}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setOperators(data.workers || []);
+      setOperatorEdits({});
+    } catch {
+      setMessage("Błąd pobierania danych operatorów.");
+      setOperators([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedDate]);
+
   const fetchProductionLogs = useCallback(async () => {
     setLogsLoading(true);
     try {
@@ -340,10 +364,11 @@ export default function Analytics() {
     if (activeTab === "workers") return fetchWorkers();
     if (activeTab === "machines") return fetchMachines();
     if (activeTab === "service") return fetchServiceWorkers();
+    if (activeTab === "operators") return fetchOperators();
     if (activeTab === "production_logs") return fetchProductionLogs();
     if (activeTab === "service_logs") return fetchServiceLogs();
     if (activeTab === "session_logs") return fetchSessionLogs();
-  }, [activeTab, fetchWorkers, fetchMachines, fetchServiceWorkers, fetchProductionLogs, fetchServiceLogs, fetchSessionLogs]);
+  }, [activeTab, fetchWorkers, fetchMachines, fetchServiceWorkers, fetchOperators, fetchProductionLogs, fetchServiceLogs, fetchSessionLogs]);
 
   useEffect(() => {
     if (selectedDate) fetchData();
@@ -505,6 +530,76 @@ export default function Analytics() {
       setMessage(`Błąd resetowania: ${worker.username}`);
     } finally {
       setSaving((p) => ({ ...p, [`s${worker.user_id}`]: false }));
+    }
+  };
+
+  // ===== Operators logic =====
+  const MACHINE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
+
+  const getOperatorEntries = (w) => operatorEdits[w.user_id] || w.entries;
+  const getOperatorTotal = (w) => getOperatorEntries(w).reduce((s, e) => s + e.minutes, 0);
+
+  const getOperatorProportional = (w) => {
+    const entries = getOperatorEntries(w);
+    const totalRaw = entries.reduce((s, e) => s + e.minutes, 0);
+    if (totalRaw === 0) return { segments: [], resultTotal: 0 };
+    const maxEntry = Math.max(...entries.map((e) => e.minutes));
+    const segments = entries
+      .filter((e) => e.minutes > 0)
+      .map((e, i) => ({
+        ...e,
+        proportional: Math.round((e.minutes / totalRaw) * maxEntry),
+        color: MACHINE_COLORS[i % MACHINE_COLORS.length],
+      }));
+    return { segments, resultTotal: maxEntry };
+  };
+
+  const handleOperatorSlider = (userId, wsId, mins) => {
+    setOperatorEdits((prev) => {
+      const worker = operators.find((w) => w.user_id === userId);
+      const cur = prev[userId] || worker.entries.map((e) => ({ ...e }));
+      return { ...prev, [userId]: cur.map((e) => e.workstation_id === wsId ? { ...e, minutes: mins } : e) };
+    });
+  };
+
+  const saveOperator = async (worker) => {
+    const entries = getOperatorEntries(worker);
+    setSaving((p) => ({ ...p, [`op${worker.user_id}`]: true }));
+    try {
+      const res = await fetch(`${API_BASE}/analytics/worker-cards`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({
+          user_id: worker.user_id,
+          date: selectedDate,
+          entries: entries.map((e) => ({ workstation_id: e.workstation_id, minutes: e.minutes })),
+        }),
+      });
+      if (!res.ok) throw new Error();
+      setMessage(`Zapisano kartę operatora: ${worker.username}`);
+      await fetchOperators();
+    } catch {
+      setMessage(`Błąd zapisu: ${worker.username}`);
+    } finally {
+      setSaving((p) => ({ ...p, [`op${worker.user_id}`]: false }));
+    }
+  };
+
+  const resetOperator = async (worker) => {
+    setSaving((p) => ({ ...p, [`op${worker.user_id}`]: true }));
+    try {
+      const res = await fetch(
+        `${API_BASE}/analytics/worker-cards?user_id=${worker.user_id}&date=${selectedDate}`,
+        { method: "DELETE", headers: authHeaders() }
+      );
+      if (!res.ok) throw new Error();
+      setMessage(`Zresetowano kartę operatora: ${worker.username}`);
+      setOperatorEdits((p) => { const c = { ...p }; delete c[worker.user_id]; return c; });
+      await fetchOperators();
+    } catch {
+      setMessage(`Błąd resetowania: ${worker.username}`);
+    } finally {
+      setSaving((p) => ({ ...p, [`op${worker.user_id}`]: false }));
     }
   };
 
@@ -824,6 +919,171 @@ export default function Analytics() {
                         isSaving={saving[`s${worker.user_id}`]}
                       />
                     ))}
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* ===== Operators tab ===== */}
+            {activeTab === "operators" && !loading && (
+              <section>
+                {operators.length === 0 && selectedDate && (
+                  <div className="text-center py-12 text-slate-400">
+                    Brak danych operatorów na dzień {selectedDate}
+                  </div>
+                )}
+                {operators.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="text-sm text-slate-400 mb-2">
+                      {operators.length} operatorów &middot; {selectedDate}
+                    </div>
+                    {operators.map((worker) => {
+                      const entries = getOperatorEntries(worker);
+                      const total = getOperatorTotal(worker);
+                      const { segments, resultTotal } = getOperatorProportional(worker);
+                      const isOpen = expandedOperator === worker.user_id;
+                      const edited = !!operatorEdits[worker.user_id];
+                      return (
+                        <div key={worker.user_id} className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+                          <button
+                            onClick={() => setExpandedOperator(isOpen ? null : worker.user_id)}
+                            className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-750 transition text-left"
+                          >
+                            <div className="flex items-center gap-3">
+                              <Factory className="w-5 h-5 text-slate-400" />
+                              <span className="font-medium text-white">{worker.username}</span>
+                              <span
+                                className={`text-xs px-2 py-0.5 rounded-full ${
+                                  worker.source === "saved"
+                                    ? "bg-green-900/50 text-green-300 border border-green-700"
+                                    : "bg-yellow-900/50 text-yellow-300 border border-yellow-700"
+                                }`}
+                              >
+                                {worker.source === "saved" ? "zapisane" : "z logów"}
+                              </span>
+                              {edited && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-orange-900/50 text-orange-300 border border-orange-700">
+                                  edytowane
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-1.5 text-sm text-slate-300">
+                                <Clock className="w-4 h-4" />
+                                <span className="font-mono">{formatMinutes(total)}</span>
+                              </div>
+                              {isOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                            </div>
+                          </button>
+
+                          {isOpen && (
+                            <div className="border-t border-slate-700 px-4 py-4">
+                              {/* Sliders per machine */}
+                              <div className="space-y-4">
+                                {entries.map((entry, i) => (
+                                  <div key={entry.workstation_id} className="space-y-1">
+                                    <div className="flex items-center justify-between text-sm">
+                                      <div className="flex items-center gap-2">
+                                        <span
+                                          className="w-3 h-3 rounded-sm shrink-0"
+                                          style={{ backgroundColor: MACHINE_COLORS[i % MACHINE_COLORS.length] }}
+                                        />
+                                        <span className="text-slate-300">
+                                          {entry.workstation_name || `Stanowisko #${entry.workstation_id}`}
+                                        </span>
+                                      </div>
+                                      <span className="font-mono text-slate-200 text-sm min-w-[70px] text-right">
+                                        {formatMinutes(entry.minutes)}
+                                      </span>
+                                    </div>
+                                    {canEdit ? (
+                                      <input
+                                        type="range"
+                                        min={0}
+                                        max={720}
+                                        step={5}
+                                        value={entry.minutes}
+                                        onChange={(e) => handleOperatorSlider(worker.user_id, entry.workstation_id, parseInt(e.target.value, 10))}
+                                        className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                      />
+                                    ) : (
+                                      <div className="w-full bg-slate-700 rounded-full h-2">
+                                        <div
+                                          className="bg-blue-500 h-2 rounded-full"
+                                          style={{ width: `${Math.min((entry.minutes / 480) * 100, 100)}%` }}
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Totals */}
+                              <div className="mt-4 pt-3 border-t border-slate-700 flex items-center justify-between">
+                                <span className="text-sm font-medium text-slate-300">Łącznie (surowe):</span>
+                                <span className="font-mono text-lg text-white">{formatMinutes(total)}</span>
+                              </div>
+
+                              {/* Proportional result bar */}
+                              {segments.length > 1 && (
+                                <div className="mt-4 pt-3 border-t border-slate-700">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="text-sm font-medium text-slate-300">Rezultat (proporcjonalny):</span>
+                                    <span className="font-mono text-lg text-white">{formatMinutes(resultTotal)}</span>
+                                  </div>
+                                  <div className="flex w-full h-6 rounded-lg overflow-hidden bg-slate-700">
+                                    {segments.map((seg) => {
+                                      const widthPct = resultTotal > 0 ? (seg.proportional / resultTotal) * 100 : 0;
+                                      return (
+                                        <div
+                                          key={seg.workstation_id}
+                                          className="h-full flex items-center justify-center text-xs font-medium text-white/90 transition-all duration-300"
+                                          style={{ width: `${widthPct}%`, backgroundColor: seg.color }}
+                                          title={`${seg.workstation_name || `#${seg.workstation_id}`}: ${formatMinutes(seg.proportional)}`}
+                                        >
+                                          {widthPct > 15 ? formatMinutes(seg.proportional) : ""}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                  <div className="flex flex-wrap gap-3 mt-2">
+                                    {segments.map((seg) => (
+                                      <div key={seg.workstation_id} className="flex items-center gap-1.5 text-xs text-slate-400">
+                                        <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: seg.color }} />
+                                        <span>{seg.workstation_name || `#${seg.workstation_id}`}</span>
+                                        <span className="font-mono text-slate-300">{formatMinutes(seg.proportional)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Save / Reset */}
+                              {canEdit && (
+                                <div className="mt-4 flex gap-3">
+                                  <button
+                                    onClick={() => saveOperator(worker)}
+                                    disabled={saving[`op${worker.user_id}`]}
+                                    className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+                                  >
+                                    {saving[`op${worker.user_id}`] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                    Zapisz kartę
+                                  </button>
+                                  <button
+                                    onClick={() => resetOperator(worker)}
+                                    disabled={saving[`op${worker.user_id}`]}
+                                    className="flex items-center gap-2 px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+                                  >
+                                    <RotateCcw className="w-4 h-4" />
+                                    Resetuj kartę
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </section>
