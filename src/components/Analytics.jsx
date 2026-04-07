@@ -64,7 +64,7 @@ const DataTable = ({ columns, rows, getRowKey }) => {
 // ===== Shared accordion card component =====
 function CardRow({
   id, label, icon: Icon, source, edited, total, isOpen, onToggle,
-  entries, entryKey, entryLabel, canEdit, onSlider, onSave, onReset, isSaving,
+  entries, entryKey, entryLabel, canEdit, onSlider, onSave, onReset, isSaving, renderExtra,
 }) {
   return (
     <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
@@ -136,6 +136,8 @@ function CardRow({
             <span className="text-sm font-medium text-slate-300">Łącznie:</span>
             <span className="font-mono text-lg text-white">{formatMinutes(total)}</span>
           </div>
+
+          {renderExtra && renderExtra()}
 
           {canEdit && (
             <div className="mt-4 flex gap-3">
@@ -533,14 +535,10 @@ export default function Analytics() {
     }
   };
 
-  // ===== Operators logic =====
+  // ===== Shared proportional bar =====
   const MACHINE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
 
-  const getOperatorEntries = (w) => operatorEdits[w.user_id] || w.entries;
-  const getOperatorTotal = (w) => getOperatorEntries(w).reduce((s, e) => s + e.minutes, 0);
-
-  const getOperatorProportional = (w) => {
-    const entries = getOperatorEntries(w);
+  const computeProportional = (entries) => {
     const totalRaw = entries.reduce((s, e) => s + e.minutes, 0);
     if (totalRaw === 0) return { segments: [], resultTotal: 0 };
     const maxEntry = Math.max(...entries.map((e) => e.minutes));
@@ -553,6 +551,53 @@ export default function Analytics() {
       }));
     return { segments, resultTotal: maxEntry };
   };
+
+  const renderProportionalBar = (entries, nameKey) => {
+    const { segments, resultTotal } = computeProportional(entries);
+    if (segments.length <= 1) return null;
+    return (
+      <div className="mt-4 pt-3 border-t border-slate-700">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium text-slate-300">Rezultat (proporcjonalny):</span>
+          <span className="font-mono text-lg text-white">{formatMinutes(resultTotal)}</span>
+        </div>
+        <div className="flex w-full h-6 rounded-lg overflow-hidden bg-slate-700">
+          {segments.map((seg) => {
+            const widthPct = resultTotal > 0 ? (seg.proportional / resultTotal) * 100 : 0;
+            const name = seg[nameKey] || `#${seg.workstation_id || seg._key || "?"}`;
+            return (
+              <div
+                key={seg.workstation_id || seg._key}
+                className="h-full flex items-center justify-center text-xs font-medium text-white/90 transition-all duration-300"
+                style={{ width: `${widthPct}%`, backgroundColor: seg.color }}
+                title={`${name}: ${formatMinutes(seg.proportional)}`}
+              >
+                {widthPct > 12 ? formatMinutes(seg.proportional) : ""}
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex flex-wrap gap-3 mt-2">
+          {segments.map((seg) => {
+            const name = seg[nameKey] || `#${seg.workstation_id || seg._key || "?"}`;
+            return (
+              <div key={seg.workstation_id || seg._key} className="flex items-center gap-1.5 text-xs text-slate-400">
+                <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: seg.color }} />
+                <span>{name}</span>
+                <span className="font-mono text-slate-300">{formatMinutes(seg.proportional)}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // ===== Operators logic =====
+
+  const getOperatorEntries = (w) => operatorEdits[w.user_id] || w.entries;
+  const getOperatorTotal = (w) => getOperatorEntries(w).reduce((s, e) => s + e.minutes, 0);
+
 
   const handleOperatorSlider = (userId, wsId, mins) => {
     setOperatorEdits((prev) => {
@@ -839,6 +884,7 @@ export default function Analytics() {
                         onSave={() => saveWorker(worker)}
                         onReset={() => resetWorker(worker)}
                         isSaving={saving[`w${worker.user_id}`]}
+                        renderExtra={() => renderProportionalBar(getWorkerEntries(worker), "workstation_name")}
                       />
                     ))}
                   </div>
@@ -940,7 +986,6 @@ export default function Analytics() {
                     {operators.map((worker) => {
                       const entries = getOperatorEntries(worker);
                       const total = getOperatorTotal(worker);
-                      const { segments, resultTotal } = getOperatorProportional(worker);
                       const isOpen = expandedOperator === worker.user_id;
                       const edited = !!operatorEdits[worker.user_id];
                       return (
@@ -1025,38 +1070,7 @@ export default function Analytics() {
                               </div>
 
                               {/* Proportional result bar */}
-                              {segments.length > 1 && (
-                                <div className="mt-4 pt-3 border-t border-slate-700">
-                                  <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm font-medium text-slate-300">Rezultat (proporcjonalny):</span>
-                                    <span className="font-mono text-lg text-white">{formatMinutes(resultTotal)}</span>
-                                  </div>
-                                  <div className="flex w-full h-6 rounded-lg overflow-hidden bg-slate-700">
-                                    {segments.map((seg) => {
-                                      const widthPct = resultTotal > 0 ? (seg.proportional / resultTotal) * 100 : 0;
-                                      return (
-                                        <div
-                                          key={seg.workstation_id}
-                                          className="h-full flex items-center justify-center text-xs font-medium text-white/90 transition-all duration-300"
-                                          style={{ width: `${widthPct}%`, backgroundColor: seg.color }}
-                                          title={`${seg.workstation_name || `#${seg.workstation_id}`}: ${formatMinutes(seg.proportional)}`}
-                                        >
-                                          {widthPct > 15 ? formatMinutes(seg.proportional) : ""}
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                  <div className="flex flex-wrap gap-3 mt-2">
-                                    {segments.map((seg) => (
-                                      <div key={seg.workstation_id} className="flex items-center gap-1.5 text-xs text-slate-400">
-                                        <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: seg.color }} />
-                                        <span>{seg.workstation_name || `#${seg.workstation_id}`}</span>
-                                        <span className="font-mono text-slate-300">{formatMinutes(seg.proportional)}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
+                              {renderProportionalBar(entries, "workstation_name")}
 
                               {/* Save / Reset */}
                               {canEdit && (
