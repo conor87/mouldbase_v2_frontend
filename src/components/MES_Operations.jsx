@@ -270,6 +270,8 @@ export default function MES_Operations() {
                   <th className="px-3 py-2 text-left font-medium">Nr operacji</th>
                   <th className="px-3 py-2 text-left font-medium">Opis</th>
                   <th className="px-3 py-2 text-left font-medium">Zlecenie</th>
+                  <th className="px-3 py-2 text-left font-medium">Nr detalu</th>
+                  <th className="px-3 py-2 text-left font-medium">Nazwa detalu</th>
                   <th className="px-3 py-2 text-left font-medium">Status</th>
                   <th className="px-3 py-2 text-left font-medium"></th>
                 </tr>
@@ -295,6 +297,8 @@ export default function MES_Operations() {
                     <td className="px-3 py-2">{op.order
                       ? `${op.order.order_number} | ${op.order.team?.trim() || "—"} | ${op.order.product_name?.trim() || "—"}`
                       : "—"}</td>
+                    <td className="px-3 py-2">{op.task?.detail_number || "—"}</td>
+                    <td className="px-3 py-2">{op.task?.detail_name || "—"}</td>
                     <td className="px-3 py-2">
                       {op.is_done ? (
                         <span className="text-green-400">Zakończona</span>
