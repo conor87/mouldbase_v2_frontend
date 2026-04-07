@@ -38,7 +38,7 @@ export default function MES_Production_Dashboard() {
   const [orders, setOrders] = useState([]);
   const [machineGroups, setMachineGroups] = useState([]);
   const [users, setUsers] = useState([]);
-  const [selectedGroupId, setSelectedGroupId] = useState("");
+  const [selectedGroupId, setSelectedGroupId] = useState("active");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -92,7 +92,9 @@ export default function MES_Production_Dashboard() {
 
   const filteredWorkstations = useMemo(() => {
     let list = workstations;
-    if (selectedGroupId) {
+    if (selectedGroupId === "active") {
+      list = list.filter((ws) => ws.current_task_id || ws.current_operation_id);
+    } else if (selectedGroupId) {
       const gid = Number(selectedGroupId);
       list = list.filter((ws) => ws.machine_group_id === gid);
     }
@@ -117,6 +119,7 @@ export default function MES_Production_Dashboard() {
           onChange={(e) => setSelectedGroupId(e.target.value)}
           className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm min-w-[220px]"
         >
+          <option value="active">Aktywne stanowiska</option>
           <option value="">Wszystkie grupy maszyn</option>
           {machineGroups.map((g) => (
             <option key={g.id} value={g.id}>
@@ -146,7 +149,7 @@ export default function MES_Production_Dashboard() {
               >
                 {/* Machine name — link to machine panel or operations list */}
                 <h2
-                  className="text-lg font-bold mb-2 cursor-pointer hover:text-blue-400 transition"
+                  className="text-lg font-bold mb-1 cursor-pointer hover:text-blue-400 transition text-center"
                   onClick={() =>
                     ws.current_operation_id
                       ? navigate(`/mes/production/machine/${ws.id}/panel/${ws.current_operation_id}`)
@@ -158,11 +161,11 @@ export default function MES_Production_Dashboard() {
 
                 {/* Group name */}
                 {group && (
-                  <p className="text-xs text-slate-500 -mt-1 mb-2">{group.name}</p>
+                  <p className="text-xs text-slate-300 mb-1 text-center">{group.name}</p>
                 )}
 
                 {/* Status badge */}
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center justify-center gap-2 mb-3">
                   <span className={`w-3 h-3 rounded-full ${colors.dot}`} />
                   <span className={`text-sm font-semibold ${colors.text}`}>
                     {status?.name || "Brak statusu"}
@@ -170,39 +173,32 @@ export default function MES_Production_Dashboard() {
                 </div>
 
                 {/* Order info */}
-                {order ? (
-                  <div className="text-sm space-y-0.5 mb-2">
-                    <p className="text-slate-300">
-                      <span className="text-slate-500">Zlecenie:</span>{" "}
-                      {order.order_number}
-                    </p>
-                    <p className="text-slate-300">
-                      <span className="text-slate-500">Zespół:</span>{" "}
-                      {order.team?.trim() || "—"}
-                    </p>
-                    <p className="text-slate-300">
-                      <span className="text-slate-500">Wyrób:</span>{" "}
-                      {order.product_name?.trim() || "—"}
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-500 mb-2">Brak zlecenia</p>
-                )}
-
-                {/* Task detail */}
-                {task && (
-                  <p className="text-sm text-slate-300">
-                    <span className="text-slate-500">Detal:</span>{" "}
-                    {task.detail_name || "—"}
-                  </p>
-                )}
-
-                {/* Operator */}
-                {ws.user_id && (
-                  <p className="text-xs text-slate-500 mt-2">
-                    Operator: {userMap[ws.user_id]?.username || ws.user_id}
-                  </p>
-                )}
+                <div className="text-sm grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 mb-2">
+                  {order ? (
+                    <>
+                      <span className="text-slate-500">Zlecenie:</span>
+                      <span className="text-slate-300">{order.order_number}</span>
+                      <span className="text-slate-500">Zespół:</span>
+                      <span className="text-slate-300">{order.team?.trim() || "—"}</span>
+                      <span className="text-slate-500">Wyrób:</span>
+                      <span className="text-slate-300">{order.product_name?.trim() || "—"}</span>
+                    </>
+                  ) : (
+                    <span className="text-slate-500 col-span-2">Brak zlecenia</span>
+                  )}
+                  {task && (
+                    <>
+                      <span className="text-slate-500">Detal:</span>
+                      <span className="text-slate-300">{task.detail_name || "—"}</span>
+                    </>
+                  )}
+                  {ws.user_id && (
+                    <>
+                      <span className="text-slate-500">Operator:</span>
+                      <span className="text-slate-300">{userMap[ws.user_id]?.username || ws.user_id}</span>
+                    </>
+                  )}
+                </div>
 
               </div>
             );

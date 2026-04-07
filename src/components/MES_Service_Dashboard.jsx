@@ -56,6 +56,7 @@ export default function MES_Service_Dashboard() {
   const [workstations, setWorkstations] = useState([]);
   const [users, setUsers] = useState([]);
   const [moulds, setMoulds] = useState([]);
+  const [selectedFilter, setSelectedFilter] = useState("active");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -86,6 +87,13 @@ export default function MES_Service_Dashboard() {
     [moulds],
   );
 
+  const filteredWorkstations = useMemo(() => {
+    if (selectedFilter === "active") {
+      return workstations.filter((ws) => ws.user_id);
+    }
+    return workstations;
+  }, [workstations, selectedFilter]);
+
   return (
     <div className="flex flex-col min-h-[calc(100vh-2rem)] p-4 sm:p-6 pt-14 max-w-7xl mx-auto w-full">
       <MES_UserBar />
@@ -97,13 +105,25 @@ export default function MES_Service_Dashboard() {
       </button>
       <h1 className="text-2xl font-bold mb-6 text-center">Dashboard serwisu</h1>
 
+      {/* Filter bar */}
+      <div className="flex justify-center mb-6">
+        <select
+          value={selectedFilter}
+          onChange={(e) => setSelectedFilter(e.target.value)}
+          className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm min-w-[220px]"
+        >
+          <option value="active">Aktywne stanowiska</option>
+          <option value="">Wszystkie stanowiska</option>
+        </select>
+      </div>
+
       {loading ? (
         <p className="text-slate-400 text-center">Ładowanie…</p>
-      ) : workstations.length === 0 ? (
+      ) : filteredWorkstations.length === 0 ? (
         <p className="text-slate-400 text-center">Brak stanowisk serwisowych.</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {workstations.map((ws) => {
+          {filteredWorkstations.map((ws) => {
             const statusLabel = ws.status_changeovers || null;
             const colorName = statusLabel ? STATUS_COLOR_MAP[statusLabel] : null;
             const colors = buildColorClasses(colorName);
@@ -115,7 +135,7 @@ export default function MES_Service_Dashboard() {
               >
                 {/* Workstation name */}
                 <h2
-                  className="text-lg font-bold mb-2 cursor-pointer hover:text-blue-400 transition"
+                  className="text-lg font-bold mb-1 cursor-pointer hover:text-blue-400 transition text-center"
                   onClick={() =>
                     ws.st
                       ? navigate(`/mes/service/workstation/${ws.id}/panel/${ws.st}`)
@@ -126,40 +146,40 @@ export default function MES_Service_Dashboard() {
                 </h2>
 
                 {/* Status badge */}
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center justify-center gap-2 mb-3">
                   <span className={`w-3 h-3 rounded-full ${colors.dot}`} />
                   <span className={`text-sm font-semibold ${colors.text}`}>
                     {statusLabel || "Brak statusu"}
                   </span>
                 </div>
 
-                {/* Mould info */}
-                {(() => {
-                  const m = ws.st ? mouldMap[ws.st] : null;
-                  return m ? (
-                    <div className="text-sm space-y-0.5 mb-2">
-                      <p className="text-slate-300">
-                        <span className="text-slate-500">Forma:</span>{" "}
-                        {m.mould_number}
-                      </p>
-                      <p className="text-slate-300">
-                        <span className="text-slate-500">Wyrób:</span>{" "}
-                        {m.product || "—"}
-                      </p>
-                    </div>
+                {/* Details grid */}
+                <div className="text-sm grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 mb-2">
+                  {(() => {
+                    const m = ws.st ? mouldMap[ws.st] : null;
+                    return m ? (
+                      <>
+                        <span className="text-slate-500">Forma:</span>
+                        <span className="text-slate-300">{m.mould_number}</span>
+                        <span className="text-slate-500">Wyrób:</span>
+                        <span className="text-slate-300">{m.product || "—"}</span>
+                      </>
+                    ) : (
+                      <span className="text-slate-500 col-span-2">Brak formy</span>
+                    );
+                  })()}
+                  {ws.user_id ? (
+                    <>
+                      <span className="text-slate-500">Operator:</span>
+                      <span className="text-slate-300">{userMap[ws.user_id]?.username || ws.user_id}</span>
+                    </>
                   ) : (
-                    <p className="text-sm text-slate-500 mb-2">Brak formy</p>
-                  );
-                })()}
-
-                {/* Operator */}
-                {ws.user_id ? (
-                  <p className="text-xs text-slate-500 mt-2">
-                    Operator: {userMap[ws.user_id]?.username || ws.user_id}
-                  </p>
-                ) : (
-                  <p className="text-xs text-slate-500 mt-2">Brak operatora</p>
-                )}
+                    <>
+                      <span className="text-slate-500">Operator:</span>
+                      <span className="text-slate-500">—</span>
+                    </>
+                  )}
+                </div>
               </div>
             );
           })}

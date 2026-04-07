@@ -21,7 +21,22 @@
       "Bash(xargs ls:*)",
       "mcp__serena__insert_after_symbol",
       "Bash(python:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git:*)",
+      "Bash(curl:*)",
+      "mcp__serena__replace_symbol_body",
+      "Bash(head:*)",
+      "mcp__serena__list_memories",
+      "mcp__serena__execute_shell_command",
+      "Skill(commit-commands:commit-push-pr)",
+      "Bash(npx eslint:*)",
+      "Bash(PGPASSWORD=228100 psql -h localhost -U postgres -d mouldbase -c \"ALTER TABLE analytica_service ADD COLUMN IF NOT EXISTS mould_number VARCHAR\\(50\\);\" 2>&1)",
+      "Bash(PGPASSWORD=228100 psql -h localhost -U postgres -d mouldbase -c \"ALTER TABLE service_log ADD COLUMN IF NOT EXISTS mould_number VARCHAR\\(50\\);\" 2>&1)",
+      "Bash(PGPASSWORD=228100 psql -h localhost -U postgres -d mouldbase -c \"\nALTER TABLE analytica_service DROP CONSTRAINT IF EXISTS uq_user_date_activity;\nALTER TABLE analytica_service ADD CONSTRAINT uq_user_date_activity_mould UNIQUE \\(user_id, date, activity_type, mould_number\\);\n\" 2>&1)",
+      "Bash(PGPASSWORD=228100 psql -h localhost -U postgres -d mouldbase -c \"SELECT id, operator, status_service, mould_number, created_at FROM service_log ORDER BY id;\" 2>&1)",
+      "Bash(PGPASSWORD=228100 psql -h localhost -U postgres -d mouldbase -c \"SELECT id, operator, status_service, mould_number, mes_activ_service_id, created_at FROM service_log ORDER BY id DESC LIMIT 5;\" 2>&1)",
+      "mcp__plugin_claude-mem_mcp-search__search",
+      "mcp__plugin_claude-mem_mcp-search__get_observations"
     ]
   }
 }

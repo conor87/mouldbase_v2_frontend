@@ -1,6 +1,7 @@
 import { Menu, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getCurrentUser } from '../auth';
+import { API_BASE } from '../config/api.js';
 
 export default function Navbar({ titleOverride } = {}) {
     const [mobileMenuIsOpen, setMobileMenuIsOpen] = useState(false);
@@ -29,11 +30,37 @@ export default function Navbar({ titleOverride } = {}) {
         return () => window.removeEventListener("storage", syncAuth);
     }, []);
 
-    function logout() {
-        localStorage.removeItem("access_token");
-        setIsLoggedIn(false);
-        setUsername("");
-        window.location.href = "/login"; // przekierowanie
+    async function logout() {
+        // Log session logout before clearing credentials
+        const token = localStorage.getItem("access_token");
+        const userId = localStorage.getItem("user_id");
+        const uname = localStorage.getItem("username") || "";
+
+        const doCleanup = () => {
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("username");
+          localStorage.removeItem("role");
+          localStorage.removeItem("user_id");
+          setIsLoggedIn(false);
+          setUsername("");
+          window.location.href = "/login";
+        };
+
+        if (token && userId) {
+          const now = new Date();
+          const p = (n) => String(n).padStart(2, "0");
+          const created_at = `${now.getFullYear()}-${p(now.getMonth()+1)}-${p(now.getDate())}T${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+          try {
+            const res = await fetch(`${API_BASE}/mes-session/logs`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ user_id: parseInt(userId, 10), username: uname, action: "logout", created_at }),
+            });
+            await res.text(); // ensure response is fully received before navigating
+          } catch { /* ignore */ }
+        }
+
+        doCleanup();
     }
 
     return (

@@ -122,6 +122,7 @@ export default function MES_ChangeoverPanel() {
         mes_activ_service_id: workstation?.aktualne_zlecenie_serwisowe_id || null,
         mes_activ_changeover_id: parseInt(changeoverId, 10) || null,
         status_changeover: statusChangeover,
+        mould_number: toMould?.mould_number || null,
       };
       try {
         await fetch(`${API_BASE}/service/logs`, {
@@ -136,7 +137,7 @@ export default function MES_ChangeoverPanel() {
         console.error("Failed to create service log:", err);
       }
     },
-    [workstation, changeoverId],
+    [workstation, changeoverId, toMould],
   );
 
   const handleStart = () => {

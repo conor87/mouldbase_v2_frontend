@@ -302,8 +302,8 @@ export default function ServiceAdmin() {
           header: "Akcje",
           render: (row) => (
             <div className="flex gap-2 justify-center">
-              <button onClick={() => handleEditLog(row)} className="text-blue-400 hover:text-blue-300 text-xs">edytuj</button>
-              <button onClick={() => handleDeleteLog(row.id)} className="text-red-400 hover:text-red-300 text-xs">usuń</button>
+              <button onClick={() => handleEditLog(row)} className="px-2 py-1 rounded-md border border-slate-600 text-slate-200 hover:border-slate-400">Edytuj</button>
+              <button onClick={() => handleDeleteLog(row.id)} className="px-2 py-1 rounded-md border border-red-600 text-red-400 hover:border-red-400 hover:text-red-300">Usuń</button>
             </div>
           ),
         }]
@@ -326,8 +326,8 @@ export default function ServiceAdmin() {
           header: "Akcje",
           render: (row) => (
             <div className="flex gap-2 justify-center">
-              <button onClick={() => handleEditWs(row)} className="text-blue-400 hover:text-blue-300 text-xs">edytuj</button>
-              <button onClick={() => handleDeleteWs(row.id)} className="text-red-400 hover:text-red-300 text-xs">usuń</button>
+              <button onClick={() => handleEditWs(row)} className="px-2 py-1 rounded-md border border-slate-600 text-slate-200 hover:border-slate-400">Edytuj</button>
+              <button onClick={() => handleDeleteWs(row.id)} className="px-2 py-1 rounded-md border border-red-600 text-red-400 hover:border-red-400 hover:text-red-300">Usuń</button>
             </div>
           ),
         }]
@@ -337,7 +337,6 @@ export default function ServiceAdmin() {
   // ─── Tabs ──────────────────────────────────────────────────────────────────
   const tabs = [
     { id: "service_workstations", label: "Stanowiska serwisowe", icon: Wrench },
-    { id: "logs", label: "Logi", icon: ScrollText },
   ];
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -457,7 +456,7 @@ export default function ServiceAdmin() {
                     <div className="flex gap-2">
                       <button
                         type="submit"
-                        className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-medium transition"
+                        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm"
                       >
                         {editingWsId ? "Zapisz zmiany" : "Dodaj stanowisko"}
                       </button>
@@ -465,7 +464,7 @@ export default function ServiceAdmin() {
                         <button
                           type="button"
                           onClick={resetWsForm}
-                          className="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm font-medium transition"
+                          className="px-3 py-1.5 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400 text-sm"
                         >
                           Anuluj
                         </button>
@@ -539,7 +538,7 @@ export default function ServiceAdmin() {
                     <div className="flex gap-2">
                       <button
                         type="submit"
-                        className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-medium transition"
+                        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm"
                       >
                         {editingLogId ? "Zapisz zmiany" : "Dodaj log"}
                       </button>
@@ -547,7 +546,7 @@ export default function ServiceAdmin() {
                         <button
                           type="button"
                           onClick={resetLogForm}
-                          className="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm font-medium transition"
+                          className="px-3 py-1.5 rounded-lg border border-slate-600 text-slate-200 hover:border-slate-400 text-sm"
                         >
                           Anuluj
                         </button>

@@ -98,8 +98,18 @@ CREATE TABLE service_log (
 
 ---
 
+## 8. Tabela `service_log` — nowa kolumna `mould_number`
+
+Numer formy powiązany z wpisem logu serwisowego, umożliwia śledzenie której formy dotyczyła operacja.
+
+```sql
+ALTER TABLE service_log ADD COLUMN IF NOT EXISTS mould_number VARCHAR(50) NULL;
+```
+
+---
+
 ## Kolejność wykonania
 
 1. Najpierw utwórz tabelę `machine_groups` (punkt 1)
 2. Potem dodaj kolumnę `machine_group_id` w `workstations` (punkt 3) — wymaga istnienia tabeli `machine_groups`
-3. Punkty 2, 4, 5, 6 i 7 można wykonać niezależnie
+3. Punkty 2, 4, 5, 6, 7 i 8 można wykonać niezależnie

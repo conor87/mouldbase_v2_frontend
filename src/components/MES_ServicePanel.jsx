@@ -187,6 +187,7 @@ export default function MES_ServicePanel() {
         mes_activ_service_id: workstation?.aktualne_zlecenie_serwisowe_id || null,
         mes_activ_changeover_id: workstation?.aktualne_przezbrojenie_id || null,
         status_changeover: null,
+        mould_number: mouldNumber || null,
       };
       try {
         await fetch(`${API_BASE}/service/logs`, {
@@ -201,7 +202,7 @@ export default function MES_ServicePanel() {
         console.error("Failed to create service log:", err);
       }
     },
-    [workstation],
+    [workstation, mouldNumber],
   );
 
   const handleStatusClick = useCallback(
