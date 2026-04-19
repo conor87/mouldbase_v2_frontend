@@ -247,7 +247,11 @@ export default function Analytics() {
       const res = await fetch(`${API_BASE}/analytics/worker-cards?date=${selectedDate}`, { headers: authHeaders() });
       if (!res.ok) throw new Error();
       const data = await res.json();
-      setWorkers(data.workers || []);
+      const wData = (data.workers || []).map((w) => ({
+        ...w,
+        entries: w.entries.map((e) => ({ ...e, _key: `${e.workstation_id}_${e.order_number || e.order_id || Math.random()}` })),
+      }));
+      setWorkers(wData);
       setWorkerEdits({});
     } catch {
       setMessage("Błąd pobierania danych pracowników.");
@@ -265,7 +269,11 @@ export default function Analytics() {
       const res = await fetch(`${API_BASE}/analytics/machine-cards?date=${selectedDate}`, { headers: authHeaders() });
       if (!res.ok) throw new Error();
       const data = await res.json();
-      setMachines(data.machines || []);
+      const mData = (data.machines || []).map((m) => ({
+        ...m,
+        entries: m.entries.map((e) => ({ ...e, _key: `${e.operation_id}_${e.user_id || 'no_user'}` })),
+      }));
+      setMachines(mData);
       setMachineEdits({});
     } catch {
       setMessage("Błąd pobierania danych maszyn.");
@@ -305,7 +313,11 @@ export default function Analytics() {
       const res = await fetch(`${API_BASE}/analytics/worker-cards?date=${selectedDate}`, { headers: authHeaders() });
       if (!res.ok) throw new Error();
       const data = await res.json();
-      setOperators(data.workers || []);
+      const opData = (data.workers || []).map((w) => ({
+        ...w,
+        entries: w.entries.map((e) => ({ ...e, _key: `${e.workstation_id}_${e.order_number || e.order_id || Math.random()}` })),
+      }));
+      setOperators(opData);
       setOperatorEdits({});
     } catch {
       setMessage("Błąd pobierania danych operatorów.");
@@ -380,11 +392,11 @@ export default function Analytics() {
   const getWorkerEntries = (w) => workerEdits[w.user_id] || w.entries;
   const getWorkerTotal = (w) => getWorkerEntries(w).reduce((s, e) => s + e.minutes, 0);
 
-  const handleWorkerSlider = (userId, wsId, mins) => {
+  const handleWorkerSlider = (userId, keyVal, mins) => {
     setWorkerEdits((prev) => {
       const worker = workers.find((w) => w.user_id === userId);
       const cur = prev[userId] || worker.entries.map((e) => ({ ...e }));
-      return { ...prev, [userId]: cur.map((e) => e.workstation_id === wsId ? { ...e, minutes: mins } : e) };
+      return { ...prev, [userId]: cur.map((e) => e._key === keyVal ? { ...e, minutes: mins } : e) };
     });
   };
 
@@ -398,7 +410,7 @@ export default function Analytics() {
         body: JSON.stringify({
           user_id: worker.user_id,
           date: selectedDate,
-          entries: entries.map((e) => ({ workstation_id: e.workstation_id, minutes: e.minutes })),
+          entries: entries.map((e) => ({ workstation_id: e.workstation_id, order_number: e.order_number || null, minutes: e.minutes })),
         }),
       });
       if (!res.ok) throw new Error();
@@ -433,11 +445,11 @@ export default function Analytics() {
   const getMachineEntries = (m) => machineEdits[m.workstation_id] || m.entries;
   const getMachineTotal = (m) => getMachineEntries(m).reduce((s, e) => s + e.minutes, 0);
 
-  const handleMachineSlider = (wsId, opId, mins) => {
+  const handleMachineSlider = (wsId, keyVal, mins) => {
     setMachineEdits((prev) => {
       const machine = machines.find((m) => m.workstation_id === wsId);
       const cur = prev[wsId] || machine.entries.map((e) => ({ ...e }));
-      return { ...prev, [wsId]: cur.map((e) => e.operation_id === opId ? { ...e, minutes: mins } : e) };
+      return { ...prev, [wsId]: cur.map((e) => e._key === keyVal ? { ...e, minutes: mins } : e) };
     });
   };
 
@@ -451,7 +463,7 @@ export default function Analytics() {
         body: JSON.stringify({
           workstation_id: machine.workstation_id,
           date: selectedDate,
-          entries: entries.map((e) => ({ operation_id: e.operation_id, minutes: e.minutes })),
+          entries: entries.map((e) => ({ operation_id: e.operation_id, user_id: e.user_id || null, minutes: e.minutes })),
         }),
       });
       if (!res.ok) throw new Error();
@@ -552,7 +564,7 @@ export default function Analytics() {
     return { segments, resultTotal: maxEntry };
   };
 
-  const renderProportionalBar = (entries, nameKey) => {
+  const renderProportionalBar = (entries, nameKeyOrFn) => {
     const { segments, resultTotal } = computeProportional(entries);
     if (segments.length <= 1) return null;
     return (
@@ -564,7 +576,7 @@ export default function Analytics() {
         <div className="flex w-full h-6 rounded-lg overflow-hidden bg-slate-700">
           {segments.map((seg) => {
             const widthPct = resultTotal > 0 ? (seg.proportional / resultTotal) * 100 : 0;
-            const name = seg[nameKey] || `#${seg.workstation_id || seg._key || "?"}`;
+            const name = typeof nameKeyOrFn === "function" ? nameKeyOrFn(seg) : (seg[nameKeyOrFn] || `#${seg.workstation_id || seg._key || "?"}`);
             return (
               <div
                 key={seg.workstation_id || seg._key}
@@ -579,7 +591,7 @@ export default function Analytics() {
         </div>
         <div className="flex flex-wrap gap-3 mt-2">
           {segments.map((seg) => {
-            const name = seg[nameKey] || `#${seg.workstation_id || seg._key || "?"}`;
+            const name = typeof nameKeyOrFn === "function" ? nameKeyOrFn(seg) : (seg[nameKeyOrFn] || `#${seg.workstation_id || seg._key || "?"}`);
             return (
               <div key={seg.workstation_id || seg._key} className="flex items-center gap-1.5 text-xs text-slate-400">
                 <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: seg.color }} />
@@ -617,7 +629,7 @@ export default function Analytics() {
         body: JSON.stringify({
           user_id: worker.user_id,
           date: selectedDate,
-          entries: entries.map((e) => ({ workstation_id: e.workstation_id, minutes: e.minutes })),
+          entries: entries.map((e) => ({ workstation_id: e.workstation_id, order_number: e.order_number || null, minutes: e.minutes })),
         }),
       });
       if (!res.ok) throw new Error();
@@ -877,14 +889,20 @@ export default function Analytics() {
                         isOpen={expandedWorker === worker.user_id}
                         onToggle={() => setExpandedWorker(expandedWorker === worker.user_id ? null : worker.user_id)}
                         entries={getWorkerEntries(worker)}
-                        entryKey="workstation_id"
-                        entryLabel={(e) => e.workstation_name || `Stanowisko #${e.workstation_id}`}
+                        entryKey="_key"
+                        entryLabel={(e) => {
+                          const name = e.workstation_name || `Stanowisko #${e.workstation_id}`;
+                          return e.order_number ? `${name} | Zl: ${e.order_number}` : name;
+                        }}
                         canEdit={canEdit}
                         onSlider={handleWorkerSlider}
                         onSave={() => saveWorker(worker)}
                         onReset={() => resetWorker(worker)}
                         isSaving={saving[`w${worker.user_id}`]}
-                        renderExtra={() => renderProportionalBar(getWorkerEntries(worker), "workstation_name")}
+                        renderExtra={() => renderProportionalBar(getWorkerEntries(worker), (e) => {
+                          const name = e.workstation_name || `Stanowisko #${e.workstation_id}`;
+                          return e.order_number ? `${name} | Zl: ${e.order_number}` : name;
+                        })}
                       />
                     ))}
                   </div>
@@ -917,8 +935,8 @@ export default function Analytics() {
                         isOpen={expandedMachine === machine.workstation_id}
                         onToggle={() => setExpandedMachine(expandedMachine === machine.workstation_id ? null : machine.workstation_id)}
                         entries={getMachineEntries(machine)}
-                        entryKey="operation_id"
-                        entryLabel={(e) => e.operation_label || `Operacja #${e.operation_id}`}
+                        entryKey="_key"
+                        entryLabel={(e) => (e.operation_label || `Operacja #${e.operation_id}`) + (e.username ? ` | Opr: ${e.username}` : '')}
                         canEdit={canEdit}
                         onSlider={handleMachineSlider}
                         onSave={() => saveMachine(machine)}
@@ -1026,7 +1044,7 @@ export default function Analytics() {
                               {/* Sliders per machine */}
                               <div className="space-y-4">
                                 {entries.map((entry, i) => (
-                                  <div key={entry.workstation_id} className="space-y-1">
+                                  <div key={entry._key} className="space-y-1">
                                     <div className="flex items-center justify-between text-sm">
                                       <div className="flex items-center gap-2">
                                         <span
@@ -1035,6 +1053,7 @@ export default function Analytics() {
                                         />
                                         <span className="text-slate-300">
                                           {entry.workstation_name || `Stanowisko #${entry.workstation_id}`}
+                                          {entry.order_number ? ` | Zl: ${entry.order_number}` : ""}
                                         </span>
                                       </div>
                                       <span className="font-mono text-slate-200 text-sm min-w-[70px] text-right">
@@ -1048,7 +1067,7 @@ export default function Analytics() {
                                         max={720}
                                         step={5}
                                         value={entry.minutes}
-                                        onChange={(e) => handleOperatorSlider(worker.user_id, entry.workstation_id, parseInt(e.target.value, 10))}
+                                        onChange={(e) => handleOperatorSlider(worker.user_id, entry._key, parseInt(e.target.value, 10))}
                                         className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
                                       />
                                     ) : (
@@ -1070,7 +1089,10 @@ export default function Analytics() {
                               </div>
 
                               {/* Proportional result bar */}
-                              {renderProportionalBar(entries, "workstation_name")}
+                              {renderProportionalBar(entries, (e) => {
+                                const name = e.workstation_name || `Stanowisko #${e.workstation_id}`;
+                                return e.order_number ? `${name} | Zl: ${e.order_number}` : name;
+                              })}
 
                               {/* Save / Reset */}
                               {canEdit && (
