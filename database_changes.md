@@ -108,8 +108,32 @@ ALTER TABLE service_log ADD COLUMN IF NOT EXISTS mould_number VARCHAR(50) NULL;
 
 ---
 
+## 9. Tabela `analytica_workers` — nowa kolumna `order_number` i zmiana constraintu
+
+Dodano numer zlecenia do analityki czasu pracy pracowników. Wymaga usunięcia starego ograniczenia unikalności i utworzenia nowego uwzględniającego numer zlecenia. Alternatywnie (jako że są to dane cacheowane z logów) można po prostu zrobić `DROP TABLE analytica_workers;` i zrestartować backend - SQLAlchemy otworzy tabelę na nowo.
+
+```sql
+ALTER TABLE analytica_workers ADD COLUMN IF NOT EXISTS order_number VARCHAR(64) NULL;
+ALTER TABLE analytica_workers DROP CONSTRAINT IF EXISTS uq_user_date_workstation;
+ALTER TABLE analytica_workers ADD CONSTRAINT uq_user_date_ws_order UNIQUE (user_id, date, workstation_id, order_number);
+```
+
+---
+
+## 10. Tabela `analytica_machines` — nowa kolumna `user_id` i zmiana constraintu
+
+Dodano powiązanie logu maszyny z użytkownikiem (operator), aby na jednej maszynie można było rozdzielać czasy na konkretnych pracowników. Alternatywnie, bezpiecznie jest zrobić `DROP TABLE analytica_machines;` i zrestartować backend.
+
+```sql
+ALTER TABLE analytica_machines ADD COLUMN IF NOT EXISTS user_id INTEGER NULL REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE analytica_machines DROP CONSTRAINT IF EXISTS uq_ws_date_operation;
+ALTER TABLE analytica_machines ADD CONSTRAINT uq_ws_date_op_user UNIQUE (workstation_id, date, operation_id, user_id);
+```
+
+---
+
 ## Kolejność wykonania
 
 1. Najpierw utwórz tabelę `machine_groups` (punkt 1)
 2. Potem dodaj kolumnę `machine_group_id` w `workstations` (punkt 3) — wymaga istnienia tabeli `machine_groups`
-3. Punkty 2, 4, 5, 6, 7 i 8 można wykonać niezależnie
+3. Punkty 2, 4, 5, 6, 7, 8, 9 i 10 można wykonać niezależnie. W przypadku 9 i 10, po wgraniu skryptów zrestartuj backend.

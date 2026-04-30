@@ -19,6 +19,14 @@ const formatMinutes = (mins) => {
   return `${h}h ${String(m).padStart(2, "0")}m`;
 };
 
+const formatProductionEntryLabel = (entry) => {
+  const name = entry.workstation_name || `Stanowisko #${entry.workstation_id}`;
+  const parts = [name];
+  if (entry.order_number) parts.push(`Zl: ${entry.order_number}`);
+  if (entry.order_team) parts.push(`Zespół: ${entry.order_team}`);
+  return parts.join(" | ");
+};
+
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
 const tabs = [
@@ -249,7 +257,7 @@ export default function Analytics() {
       const data = await res.json();
       const wData = (data.workers || []).map((w) => ({
         ...w,
-        entries: w.entries.map((e) => ({ ...e, _key: `${e.workstation_id}_${e.order_number || e.order_id || Math.random()}` })),
+        entries: w.entries.map((e) => ({ ...e, _key: `${e.workstation_id}_${e.order_number || e.order_id || Math.random()}_${e.order_team || ""}` })),
       }));
       setWorkers(wData);
       setWorkerEdits({});
@@ -315,7 +323,7 @@ export default function Analytics() {
       const data = await res.json();
       const opData = (data.workers || []).map((w) => ({
         ...w,
-        entries: w.entries.map((e) => ({ ...e, _key: `${e.workstation_id}_${e.order_number || e.order_id || Math.random()}` })),
+        entries: w.entries.map((e) => ({ ...e, _key: `${e.workstation_id}_${e.order_number || e.order_id || Math.random()}_${e.order_team || ""}` })),
       }));
       setOperators(opData);
       setOperatorEdits({});
@@ -890,19 +898,13 @@ export default function Analytics() {
                         onToggle={() => setExpandedWorker(expandedWorker === worker.user_id ? null : worker.user_id)}
                         entries={getWorkerEntries(worker)}
                         entryKey="_key"
-                        entryLabel={(e) => {
-                          const name = e.workstation_name || `Stanowisko #${e.workstation_id}`;
-                          return e.order_number ? `${name} | Zl: ${e.order_number}` : name;
-                        }}
+                        entryLabel={formatProductionEntryLabel}
                         canEdit={canEdit}
                         onSlider={handleWorkerSlider}
                         onSave={() => saveWorker(worker)}
                         onReset={() => resetWorker(worker)}
                         isSaving={saving[`w${worker.user_id}`]}
-                        renderExtra={() => renderProportionalBar(getWorkerEntries(worker), (e) => {
-                          const name = e.workstation_name || `Stanowisko #${e.workstation_id}`;
-                          return e.order_number ? `${name} | Zl: ${e.order_number}` : name;
-                        })}
+                        renderExtra={() => renderProportionalBar(getWorkerEntries(worker), formatProductionEntryLabel)}
                       />
                     ))}
                   </div>
@@ -1052,8 +1054,7 @@ export default function Analytics() {
                                           style={{ backgroundColor: MACHINE_COLORS[i % MACHINE_COLORS.length] }}
                                         />
                                         <span className="text-slate-300">
-                                          {entry.workstation_name || `Stanowisko #${entry.workstation_id}`}
-                                          {entry.order_number ? ` | Zl: ${entry.order_number}` : ""}
+                                          {formatProductionEntryLabel(entry)}
                                         </span>
                                       </div>
                                       <span className="font-mono text-slate-200 text-sm min-w-[70px] text-right">
@@ -1090,8 +1091,7 @@ export default function Analytics() {
 
                               {/* Proportional result bar */}
                               {renderProportionalBar(entries, (e) => {
-                                const name = e.workstation_name || `Stanowisko #${e.workstation_id}`;
-                                return e.order_number ? `${name} | Zl: ${e.order_number}` : name;
+                                return formatProductionEntryLabel(e);
                               })}
 
                               {/* Save / Reset */}
