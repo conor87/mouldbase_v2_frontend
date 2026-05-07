@@ -52,8 +52,15 @@ export default function MES_Machines() {
   }, [fetchMachines]);
 
   const handleTakeover = (ws) => {
-    const token = localStorage.getItem("access_token");
     const userId = getUserId();
+    if (ws?.user_id != null && Number(ws.user_id) !== userId) {
+      const confirmed = window.confirm(
+        "Ta maszyna jest przypisana do innego operatora. Przejęcie maszyny odblokuje ją dla Ciebie i odbierze dostęp poprzedniemu operatorowi. Czy na pewno przejąć maszynę?"
+      );
+      if (!confirmed) return;
+    }
+
+    const token = localStorage.getItem("access_token");
     if (!userId) return;
     setClaiming(ws.id);
 
@@ -116,7 +123,7 @@ export default function MES_Machines() {
             const isMine = m.user_id != null && Number(m.user_id) === userId;
             const isOccupied = m.user_id != null && !isMine;
             const operatorName = m.user_name || m.username || null;
-            const canClaim = !isMine && !isOccupied && myCount < 4;
+            const canClaim = !isMine && myCount < 4;
 
             return (
               <div
@@ -152,7 +159,11 @@ export default function MES_Machines() {
                     disabled={claiming === m.id}
                     className="mt-3 w-full px-3 py-1.5 rounded-lg text-sm bg-cyan-600/30 hover:bg-cyan-500/40 border border-cyan-500/30 text-cyan-300 transition disabled:opacity-50"
                   >
-                    {claiming === m.id ? "Przejmowanie…" : "Przejmij"}
+                    {claiming === m.id
+                      ? "Przejmowanie…"
+                      : isOccupied
+                        ? "Przejmij od poprzedniego"
+                        : "Przejmij"}
                   </button>
                 )}
               </div>

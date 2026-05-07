@@ -2,6 +2,7 @@ import { Menu, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getCurrentUser } from '../auth';
 import { API_BASE } from '../config/api.js';
+import { releaseAssignedMesResources } from '../utils/mesRelease.js';
 
 export default function Navbar({ titleOverride } = {}) {
     const [mobileMenuIsOpen, setMobileMenuIsOpen] = useState(false);
@@ -47,6 +48,12 @@ export default function Navbar({ titleOverride } = {}) {
         };
 
         if (token && userId) {
+          await releaseAssignedMesResources({
+            token,
+            userId: parseInt(userId, 10),
+            username: uname,
+          });
+
           const now = new Date();
           const p = (n) => String(n).padStart(2, "0");
           const created_at = `${now.getFullYear()}-${p(now.getMonth()+1)}-${p(now.getDate())}T${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;

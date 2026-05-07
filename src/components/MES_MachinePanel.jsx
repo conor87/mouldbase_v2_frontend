@@ -226,6 +226,54 @@ export default function MES_MachinePanel() {
     }
   }, [workstation, operation, getUserId]);
 
+  const handleTakeover = useCallback(async () => {
+    if (!workstation) return;
+    const token = localStorage.getItem("access_token");
+    const parsedUserId = getUserId();
+    if (!token || !parsedUserId) return;
+
+    if (workstation.user_id != null && Number(workstation.user_id) !== parsedUserId) {
+      const confirmed = window.confirm(
+        "Ta maszyna jest przypisana do innego operatora. Przejęcie maszyny odblokuje ją dla Ciebie i odbierze dostęp poprzedniemu operatorowi. Czy na pewno przejąć maszynę?"
+      );
+      if (!confirmed) return;
+    }
+
+    const authHeaders = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    };
+
+    try {
+      if (operation) {
+        await fetch(`${API_BASE}/production/logs`, {
+          method: "POST",
+          headers: authHeaders,
+          body: JSON.stringify({
+            operation_id: operation.id,
+            status_id: workstation.status_id || null,
+            workstation_id: workstation.id,
+            user_id: parsedUserId,
+            note: "Przejęcie maszyny",
+            created_at: (() => { const d = new Date(); const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; })(),
+          }),
+        });
+      }
+
+      const res = await fetch(`${API_BASE}/production/workstations/${workstation.id}`, {
+        method: "PUT",
+        headers: authHeaders,
+        body: JSON.stringify({ user_id: parsedUserId }),
+      });
+      if (!res.ok) throw new Error("Takeover failed");
+      const updated = await res.json();
+      setWorkstation(updated);
+      setTabsRefresh((n) => n + 1);
+    } catch (err) {
+      console.error("Failed to take over machine:", err);
+    }
+  }, [workstation, operation, getUserId]);
+
   const handleStatusClick = useCallback((btn) => {
     if (btn.hasTimer) {
       if (operationStartRef.current != null) {
@@ -322,8 +370,14 @@ export default function MES_MachinePanel() {
 
               {/* Action buttons — generated from machine_statuses */}
               {!isMyMachine && (
-                <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-300 text-center">
-                  Podgląd — maszyna przypisana do innego operatora
+                <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-300 text-center space-y-3">
+                  <div>Podgląd — maszyna przypisana do innego operatora</div>
+                  <button
+                    onClick={handleTakeover}
+                    className="px-3 py-1.5 rounded-lg bg-yellow-600/30 hover:bg-yellow-500/40 border border-yellow-500/40 text-yellow-100 transition"
+                  >
+                    Przejmij od poprzedniego
+                  </button>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">

@@ -4,7 +4,7 @@ import { API_BASE } from "../config/api.js";
 import { getCurrentUser } from "../auth.js";
 import {
   BarChart3, Save, RotateCcw, ChevronDown, ChevronUp, Clock,
-  User, Loader2, Cpu, Users, ScrollText, Wrench, LogIn, Plus, Pencil, Trash2, X, Factory,
+  User, Loader2, Cpu, Users, ScrollText, Wrench, LogIn, Plus, Pencil, Trash2, X, Factory, CalendarDays, LineChart,
 } from "lucide-react";
 import Navbar from "./Navbar.jsx";
 
@@ -185,6 +185,9 @@ export default function Analytics() {
   const [workers, setWorkers] = useState([]);
   const [expandedWorker, setExpandedWorker] = useState(null);
   const [workerEdits, setWorkerEdits] = useState({});
+  const [workerView, setWorkerView] = useState("chart");
+  const [workerCalendar, setWorkerCalendar] = useState({ days: [], workers: [] });
+  const [workerCalendarLoading, setWorkerCalendarLoading] = useState(false);
 
   // Machines state
   const [machines, setMachines] = useState([]);
@@ -266,6 +269,27 @@ export default function Analytics() {
       setWorkers([]);
     } finally {
       setLoading(false);
+    }
+  }, [selectedDate]);
+
+  const fetchWorkerCalendar = useCallback(async () => {
+    if (!selectedDate) return;
+    setWorkerCalendarLoading(true);
+    setMessage(null);
+    try {
+      const month = selectedDate.slice(0, 7);
+      const res = await fetch(`${API_BASE}/analytics/worker-calendar?month=${month}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setWorkerCalendar({
+        days: data.days || [],
+        workers: data.workers || [],
+      });
+    } catch {
+      setMessage("Błąd pobierania kalendarza pracowników.");
+      setWorkerCalendar({ days: [], workers: [] });
+    } finally {
+      setWorkerCalendarLoading(false);
     }
   }, [selectedDate]);
 
@@ -396,9 +420,37 @@ export default function Analytics() {
     if (selectedDate) fetchData();
   }, [selectedDate, fetchData]);
 
+  useEffect(() => {
+    if (activeTab === "workers" && workerView === "calendar") fetchWorkerCalendar();
+  }, [activeTab, workerView, fetchWorkerCalendar]);
+
+  const refreshCurrentView = () => {
+    if (activeTab === "workers" && workerView === "calendar") return fetchWorkerCalendar();
+    return fetchData();
+  };
+
+  const computeProportional = (entries) => {
+    const totalRaw = entries.reduce((s, e) => s + e.minutes, 0);
+    if (totalRaw === 0) return { segments: [], resultTotal: 0 };
+    const workstationTotals = entries.reduce((acc, entry) => {
+      const key = entry.workstation_id || entry._key;
+      acc[key] = (acc[key] || 0) + entry.minutes;
+      return acc;
+    }, {});
+    const resultTotal = Math.max(...Object.values(workstationTotals));
+    const segments = entries
+      .filter((e) => e.minutes > 0)
+      .map((e, i) => ({
+        ...e,
+        proportional: Math.round((e.minutes / totalRaw) * resultTotal),
+        color: MACHINE_COLORS[i % MACHINE_COLORS.length],
+      }));
+    return { segments, resultTotal };
+  };
+
   // ===== Workers logic =====
   const getWorkerEntries = (w) => workerEdits[w.user_id] || w.entries;
-  const getWorkerTotal = (w) => getWorkerEntries(w).reduce((s, e) => s + e.minutes, 0);
+  const getWorkerTotal = (w) => computeProportional(getWorkerEntries(w)).resultTotal;
 
   const handleWorkerSlider = (userId, keyVal, mins) => {
     setWorkerEdits((prev) => {
@@ -558,20 +610,6 @@ export default function Analytics() {
   // ===== Shared proportional bar =====
   const MACHINE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
 
-  const computeProportional = (entries) => {
-    const totalRaw = entries.reduce((s, e) => s + e.minutes, 0);
-    if (totalRaw === 0) return { segments: [], resultTotal: 0 };
-    const maxEntry = Math.max(...entries.map((e) => e.minutes));
-    const segments = entries
-      .filter((e) => e.minutes > 0)
-      .map((e, i) => ({
-        ...e,
-        proportional: Math.round((e.minutes / totalRaw) * maxEntry),
-        color: MACHINE_COLORS[i % MACHINE_COLORS.length],
-      }));
-    return { segments, resultTotal: maxEntry };
-  };
-
   const renderProportionalBar = (entries, nameKeyOrFn) => {
     const { segments, resultTotal } = computeProportional(entries);
     if (segments.length <= 1) return null;
@@ -587,7 +625,7 @@ export default function Analytics() {
             const name = typeof nameKeyOrFn === "function" ? nameKeyOrFn(seg) : (seg[nameKeyOrFn] || `#${seg.workstation_id || seg._key || "?"}`);
             return (
               <div
-                key={seg.workstation_id || seg._key}
+                key={seg._key || `${seg.workstation_id}_${seg.order_number || seg.operation_id || name}`}
                 className="h-full flex items-center justify-center text-xs font-medium text-white/90 transition-all duration-300"
                 style={{ width: `${widthPct}%`, backgroundColor: seg.color }}
                 title={`${name}: ${formatMinutes(seg.proportional)}`}
@@ -601,7 +639,7 @@ export default function Analytics() {
           {segments.map((seg) => {
             const name = typeof nameKeyOrFn === "function" ? nameKeyOrFn(seg) : (seg[nameKeyOrFn] || `#${seg.workstation_id || seg._key || "?"}`);
             return (
-              <div key={seg.workstation_id || seg._key} className="flex items-center gap-1.5 text-xs text-slate-400">
+              <div key={seg._key || `${seg.workstation_id}_${seg.order_number || seg.operation_id || name}`} className="flex items-center gap-1.5 text-xs text-slate-400">
                 <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: seg.color }} />
                 <span>{name}</span>
                 <span className="font-mono text-slate-300">{formatMinutes(seg.proportional)}</span>
@@ -610,6 +648,105 @@ export default function Analytics() {
           })}
         </div>
       </div>
+    );
+  };
+
+  const renderWorkerCalendar = () => {
+    const days = workerCalendar.days || [];
+    const rows = workerCalendar.workers || [];
+    const selectedMonth = selectedDate.slice(0, 7);
+
+    if (workerCalendarLoading) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+          <span className="ml-3 text-slate-400">Ładowanie kalendarza...</span>
+        </div>
+      );
+    }
+
+    if (!rows.length) {
+      return (
+        <div className="text-center py-12 text-slate-400">
+          Brak danych pracowników na miesiąc {selectedMonth}
+        </div>
+      );
+    }
+
+    return (
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-sm text-slate-400">
+            {rows.length} pracowników &middot; {selectedMonth}
+          </div>
+          <div className="text-sm text-slate-400">
+            Komórka pokazuje czas pracy i zmianę.
+          </div>
+        </div>
+
+        <div className="overflow-x-auto border border-slate-700 rounded-lg">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-900/70 text-slate-300">
+              <tr>
+                <th className="sticky left-0 z-10 bg-slate-900/95 px-3 py-2 text-left font-medium min-w-[190px]">
+                  Pracownik
+                </th>
+                {days.map((day) => {
+                  const dayNo = Number(day.slice(8, 10));
+                  const isSelected = day === selectedDate;
+                  return (
+                    <th
+                      key={day}
+                      className={`px-2 py-2 text-center font-medium min-w-[54px] ${isSelected ? "text-blue-200 bg-blue-500/15" : ""}`}
+                    >
+                      {dayNo}
+                    </th>
+                  );
+                })}
+                <th className="px-3 py-2 text-right font-medium min-w-[90px]">Razem</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-700">
+              {rows.map((worker) => {
+                const dayMap = Object.fromEntries((worker.days || []).map((d) => [d.date, d]));
+                return (
+                  <tr key={worker.user_id} className="hover:bg-slate-800/40">
+                    <td className="sticky left-0 z-10 bg-slate-800 px-3 py-2 font-medium text-white">
+                      {worker.username}
+                    </td>
+                    {days.map((day) => {
+                      const dayData = dayMap[day];
+                      const minutes = dayData?.minutes || 0;
+                      const shifts = dayData?.shifts || [];
+                      const shiftPercentages = dayData?.shift_percentages || {};
+                      const isSelected = day === selectedDate;
+                      return (
+                        <td key={day} className={`px-2 py-2 text-center ${isSelected ? "bg-blue-500/10" : ""}`}>
+                          {minutes > 0 ? (
+                            <div className="inline-flex min-w-[54px] flex-col items-center justify-center rounded-md bg-blue-500/20 px-1.5 py-1 border border-blue-500/30">
+                              <span className="font-mono text-xs text-blue-100">{formatMinutes(minutes)}</span>
+                              {shifts.length > 0 && (
+                                <span className="mt-0.5 text-[10px] leading-tight text-blue-200">
+                                  {shifts.map((shift) => `${shift} ${shiftPercentages[shift] ?? 0}%`).join(" / ")}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-slate-600">-</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td className="px-3 py-2 text-right font-mono text-slate-200">
+                      {formatMinutes(worker.total_minutes || 0)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
     );
   };
 
@@ -848,12 +985,38 @@ export default function Analytics() {
                   className="bg-slate-700 text-white px-3 py-2 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none"
                 />
                 <button
-                  onClick={fetchData}
-                  disabled={loading}
+                  onClick={refreshCurrentView}
+                  disabled={loading || workerCalendarLoading}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
                 >
-                  {loading ? "Ładowanie..." : "Odśwież"}
+                  {(loading || workerCalendarLoading) ? "Ładowanie..." : "Odśwież"}
                 </button>
+                {activeTab === "workers" && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setWorkerView("calendar")}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition ${
+                        workerView === "calendar"
+                          ? "bg-blue-500/20 border-blue-500 text-blue-200"
+                          : "bg-slate-700 border-slate-600 text-slate-200 hover:border-slate-500"
+                      }`}
+                    >
+                      <CalendarDays className="w-4 h-4" />
+                      Kalendarz
+                    </button>
+                    <button
+                      onClick={() => setWorkerView("chart")}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition ${
+                        workerView === "chart"
+                          ? "bg-blue-500/20 border-blue-500 text-blue-200"
+                          : "bg-slate-700 border-slate-600 text-slate-200 hover:border-slate-500"
+                      }`}
+                    >
+                      <LineChart className="w-4 h-4" />
+                      Wykres
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -873,7 +1036,7 @@ export default function Analytics() {
             )}
 
             {/* ===== Workers tab ===== */}
-            {activeTab === "workers" && !loading && (
+            {activeTab === "workers" && !loading && workerView === "chart" && (
               <section>
                 {workers.length === 0 && selectedDate && (
                   <div className="text-center py-12 text-slate-400">
@@ -911,6 +1074,8 @@ export default function Analytics() {
                 )}
               </section>
             )}
+
+            {activeTab === "workers" && !loading && workerView === "calendar" && renderWorkerCalendar()}
 
             {/* ===== Machines tab ===== */}
             {activeTab === "machines" && !loading && (

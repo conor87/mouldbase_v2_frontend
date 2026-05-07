@@ -93,6 +93,13 @@ export default function MES_ServiceWorkstation() {
   };
 
   const handleTakeover = () => {
+    if (workstation?.user_id != null && Number(workstation.user_id) !== getUserId()) {
+      const confirmed = window.confirm(
+        "To stanowisko jest przypisane do innego pracownika. Przejęcie stanowiska odblokuje je dla Ciebie i odbierze dostęp poprzedniemu operatorowi. Czy na pewno przejąć stanowisko?"
+      );
+      if (!confirmed) return;
+    }
+
     const token = localStorage.getItem("access_token");
     const userId = getUserId();
     if (!userId) return;
@@ -356,9 +363,25 @@ export default function MES_ServiceWorkstation() {
       )}
 
       {isOwnedByOther && (
-        <p className="text-slate-400 text-lg">
-          To stanowisko jest zajęte przez innego użytkownika.
-        </p>
+        <div className="flex flex-col items-center gap-4">
+          <p className="text-slate-400 text-lg">
+            To stanowisko jest zajęte przez innego użytkownika.
+          </p>
+          {!myOtherWorkstation ? (
+            <button
+              onClick={handleTakeover}
+              className="rounded-2xl border border-amber-500 bg-amber-600/20 px-8 py-4 text-lg font-semibold
+                         text-amber-300 hover:bg-amber-600/40 transition cursor-pointer"
+            >
+              Przejmij od poprzedniego pracownika
+            </button>
+          ) : (
+            <p className="text-amber-400 text-center">
+              Masz już przejęte stanowisko:{" "}
+              <span className="font-semibold">{myOtherWorkstation.nazwa_stanowiska}</span>
+            </p>
+          )}
+        </div>
       )}
     </div>
   );
