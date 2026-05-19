@@ -174,15 +174,18 @@ export default function MES_ChangeoverPanel() {
     if (!workstation) { navigate(`/mes/service/workstation/${workstationId}`); return; }
     createServiceLog("Koniec przezbrojenia");
     const token = localStorage.getItem("access_token");
-    const fd = new FormData();
-    fd.append("czy_wykonano", "true");
     try {
-      await fetch(`${API_BASE}/changeovers/${changeoverId}`, {
+      const res = await fetch(`${API_BASE}/changeovers/${changeoverId}/complete`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
-        body: fd,
       });
-    } catch { /* ignore */ }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.detail || "Nie udało się oznaczyć przezbrojenia jako wykonane.");
+      }
+    } catch (err) {
+      console.error(err);
+    }
     // Clear workstation
     try {
       await fetch(`${API_BASE}/service/workstations/${workstation.id}`, {

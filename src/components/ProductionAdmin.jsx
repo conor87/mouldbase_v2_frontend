@@ -773,16 +773,53 @@ export default function ProductionAdmin() {
     const today = new Date().toISOString().slice(0, 10);
 
     const ops = filteredOperations;
-    const rowCount = Math.max(ops.length, 11);
-    const rows = Array.from({ length: rowCount }, (_, i) => {
-      const op = ops[i];
-      return `<tr>
-        <td class="no"><textarea class="cell-editor no-editor" readonly>${op ? esc(op.operation_no) : ""}</textarea></td>
-        <td class="desc"><textarea class="cell-editor" readonly>${op ? esc(op.description) : ""}</textarea></td>
-        <td class="time"><textarea class="cell-editor time-editor"></textarea></td>
-        <td class="sign"><textarea class="cell-editor sign-editor"></textarea></td>
-      </tr>`;
-    }).join("\n");
+    const isSmallPlan = ops.length <= 9;
+    const rowsPerSheet = isSmallPlan ? 9 : 20;
+    const sheetCount = Math.max(1, Math.ceil(ops.length / rowsPerSheet));
+
+    const buildRows = (sheetIndex) => {
+      const start = sheetIndex * rowsPerSheet;
+      const pageOps = ops.slice(start, start + rowsPerSheet);
+      return Array.from({ length: rowsPerSheet }, (_, i) => {
+        const op = pageOps[i];
+        return `<tr class="${op ? "" : "empty-row"}">
+          <td class="no"><textarea class="cell-editor no-editor" readonly>${op ? esc(op.operation_no) : ""}</textarea></td>
+          <td class="desc"><textarea class="cell-editor" readonly>${op ? esc(op.description) : ""}</textarea></td>
+          <td class="time"><textarea class="cell-editor time-editor"></textarea></td>
+          <td class="sign"><textarea class="cell-editor sign-editor"></textarea></td>
+        </tr>`;
+      }).join("\n");
+    };
+
+    const sheets = Array.from({ length: sheetCount }, (_, sheetIndex) => `
+  <div class="sheet ${isSmallPlan ? "sheet-small" : "sheet-large"} ${sheetIndex === sheetCount - 1 ? "sheet-last" : ""}">
+    <div class="header"><h1>PLAN OPERACYJNY</h1></div>
+    <div class="meta">
+      <div class="field span-2"><div class="label">Wyrób</div><input type="text" value="${esc(order?.product_name || "")}" readonly></div>
+      <div class="field"><div class="label">Detal</div><input type="text" value="${esc(task?.detail_name || "")}" readonly></div>
+      <div class="field"><div class="label">Zespół</div><input type="text" value="${esc(order?.team || "")}" readonly></div>
+      <div class="field"><div class="label">Nr rysunku</div><input type="text" value="${esc(task?.detail_number || "")}"></div>
+      <div class="field"><div class="label">Rodzaj materiału</div><input type="text" value=""></div>
+      <div class="field"><div class="label">Wymiar</div><input type="text" value=""></div>
+      <div class="field"><div class="label">Waga materiału</div><input type="text" value=""></div>
+      <div class="field"><div class="label">Nr RW</div><input type="text" value=""></div>
+      <div class="field"><div class="label">Ilość</div><input type="number" min="0" value="${task?.quantity ?? ""}"></div>
+      <div class="field"><div class="label">Ilość arkuszy</div><input type="number" min="1" value="${sheetCount}" readonly></div>
+      <div class="field"><div class="label">Arkusz aktywny</div><input type="text" value="${sheetIndex + 1}/${sheetCount}" readonly></div>
+    </div>
+    <div class="table-wrap">
+      <table class="ops-table">
+        <colgroup><col class="no-col"><col class="desc-col"><col class="time-col"><col class="sign-col"></colgroup>
+        <thead><tr><th>Nr operacji</th><th>Treść operacji</th><th>Czas</th><th>Czytelny podpis</th></tr></thead>
+        <tbody>${buildRows(sheetIndex)}</tbody>
+      </table>
+    </div>
+    <div class="approvals">
+      <div class="approval-box"><div class="label">Opracował</div><div class="approval-row"><input type="date" value="${today}"><input type="text" value=""></div></div>
+      <div class="approval-box"><div class="label">Sprawdził</div><div class="approval-row"><input type="date" value="${today}"><input type="text" value=""></div></div>
+    </div>
+  </div>`).join("\n");
+    const rows = "";
 
     const html = `<!doctype html>
 <html lang="pl">
@@ -793,38 +830,43 @@ export default function ProductionAdmin() {
   <style>
     :root{--ink:#111;--paper:#f7f4e9;--line:#2b2b2b;--bg:#ecebe6;--muted:#555}
     *{box-sizing:border-box}html,body{margin:0;padding:0}
-    body{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);padding:8px 0 18px}
-    .sheet{width:190mm;min-height:279mm;margin:8px auto;padding:6mm 6mm 5mm;border:1px solid var(--ink);background:var(--paper);box-shadow:0 1px 6px rgba(0,0,0,.08);display:flex;flex-direction:column;gap:4mm}
+    body{font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink);padding:8px 0 18px}
+    .sheet{width:190mm;min-height:279mm;margin:8px auto;padding:6mm 6mm 5mm;border:1px solid var(--ink);background:var(--paper);box-shadow:0 1px 6px rgba(0,0,0,.08);display:grid;grid-template-rows:auto auto auto auto;gap:4mm;break-after:page;page-break-after:always}
+    .sheet-last{break-after:auto;page-break-after:auto}
+    .sheet-small{min-height:136mm;break-after:auto;page-break-after:auto}
+    .legacy-sheet{display:none}
     .header{text-align:center;border-bottom:1px solid var(--ink);padding-bottom:2mm}
-    .header h1{margin:0;font-size:18px;letter-spacing:.4px;line-height:1.05}
+    .header h1{margin:0;font-size:20px;letter-spacing:.4px;line-height:1.05}
     .meta{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:3px 8px;align-items:end}
     .field{min-width:0}.field.span-2{grid-column:span 2}
-    .label{font-size:10px;text-transform:uppercase;letter-spacing:.45px;line-height:1.1;color:#2e2e2e;margin-bottom:2px}
+    .label{font-size:11px;text-transform:uppercase;letter-spacing:.45px;line-height:1.1;color:#2e2e2e;margin-bottom:2px}
     input[type="text"],input[type="number"],input[type="date"],textarea{width:100%;background:transparent;color:var(--ink);outline:none;font:inherit}
-    .meta input[type="text"],.meta input[type="number"],.meta input[type="date"]{border:none;border-bottom:1px dotted var(--line);padding:1px 0 2px;font-size:11px;min-height:20px}
+    .meta input[type="text"],.meta input[type="number"],.meta input[type="date"]{border:none;border-bottom:1px dotted var(--line);padding:1px 0 2px;font-size:13px;min-height:20px}
     .meta input[readonly]{opacity:1;cursor:default}
-    .table-wrap{flex:1 1 auto;display:flex;flex-direction:column}
+    .table-wrap{min-height:0;display:block}
     table{width:100%;border-collapse:collapse;table-layout:fixed;margin:0}
     col.no-col,col.time-col,col.sign-col{width:12.5%}col.desc-col{width:62.5%}
-    th,td{border:1px solid var(--line);padding:4px 5px;vertical-align:top;font-size:11px}
-    th{background:rgba(0,0,0,.03);text-transform:uppercase;letter-spacing:.35px;font-size:10px;line-height:1.15;text-align:center}
+    th,td{border:1px solid var(--line);padding:3px 5px;vertical-align:top;font-size:13px}
+    tr.empty-row td{height:8mm}
+    th{background:rgba(0,0,0,.03);text-transform:uppercase;letter-spacing:.35px;font-size:12px;line-height:1.15;text-align:center}
     td.no,td.time,td.sign{vertical-align:middle}
-    .cell-editor{display:block;border:none;padding:0;margin:0;background:transparent;resize:none;overflow:hidden;min-height:1.2em;line-height:1.35;font-size:11px;width:100%}
+    .cell-editor{display:block;border:none;padding:0;margin:0;background:transparent;resize:none;overflow:hidden;min-height:1.2em;line-height:1.3;font-size:13px;width:100%}
     .no-editor,.time-editor,.sign-editor{text-align:center}.no-editor{font-weight:700}
-    .approvals{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;margin-top:auto}
+    .approvals{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
     .approval-box{border:1px solid var(--line);padding:5px 7px 6px;min-height:52px;background:rgba(255,255,255,.12)}
     .approval-row{display:grid;grid-template-columns:100px 1fr;gap:8px;align-items:end}
-    .approval-box input[type="text"],.approval-box input[type="date"]{border:none;padding:1px 0 0;font-size:11px;min-height:18px}
+    .approval-box input[type="text"],.approval-box input[type="date"]{border:none;padding:1px 0 0;font-size:13px;min-height:18px}
     .toolbar{width:190mm;margin:12px auto 4px;display:flex;flex-wrap:wrap;gap:8px}
     .btn{appearance:none;border:2px solid var(--ink);background:#fff;color:var(--ink);padding:8px 12px;cursor:pointer;font-weight:700;letter-spacing:.25px}
     .btn:hover{background:#f3f3f3}
     @page{size:A4 portrait;margin:8mm}
-    @media print{body{background:#fff;padding:0}.sheet{margin:0;border:none;box-shadow:none;width:auto;min-height:auto;padding:0;gap:2.5mm}.header{padding-bottom:1mm}.header h1{font-size:15px;letter-spacing:.2px}.meta{grid-template-columns:repeat(6,minmax(0,1fr));gap:2px 6px}.label{font-size:8px;margin-bottom:1px;letter-spacing:.25px}.meta input[type="text"],.meta input[type="number"],.meta input[type="date"]{font-size:10px;min-height:14px;padding:0 0 1px}th,td{padding:3px 4px;font-size:10px}th{font-size:9px}.cell-editor{font-size:10px;line-height:1.25}.approvals{gap:6px 10px}.approval-box{min-height:40px;padding:4px 6px 5px}.approval-row{grid-template-columns:88px 1fr;gap:6px}.approval-box input[type="text"],.approval-box input[type="date"]{font-size:10px;min-height:14px;padding:0}.toolbar,.footer-note{display:none}}
+    @media print{body{background:#fff;padding:0}.sheet{margin:0;border:none;box-shadow:none;width:calc(210mm - 16mm);height:calc(297mm - 16mm);padding:0;gap:2.5mm}.sheet-small{height:calc((297mm - 16mm) / 2)}.header{padding-bottom:1mm}.header h1{font-size:18px;letter-spacing:.2px}.meta{grid-template-columns:repeat(6,minmax(0,1fr));gap:2px 6px}.label{font-size:9px;margin-bottom:1px;letter-spacing:.25px}.meta input[type="text"],.meta input[type="number"],.meta input[type="date"]{font-size:12px;min-height:15px;padding:0 0 1px}th,td{padding:2px 5px;font-size:13px}th{font-size:12px}.cell-editor{font-size:13px;line-height:1.18}.empty-row td{height:8mm}.approvals{gap:6px 10px}.approval-box{min-height:42px;padding:4px 6px 5px}.approval-row{grid-template-columns:88px 1fr;gap:6px}.approval-box input[type="text"],.approval-box input[type="date"]{font-size:12px;min-height:14px;padding:0}.toolbar,.footer-note{display:none}}
     @media screen and (max-width:920px){.sheet,.toolbar,.footer-note{width:calc(100vw - 16px)}.meta{grid-template-columns:repeat(2,minmax(0,1fr))}.field.span-2{grid-column:span 1}.approvals{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
-  <div class="sheet">
+  ${sheets}
+  <div class="sheet legacy-sheet">
     <div class="header"><h1>PLAN OPERACYJNY</h1></div>
     <div class="meta">
       <div class="field span-2"><div class="label">Wyrób</div><input type="text" value="${esc(order?.product_name || "")}" readonly></div>

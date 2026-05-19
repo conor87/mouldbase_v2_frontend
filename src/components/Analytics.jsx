@@ -29,6 +29,9 @@ const formatProductionEntryLabel = (entry) => {
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
+const sortByUsername = (items) =>
+  [...items].sort((a, b) => (a.username || "").localeCompare(b.username || "", "pl", { sensitivity: "base" }));
+
 const tabs = [
   { id: "workers", label: "Pracownicy", icon: Users },
   { id: "machines", label: "Maszyny", icon: Cpu },
@@ -262,7 +265,7 @@ export default function Analytics() {
         ...w,
         entries: w.entries.map((e) => ({ ...e, _key: `${e.workstation_id}_${e.order_number || e.order_id || Math.random()}_${e.order_team || ""}` })),
       }));
-      setWorkers(wData);
+      setWorkers(sortByUsername(wData));
       setWorkerEdits({});
     } catch {
       setMessage("Błąd pobierania danych pracowników.");
@@ -327,7 +330,7 @@ export default function Analytics() {
         ...w,
         entries: w.entries.map((e) => ({ ...e, _key: `${e.activity_type}|${e.mould_number || ""}` })),
       }));
-      setServiceWorkers(workers);
+      setServiceWorkers(sortByUsername(workers));
       setServiceWorkerEdits({});
     } catch {
       setMessage("Błąd pobierania danych serwisu.");
@@ -349,7 +352,7 @@ export default function Analytics() {
         ...w,
         entries: w.entries.map((e) => ({ ...e, _key: `${e.workstation_id}_${e.order_number || e.order_id || Math.random()}_${e.order_team || ""}` })),
       }));
-      setOperators(opData);
+      setOperators(sortByUsername(opData));
       setOperatorEdits({});
     } catch {
       setMessage("Błąd pobierania danych operatorów.");

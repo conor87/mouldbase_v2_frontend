@@ -24,6 +24,7 @@ export default function MES_Operations() {
   const [transferOp, setTransferOp] = useState(null);
   const [transferShowAll, setTransferShowAll] = useState(false);
   const [transferring, setTransferring] = useState(false);
+  const [transferError, setTransferError] = useState("");
 
   const dragItem = useRef(null);
   const dragOverItem = useRef(null);
@@ -169,18 +170,22 @@ export default function MES_Operations() {
   const handleTransfer = async (targetWsId) => {
     if (!transferOp) return;
     setTransferring(true);
+    setTransferError("");
     try {
-      const res = await fetch(`${API_BASE}/production/operations/${transferOp.id}`, {
+      const res = await fetch(`${API_BASE}/production/operations/${transferOp.id}/transfer`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({ workstation_id: targetWsId }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.detail || "Nie udało się przenieść operacji.");
+      }
       setOperations((prev) => prev.filter((op) => op.id !== transferOp.id));
       setTransferOp(null);
       setTransferShowAll(false);
-    } catch {
-      // silent
+    } catch (err) {
+      setTransferError(err.message || "Nie udało się przenieść operacji.");
     } finally {
       setTransferring(false);
     }
@@ -321,7 +326,7 @@ export default function MES_Operations() {
                           Wykonaj
                         </button>
                         <button
-                          onClick={() => { setTransferOp(op); setTransferShowAll(false); }}
+                          onClick={() => { setTransferOp(op); setTransferShowAll(false); setTransferError(""); }}
                           className="px-3 py-1 text-xs rounded-lg border border-slate-600 text-slate-300 hover:border-slate-400 hover:text-white transition flex items-center gap-1"
                         >
                           <ArrowRightLeft className="w-3 h-3" />
@@ -343,13 +348,18 @@ export default function MES_Operations() {
           <div className="bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-3xl max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Przenieś operację</h3>
-              <button onClick={() => { setTransferOp(null); setTransferShowAll(false); }} className="text-slate-400 hover:text-white">
+              <button onClick={() => { setTransferOp(null); setTransferShowAll(false); setTransferError(""); }} className="text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="text-sm text-slate-400 mb-3">
               <span className="text-slate-200 font-medium">{transferOp.operation_no}</span> — {transferOp.description}
             </div>
+            {transferError && (
+              <div className="mb-3 rounded-lg border border-red-700 bg-red-900/30 px-3 py-2 text-sm text-red-200">
+                {transferError}
+              </div>
+            )}
             <div className="flex items-center gap-2 mb-4">
               <label className="text-sm text-slate-400">Pokaż wszystkie maszyny</label>
               <button
