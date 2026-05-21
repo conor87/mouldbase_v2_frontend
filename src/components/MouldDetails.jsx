@@ -206,14 +206,6 @@ export default function MouldDetails() {
                   onMouldUpdated={handleMouldUpdated}
                 />
 
-                <MouldDetails_Tpm
-                 API_BASE={API_BASE}
-                 logged={logged}
-                 isAdmin={isAdmin}
-                 authHeaders={authHeaders}
-                 mouldId={mouldData?.id}
-                 mouldNumber={mouldData?.mould_number}
-                 />
               </div>
 
               {/* 1/3 */}
@@ -226,6 +218,16 @@ export default function MouldDetails() {
               </div>
             </div>
           </div>
+
+          <MouldDetails_Tpm
+            API_BASE={API_BASE}
+            logged={logged}
+            isAdmin={isAdmin}
+            authHeaders={authHeaders}
+            mouldId={mouldData?.id}
+            mouldNumber={mouldData?.mould_number}
+            mouldProduct={mouldData?.product}
+          />
         </section>
 
         {/* BOOK */}

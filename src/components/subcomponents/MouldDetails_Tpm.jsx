@@ -90,6 +90,7 @@ export default function MouldDetails_Tpm({
   API_BASE,
   mouldId,
   mouldNumber,
+  mouldProduct,
   logged,
   isAdmin, // admin/superadmin => true
   authHeaders, // () => ({ Authorization: `Bearer ...` })
@@ -139,10 +140,36 @@ export default function MouldDetails_Tpm({
   const [deletingId, setDeletingId] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
 
+  const [guides, setGuides] = useState([]);
+  const [guideError, setGuideError] = useState(null);
+  const [guideLoading, setGuideLoading] = useState(false);
+  const [guideSaving, setGuideSaving] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [selectedGuide, setSelectedGuide] = useState(null);
+  const [guideDraft, setGuideDraft] = useState({
+    guide_number: "",
+    product_name: "",
+    review_date: todayISO(),
+    review_reason: "",
+  });
+  const [stepDraft, setStepDraft] = useState({
+    lp: 1,
+    fault: "",
+    confirmed_by: "",
+    repair: "",
+    performed_by: "",
+  });
+
   const refreshTpms = async () => {
     if (!mouldNumber) return;
     const res = await axios.get(`${API_BASE}/tpm/`, { params: { search: mouldNumber } });
     setTpms(normalizeList(res.data));
+  };
+
+  const refreshGuides = async () => {
+    if (!mouldId) return;
+    const res = await axios.get(`${API_BASE}/service-guides/`, { params: { mould_id: mouldId } });
+    setGuides(normalizeList(res.data));
   };
 
   useEffect(() => {
@@ -181,6 +208,38 @@ export default function MouldDetails_Tpm({
     return () => controller.abort();
   }, [API_BASE, mouldNumber]);
 
+  useEffect(() => {
+    if (!mouldId) return;
+    const controller = new AbortController();
+
+    const fetchGuides = async () => {
+      try {
+        setGuideLoading(true);
+        setGuideError(null);
+        const res = await axios.get(`${API_BASE}/service-guides/`, {
+          params: { mould_id: mouldId },
+          signal: controller.signal,
+        });
+        setGuides(normalizeList(res.data));
+      } catch (err) {
+        if (
+          axios.isCancel?.(err) ||
+          err?.name === "CanceledError" ||
+          err?.code === "ERR_CANCELED"
+        )
+          return;
+        console.error(err);
+        setGuideError("Nie udało się pobrać przewodników.");
+        setGuides([]);
+      } finally {
+        setGuideLoading(false);
+      }
+    };
+
+    fetchGuides();
+    return () => controller.abort();
+  }, [API_BASE, mouldId]);
+
   const sortedTpms = useMemo(() => {
     return [...tpms].sort((a, b) => {
       const aStatus = Number(a?.status ?? a?.state ?? a?.status_code);
@@ -195,6 +254,165 @@ export default function MouldDetails_Tpm({
   }, [tpms]);
 
   const visibleTpms = showAll ? sortedTpms : sortedTpms.slice(0, 10);
+
+  const sortedGuides = useMemo(() => {
+    return [...guides].sort((a, b) => {
+      if (a.status !== b.status) return a.status === "open" ? -1 : 1;
+      return Number(b.id ?? 0) - Number(a.id ?? 0);
+    });
+  }, [guides]);
+
+  const openGuideAdd = () => {
+    if (!isAdmin || !logged) return;
+    setGuideError(null);
+    setSelectedGuide(null);
+    setGuideDraft({
+      guide_number: mouldNumber ? `${mouldNumber}-${String(guides.length + 1).padStart(2, "0")}` : "",
+      product_name: mouldProduct || "",
+      review_date: todayISO(),
+      review_reason: "",
+    });
+    setStepDraft({ lp: 1, fault: "", confirmed_by: "", repair: "", performed_by: "" });
+    setIsGuideOpen(true);
+  };
+
+  const openGuideDetails = (guide) => {
+    setSelectedGuide(guide);
+    setGuideDraft({
+      guide_number: guide.guide_number || "",
+      product_name: guide.product_name || "",
+      review_date: String(guide.review_date || todayISO()).slice(0, 10),
+      review_reason: guide.review_reason || "",
+    });
+    setStepDraft({
+      lp: (guide.steps?.length || 0) + 1,
+      fault: "",
+      confirmed_by: "",
+      repair: "",
+      performed_by: "",
+    });
+    setIsGuideOpen(true);
+  };
+
+  const saveGuide = async () => {
+    if (!isAdmin || !logged) return;
+    if (!guideDraft.guide_number.trim()) {
+      setGuideError("Podaj numer przewodnika.");
+      return;
+    }
+    try {
+      setGuideSaving(true);
+      setGuideError(null);
+      const payload = {
+        mould_id: mouldId,
+        guide_number: guideDraft.guide_number.trim(),
+        product_name: guideDraft.product_name ?? "",
+        review_date: guideDraft.review_date || null,
+        review_reason: guideDraft.review_reason ?? "",
+      };
+      const res = selectedGuide?.id
+        ? await axios.put(`${API_BASE}/service-guides/${selectedGuide.id}`, payload, {
+            headers: { ...(authHeaders?.() ?? {}) },
+          })
+        : await axios.post(`${API_BASE}/service-guides/`, payload, {
+            headers: { ...(authHeaders?.() ?? {}) },
+          });
+
+      setSelectedGuide(res.data);
+      setGuides((prev) => {
+        const exists = prev.some((item) => String(item.id) === String(res.data.id));
+        return exists ? prev.map((item) => (item.id === res.data.id ? res.data : item)) : [res.data, ...prev];
+      });
+      await refreshGuides();
+    } catch (err) {
+      console.error(err);
+      const detail = err?.response?.data?.detail;
+      const message = Array.isArray(detail)
+        ? detail.map((item) => item?.msg || JSON.stringify(item)).join("; ")
+        : detail || "Nie udało się zapisać przewodnika.";
+      setGuideError(String(message));
+    } finally {
+      setGuideSaving(false);
+    }
+  };
+
+  const closeGuide = () => {
+    setIsGuideOpen(false);
+    setSelectedGuide(null);
+    setGuideError(null);
+  };
+
+  const updateGuideStatus = async (guide, action) => {
+    try {
+      setGuideError(null);
+      const res = await axios.put(`${API_BASE}/service-guides/${guide.id}/${action}`, null, {
+        headers: { ...(authHeaders?.() ?? {}) },
+      });
+      setGuides((prev) => prev.map((item) => (item.id === res.data.id ? res.data : item)));
+      if (selectedGuide?.id === res.data.id) {
+        setSelectedGuide(res.data);
+      }
+      await refreshGuides();
+    } catch (err) {
+      console.error(err);
+      setGuideError(String(err?.response?.data?.detail || "Nie udało się zmienić statusu przewodnika."));
+    }
+  };
+
+  const deleteGuide = async (guide) => {
+    if (!isAdmin || !logged) return;
+    if (!window.confirm(`Usunąć przewodnik ${guide.guide_number}?`)) return;
+    await axios.delete(`${API_BASE}/service-guides/${guide.id}`, {
+      headers: { ...(authHeaders?.() ?? {}) },
+    });
+    await refreshGuides();
+  };
+
+  const addGuideStep = async () => {
+    const guide = selectedGuide;
+    if (!guide?.id) {
+      setGuideError("Najpierw zapisz przewodnik.");
+      return;
+    }
+    await axios.post(
+      `${API_BASE}/service-guides/${guide.id}/steps`,
+      { ...stepDraft, lp: Number(stepDraft.lp) || 1 },
+      { headers: { ...(authHeaders?.() ?? {}) } }
+    );
+    const res = await axios.get(`${API_BASE}/service-guides/${guide.id}`);
+    setSelectedGuide(res.data);
+    await refreshGuides();
+    setStepDraft({ lp: (res.data.steps?.length || 0) + 1, fault: "", confirmed_by: "", repair: "", performed_by: "" });
+  };
+
+  const deleteGuideStep = async (step) => {
+    const guide = selectedGuide;
+    if (!guide?.id || !step?.id) return;
+    if (!window.confirm("Usunąć czynność z przewodnika?")) return;
+    await axios.delete(`${API_BASE}/service-guides/${guide.id}/steps/${step.id}`, {
+      headers: { ...(authHeaders?.() ?? {}) },
+    });
+    const res = await axios.get(`${API_BASE}/service-guides/${guide.id}`);
+    setSelectedGuide(res.data);
+    await refreshGuides();
+  };
+
+  const toggleGuideStepDone = async (step, isDone) => {
+    const guide = selectedGuide;
+    if (!guide?.id || !step?.id) return;
+    const acceptedBy = getUsernameFromSession();
+    await axios.put(
+      `${API_BASE}/service-guides/${guide.id}/steps/${step.id}`,
+      {
+        is_done: isDone,
+        performed_by: isDone ? acceptedBy || "zaakceptowano" : "",
+      },
+      { headers: { ...(authHeaders?.() ?? {}) } }
+    );
+    const res = await axios.get(`${API_BASE}/service-guides/${guide.id}`);
+    setSelectedGuide(res.data);
+    await refreshGuides();
+  };
 
   // --- ADD ---
   const openAdd = () => {
@@ -403,7 +621,8 @@ export default function MouldDetails_Tpm({
 
   return (
     <>
-      <div className="border rounded-xl border-blue-500 mt-12 p-4">
+      <div className="mt-12 grid grid-cols-1 xl:grid-cols-[minmax(0,1.9fr)_minmax(360px,0.8fr)] gap-5">
+      <div className="border rounded-xl border-blue-500 p-4">
         <section className="text-white">
           <div className="flex items-center gap-3 mb-4">
             <h2 className="text-3xl text-cyan-400 font-bold">Zgłoszenia TPM:</h2>
@@ -589,6 +808,287 @@ export default function MouldDetails_Tpm({
           )}
         </section>
       </div>
+
+      <div className="border rounded-xl border-blue-500 p-4 text-white">
+        <div className="flex items-center gap-3 mb-4">
+          <h2 className="text-3xl text-cyan-400 font-bold">Przewodniki:</h2>
+          {isAdmin && logged && (
+            <button
+              type="button"
+              onClick={openGuideAdd}
+              className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-semibold"
+              title="Dodaj nowy przewodnik"
+            >
+              Dodaj nowy
+            </button>
+          )}
+        </div>
+
+        {guideLoading && <p>Ładowanie przewodników...</p>}
+        {guideError && <p className="text-red-400">{guideError}</p>}
+
+        <div className="overflow-x-auto rounded-2xl border border-white/10">
+          <table className="min-w-full text-sm">
+            <thead className="bg-white/5">
+              <tr>
+                <th className="text-center px-4 py-3 font-semibold">Przewodnik</th>
+                <th className="text-center px-4 py-3 font-semibold">Status</th>
+                {isAdmin && logged && <th className="text-center px-4 py-3 font-semibold">Akcje</th>}
+              </tr>
+            </thead>
+            <tbody className="text-center">
+              {!guideLoading && sortedGuides.length === 0 && (
+                <tr>
+                  <td colSpan={isAdmin && logged ? 3 : 2} className="px-4 py-6 opacity-80">
+                    Brak przewodników dla tej formy.
+                  </td>
+                </tr>
+              )}
+              {sortedGuides.map((guide) => (
+                <tr key={guide.id} className="border-t border-white/10 hover:bg-white/5">
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => openGuideDetails(guide)}
+                      className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-cyan-200 font-semibold"
+                      title="Otwórz przewodnik"
+                    >
+                      {guide.guide_number}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex px-3 py-1 rounded-full border text-xs font-semibold ${
+                        guide.status === "done"
+                          ? "bg-green-500/20 text-green-200 border-green-500/30"
+                          : "bg-yellow-500/20 text-yellow-100 border-yellow-500/30"
+                      }`}
+                    >
+                      {guide.status === "done" ? "Wykonano" : "Otwarty"}
+                    </span>
+                  </td>
+                  {isAdmin && logged && (
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-2">
+                        {(() => {
+                          const steps = guide.steps || [];
+                          const canCompleteGuide = steps.length > 0 && steps.every((step) => step.is_done);
+                          return (
+                        <button
+                          type="button"
+                          onClick={() => updateGuideStatus(guide, "complete")}
+                          className="px-3 py-2 rounded-lg bg-green-500/30 hover:bg-green-500/40 text-green-100 disabled:opacity-40"
+                          disabled={guide.status === "done" || !canCompleteGuide}
+                          title={
+                            canCompleteGuide
+                              ? "Potwierdź wykonanie"
+                              : "Najpierw zaakceptuj wszystkie czynności w przewodniku"
+                          }
+                        >
+                          ✓
+                        </button>
+                          );
+                        })()}
+                        <button
+                          type="button"
+                          onClick={() => updateGuideStatus(guide, "reopen")}
+                          className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40"
+                          disabled={guide.status !== "done"}
+                          title="Ponownie otwórz"
+                        >
+                          ↺
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteGuide(guide)}
+                          className="px-3 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-200"
+                          title="Usuń"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </div>
+
+      {isAdmin && logged && isGuideOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeGuide();
+          }}
+        >
+          <div className="w-full max-w-6xl max-h-[88vh] rounded-2xl bg-slate-800 border border-white/10 shadow-2xl p-5 text-white flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-cyan-400">
+                {selectedGuide ? "Przewodnik serwisowania" : "Nowy przewodnik serwisowania"}
+              </h3>
+              <button type="button" onClick={closeGuide} className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20">
+                ✕
+              </button>
+            </div>
+
+            {guideError && <div className="mb-3 text-red-400 text-sm">{guideError}</div>}
+
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+                <div>
+                  <label className="block text-sm opacity-80 mb-1">Nr przewodnika</label>
+                  <input
+                    className="w-full rounded-xl p-3 bg-white/5 border border-white/10 text-white"
+                    value={guideDraft.guide_number}
+                    onChange={(e) => setGuideDraft((p) => ({ ...p, guide_number: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm opacity-80 mb-1">Nazwa wyrobu</label>
+                  <input
+                    className="w-full rounded-xl p-3 bg-white/5 border border-white/10 text-white"
+                    value={guideDraft.product_name}
+                    onChange={(e) => setGuideDraft((p) => ({ ...p, product_name: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm opacity-80 mb-1">Data przeglądu</label>
+                  <input
+                    type="date"
+                    className="w-full rounded-xl p-3 bg-white/5 border border-white/10 text-white"
+                    value={guideDraft.review_date}
+                    onChange={(e) => setGuideDraft((p) => ({ ...p, review_date: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm opacity-80 mb-1">Przyczyna przeglądu</label>
+                  <input
+                    className="w-full rounded-xl p-3 bg-white/5 border border-white/10 text-white"
+                    value={guideDraft.review_reason}
+                    onChange={(e) => setGuideDraft((p) => ({ ...p, review_reason: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="mb-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={saveGuide}
+                  disabled={guideSaving}
+                  className="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black font-semibold disabled:opacity-50"
+                >
+                  {guideSaving ? "Zapisuję..." : selectedGuide ? "Zapisz przewodnik" : "Utwórz przewodnik"}
+                </button>
+              </div>
+
+              {selectedGuide && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-[64px_minmax(520px,1fr)_auto] gap-3 mb-4 items-stretch">
+                    <input
+                      type="number"
+                      min="1"
+                      className="h-12 rounded-xl px-3 bg-white/5 border border-white/10 text-white"
+                      value={stepDraft.lp}
+                      onChange={(e) => setStepDraft((p) => ({ ...p, lp: e.target.value }))}
+                    />
+                    <input
+                      className="h-12 rounded-xl px-3 bg-white/5 border border-white/10 text-white"
+                      placeholder="Naprawa"
+                      value={stepDraft.repair}
+                      onChange={(e) => setStepDraft((p) => ({ ...p, repair: e.target.value }))}
+                    />
+                    <button
+                      type="button"
+                      onClick={addGuideStep}
+                      className="h-12 px-4 rounded-lg bg-white/10 hover:bg-white/20 font-semibold"
+                    >
+                      Dodaj czynność
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-2xl border border-white/10">
+                    <table className="w-full min-w-[980px] text-sm table-fixed">
+                      <colgroup>
+                        <col className="w-20" />
+                        <col className="w-[58%]" />
+                        <col className="w-[26%]" />
+                        <col className="w-40" />
+                      </colgroup>
+                      <thead className="bg-white/5">
+                        <tr>
+                          <th className="px-3 py-3">L.P.</th>
+                          <th className="px-3 py-3">Naprawa</th>
+                          <th className="px-3 py-3">Wykonał</th>
+                          <th className="px-3 py-3">Akcje</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(selectedGuide.steps || []).length === 0 && (
+                          <tr>
+                            <td colSpan={4} className="px-3 py-5 text-center opacity-80">
+                              Brak czynności.
+                            </td>
+                          </tr>
+                        )}
+                        {[...(selectedGuide.steps || [])]
+                          .sort((a, b) => Number(a.lp) - Number(b.lp))
+                          .map((step) => (
+                            <tr
+                              key={step.id}
+                              className={`border-t border-white/10 align-top ${step.is_done ? "bg-green-500/10" : ""}`}
+                            >
+                              <td className="px-3 py-3 text-center font-semibold">{step.lp}</td>
+                              <td className="px-3 py-3 whitespace-pre-wrap">{step.repair || "-"}</td>
+                              <td className="px-3 py-3 whitespace-pre-wrap">
+                                {step.is_done ? (
+                                  <div className="flex flex-col items-center gap-1">
+                                    <span className="inline-flex px-2 py-1 rounded-full bg-green-500/20 text-green-200 text-xs">
+                                      wykonano
+                                    </span>
+                                    <span>{step.performed_by || "-"}</span>
+                                  </div>
+                                ) : (
+                                  step.performed_by || "-"
+                                )}
+                              </td>
+                              <td className="px-3 py-3 text-center">
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleGuideStepDone(step, !step.is_done)}
+                                    className={`px-3 py-2 rounded-lg ${
+                                      step.is_done
+                                        ? "bg-white/10 hover:bg-white/20"
+                                        : "bg-green-500/30 hover:bg-green-500/40 text-green-100"
+                                    }`}
+                                    title={step.is_done ? "Cofnij potwierdzenie" : "Potwierdź wykonanie czynności"}
+                                  >
+                                    {step.is_done ? "↺" : "✓"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => deleteGuideStep(step)}
+                                    className="px-3 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-200"
+                                    title="Usuń czynność"
+                                  >
+                                    🗑️
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL: DODAJ */}
       {isAdmin && logged && isAddOpen && (

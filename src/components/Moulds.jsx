@@ -1,6 +1,6 @@
 // Moulds.jsx
 import React, { useState, useEffect, useMemo } from "react";
-import { useLocation } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import axios from "axios";
 import Navbar from "./Navbar.jsx";
 import MouldCard from "./MouldCard.jsx";
@@ -35,7 +35,7 @@ const getRoleFromToken = () => {
 const isSuperAdminFromToken = () => getRoleFromToken() === "superadmin";
 
 export default function Moulds() {
-  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // auth
   const token = localStorage.getItem("access_token");
@@ -45,7 +45,8 @@ export default function Moulds() {
 
   // UI + dane
   const pageSize = 8;
-  const [currentPage, setCurrentPage] = useState(1);
+  const initialPage = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+  const [currentPage, setCurrentPage] = useState(initialPage);
   const [searchTerm, setSearchTerm] = useState("");
   const [companyFilter, setCompanyFilter] = useState("all");
   const [moulds, setMoulds] = useState([]);
@@ -72,7 +73,7 @@ export default function Moulds() {
 
   useEffect(() => {
     fetchMoulds();
-  }, [location.key]);
+  }, []);
 
 
   const companies = useMemo(() => {
@@ -107,19 +108,45 @@ export default function Moulds() {
   const startIndex = (safePage - 1) * pageSize;
   const currentMoulds = filteredAndSorted.slice(startIndex, startIndex + pageSize);
 
+  useEffect(() => {
+    const pageFromUrl = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+    setCurrentPage((prev) => (prev === pageFromUrl ? prev : pageFromUrl));
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (currentPage !== safePage) {
+      setCurrentPage(safePage);
+      const nextParams = new URLSearchParams(searchParams);
+      if (safePage <= 1) nextParams.delete("page");
+      else nextParams.set("page", String(safePage));
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [currentPage, safePage, searchParams, setSearchParams, loading]);
+
   const goToPage = (page) => {
     if (page < 1 || page > totalPages) return;
     setCurrentPage(page);
+    const nextParams = new URLSearchParams(searchParams);
+    if (page <= 1) nextParams.delete("page");
+    else nextParams.set("page", String(page));
+    setSearchParams(nextParams);
   };
 
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
     setCurrentPage(1);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("page");
+    setSearchParams(nextParams, { replace: true });
   };
 
   const handleCompanyChange = (value) => {
     setCompanyFilter(value);
     setCurrentPage(1);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("page");
+    setSearchParams(nextParams, { replace: true });
   };
 
   const paginationItems = useMemo(() => {
