@@ -4,7 +4,7 @@ import { API_BASE } from "../config/api.js";
 const normalizeList = (data) =>
   Array.isArray(data) ? data : data?.results ?? data?.data ?? [];
 
-export default function MES_UserBar() {
+export default function MES_UserBar({ left = 64 }) {
   const username = localStorage.getItem("username") || "—";
 
   const handleLogout = async () => {
@@ -132,18 +132,23 @@ export default function MES_UserBar() {
   };
 
   return (
-    <div className="fixed top-0 left-16 right-0 z-50 flex items-center justify-between px-4 py-2 bg-slate-800/60 backdrop-blur-sm border-b border-slate-700/50">
-      <div className="flex items-center gap-2 text-sm text-slate-300">
-        <User className="w-4 h-4" />
-        <span>{username}</span>
+    <div
+      className="fixed top-0 right-0 z-50 flex items-center justify-end px-4 py-2 bg-slate-800/60 backdrop-blur-sm border-b border-slate-700/50"
+      style={{ left }}
+    >
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 text-sm text-slate-300">
+          <User className="w-4 h-4" />
+          <span>{username}</span>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition"
+        >
+          <LogOut className="w-4 h-4" />
+          Wyloguj
+        </button>
       </div>
-      <button
-        onClick={handleLogout}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition"
-      >
-        <LogOut className="w-4 h-4" />
-        Wyloguj
-      </button>
     </div>
   );
 }

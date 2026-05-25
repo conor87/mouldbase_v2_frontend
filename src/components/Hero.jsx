@@ -79,7 +79,7 @@ export default function Hero() {
                                             <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-yellow-500" />
                                             <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-green-500" />
                                         </div>
-                                        <span className='text-xs sm:text-sm text-grey-300'>MouldBook AI</span>
+                                        <span className='text-xs sm:text-sm text-grey-300'>ToolShop 2.0</span>
                                     </div>
                                     <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400"/>
                                 </div>

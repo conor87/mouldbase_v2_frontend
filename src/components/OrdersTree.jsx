@@ -1,7 +1,8 @@
-import { useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { API_BASE } from "../config/api.js";
 import { ChevronDown, ChevronRight, Search, Loader2 } from "lucide-react";
+import MES_UserBar from "./MES_UserBar.jsx";
 
 const normalizeList = (data) =>
   Array.isArray(data) ? data : data?.results ?? data?.data ?? [];
@@ -150,11 +151,26 @@ function TaskRow({ task, workstationMap }) {
 export default function OrdersTree() {
   const [query, setQuery] = useState("");
   const [orders, setOrders] = useState([]);
+  const [activeOrders, setActiveOrders] = useState([]);
+  const [selectedActiveOrderId, setSelectedActiveOrderId] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [workstationMap, setWorkstationMap] = useState({});
   const [loading, setLoading] = useState(false);
+  const [loadingActiveOrders, setLoadingActiveOrders] = useState(false);
   const [searched, setSearched] = useState(false);
+
+  const orderOptionLabel = (order) => {
+    const team = order?.team?.trim() || "—";
+    const product = order?.product_name?.trim() || "—";
+    return `${order?.order_number || "—"} | ${team} | ${product}`;
+  };
+
+  const activeOrderById = useMemo(() => {
+    const map = new Map();
+    activeOrders.forEach((order) => map.set(String(order.id), order));
+    return map;
+  }, [activeOrders]);
 
   const fetchWorkstations = async () => {
     try {
@@ -195,8 +211,31 @@ export default function OrdersTree() {
     }
   };
 
+  const fetchActiveOrders = async () => {
+    try {
+      setLoadingActiveOrders(true);
+      const res = await axios.get(`${API_BASE}/production/orders`, {
+        headers: getAuthHeaders(),
+      });
+      const active = normalizeList(res.data)
+        .filter((order) => !order.is_done)
+        .sort((a, b) => String(a.order_number || "").localeCompare(String(b.order_number || ""), "pl"));
+      setActiveOrders(active);
+    } catch (err) {
+      console.error("Error fetching active orders:", err);
+      setActiveOrders([]);
+    } finally {
+      setLoadingActiveOrders(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchActiveOrders();
+  }, []);
+
   const handleSelectOrder = async (order) => {
     setSelectedOrder(order);
+    setSelectedActiveOrderId(String(order.id));
     setLoading(true);
     try {
       const [tasksRes, wsMap] = await Promise.all([
@@ -218,13 +257,51 @@ export default function OrdersTree() {
     }
   };
 
+  const handleActiveOrderChange = (value) => {
+    setSelectedActiveOrderId(value);
+    const order = activeOrderById.get(String(value));
+    if (order) {
+      setSearched(false);
+      setOrders([]);
+      setQuery("");
+      handleSelectOrder(order);
+    }
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === "Enter") handleSearch();
   };
 
   return (
-    <div className="min-h-screen p-6 pt-8 max-w-6xl mx-auto">
+    <div className="min-h-screen p-6 pt-16 max-w-6xl mx-auto">
+      <MES_UserBar left={128} />
       <h1 className="text-2xl font-bold text-slate-100 mb-6">Drzewo zleceń</h1>
+
+      <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+        <label className="mb-2 block text-sm font-semibold text-slate-200">
+          Aktywne zlecenie
+        </label>
+        <select
+          value={selectedActiveOrderId}
+          onChange={(e) => handleActiveOrderChange(e.target.value)}
+          disabled={loadingActiveOrders || activeOrders.length === 0}
+          className="w-full rounded-xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-slate-100 focus:border-blue-500/60 focus:outline-none focus:ring-1 focus:ring-blue-500/30 disabled:opacity-60"
+        >
+          <option value="">
+            {loadingActiveOrders ? "Ładowanie aktywnych zleceń..." : "Wybierz aktywne zlecenie"}
+          </option>
+          {activeOrders.map((order) => (
+            <option key={order.id} value={order.id}>
+              {orderOptionLabel(order)}
+            </option>
+          ))}
+        </select>
+        <div className="mt-2 grid grid-cols-1 gap-2 text-xs text-slate-400 md:grid-cols-3">
+          <span>Numer zamówienia</span>
+          <span>Zespół</span>
+          <span>Nazwa wyrobu</span>
+        </div>
+      </div>
 
       {/* Search bar */}
       <div className="flex items-center gap-3 mb-8">

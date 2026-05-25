@@ -167,7 +167,7 @@ export default function MouldDetails() {
       <div className="p-10">
         <div className="p-2">
           <Link
-            to="/"
+            to="/moulds"
             className="px-4 py-2 bg-blue-500 rounded-lg text-white font-semibold hover:scale-105"
           >
             ← Powrót

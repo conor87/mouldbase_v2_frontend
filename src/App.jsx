@@ -37,6 +37,7 @@ import MES_ChangeoverPanel from "./components/MES_ChangeoverPanel.jsx";
 import MES_Production_Dashboard from "./components/MES_Production_Dashboard.jsx";
 import Analytics from "./components/Analytics.jsx";
 import OrdersTree from "./components/OrdersTree.jsx";
+import StartPage from "./components/StartPage.jsx";
 
 
 
@@ -48,7 +49,8 @@ function App() {
 
           <Routes>
             <Route element={<AppLayout />}>
-              <Route path="/" element={<Moulds />} />
+              <Route path="/" element={<StartPage />} />
+              <Route path="/moulds" element={<Moulds />} />
               <Route path="/moulds/:mould_number" element={<MouldDetails />} />
               <Route path="/changeovers" element={<Changeovers />} />
               <Route path="/current_sv" element={<CurrentSv />} />

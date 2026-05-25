@@ -1,7 +1,22 @@
 import React from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
-import { ArrowLeftRight, BarChart3, Calendar, ClipboardList, Cpu, Factory, Hammer, Home, LayoutDashboard, ListTree, Settings, ShieldCheck, Wrench } from "lucide-react";
+import {
+  ArrowLeftRight,
+  BarChart3,
+  Calendar,
+  ClipboardList,
+  Cpu,
+  Database,
+  Factory,
+  Hammer,
+  Home,
+  LayoutDashboard,
+  ListTree,
+  Settings,
+  ShieldCheck,
+  Wrench,
+} from "lucide-react";
 
 const parseJwt = (token) => {
   try {
@@ -37,28 +52,57 @@ const isMesUser = () => {
 
 const isSuperAdminFromToken = () => getRoleFromToken() === "superadmin";
 
+const moduleItems = [
+  { key: "moulds", to: "/moulds", label: "Formy wtryskowe", icon: Database },
+  { key: "mes", to: "/mes", label: "MES", icon: Cpu, mesOnly: true },
+  { key: "admin", to: "/production_admin", label: "Admin Panel", icon: ShieldCheck, adminOnly: true },
+];
+
 const navItems = [
-  { to: "/dashboard", label: "Dashboard", icon: BarChart3, superAdminOnly: true },
-  { to: "/", label: "Moulds", icon: Home, end: true },
-  { to: "/changeovers", label: "Przezbrojenia", icon: ArrowLeftRight },
-  { to: "/current_sv", label: "Maszyny", icon: Factory },
-  { to: "/kalendarz", label: "Kalendarz", icon: Calendar },
-  { to: "/tpm", label: "TPM", icon: Wrench },
-  { to: "/moulds-admin", label: "Dodaj forme", icon: Settings, adminOnly: true },
-  { to: "/mes/production/dashboard", label: "Dashboard produkcji", icon: LayoutDashboard, mesOnly: true },
-  { to: "/mes/service/dashboard", label: "Dashboard serwisu", icon: LayoutDashboard, mesOnly: true },
-  { to: "/mes", label: "MES", icon: Cpu, mesOnly: true, end: true, smartMes: true },
-  { to: "/orders-tree", label: "Tree", icon: ListTree, mesOnly: true },
-  { to: "/production_admin", label: "Production Admin", icon: ShieldCheck, adminOnly: true },
-  { to: "/service_admin", label: "Service Admin", icon: Hammer, adminOnly: true },
-  { to: "/analytics", label: "Analityka", icon: ClipboardList, adminOnly: true },
-  
+  { module: "moulds", to: "/dashboard", label: "Dashboard", icon: BarChart3, superAdminOnly: true },
+  { module: "moulds", to: "/moulds", label: "Formy", icon: Home, end: true },
+  { module: "moulds", to: "/kalendarz", label: "Kalendarz", icon: Calendar },
+  { module: "moulds", to: "/tpm", label: "TPM", icon: Wrench },
+  { module: "moulds", to: "/moulds-admin", label: "Dodaj formę", icon: Settings, adminOnly: true },
+
+  { module: "mes", to: "/mes", label: "MES", icon: Cpu, mesOnly: true, end: true, smartMes: true },
+  { module: "mes", to: "/mes/production/dashboard", label: "Dashboard produkcji", icon: LayoutDashboard, mesOnly: true },
+  { module: "mes", to: "/mes/service/dashboard", label: "Dashboard serwisu", icon: LayoutDashboard, mesOnly: true },
+  { module: "mes", to: "/changeovers", label: "Przezbrojenia", icon: ArrowLeftRight, mesOnly: true },
+  { module: "mes", to: "/current_sv", label: "Maszyny", icon: Factory, mesOnly: true },
+
+  { module: "admin", to: "/production_admin", label: "Production Admin", icon: ShieldCheck, adminOnly: true },
+  { module: "admin", to: "/service_admin", label: "Service Admin", icon: Hammer, adminOnly: true },
+  { module: "admin", to: "/orders-tree", label: "Tree", icon: ListTree, adminOnly: true },
+  { module: "admin", to: "/analytics", label: "Analityka", icon: ClipboardList, adminOnly: true },
 ];
 
 const baseItemClasses =
   "w-11 h-11 rounded-2xl flex items-center justify-center transition border border-transparent";
 const idleClasses = "text-slate-300 hover:text-white hover:bg-slate-800/70";
 const activeClasses = "bg-blue-500/90 text-white shadow-lg shadow-blue-500/20";
+const moduleIdleClasses = "text-slate-300 bg-slate-800 hover:text-white hover:bg-slate-700/70";
+const moduleActiveClasses = "bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20";
+
+const moduleForPath = (pathname) => {
+  if (
+    pathname.startsWith("/mes") ||
+    pathname.startsWith("/changeovers") ||
+    pathname.startsWith("/current_sv")
+  ) {
+    return "mes";
+  }
+  if (
+    pathname.startsWith("/production_admin") ||
+    pathname.startsWith("/service_admin") ||
+    pathname.startsWith("/orders-tree") ||
+    pathname.startsWith("/analytics") ||
+    pathname.startsWith("/admin-panel")
+  ) {
+    return "admin";
+  }
+  return "moulds";
+};
 
 function NavItem({ to, label, icon, end }) {
   return (
@@ -81,30 +125,44 @@ const normalizeList = (data) =>
 
 export default function Sidebar() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const activeModule = moduleForPath(location.pathname);
   const canAddMould = isAdminFromToken();
   const isSuperAdmin = isSuperAdminFromToken();
   const canMes = isMesUser();
-  const items = navItems.filter((item) => {
+
+  const isAllowed = (item) => {
     if (item.superAdminOnly && !isSuperAdmin) return false;
     if (item.adminOnly && !canAddMould) return false;
     if (item.mesOnly && !canMes) return false;
     return true;
-  });
+  };
+
+  const items = navItems.filter((item) => item.module === activeModule && isAllowed(item));
+  const visibleModules = moduleItems.filter(isAllowed);
 
   const handleMesClick = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem("access_token");
-    if (!token) { navigate("/mes"); return; }
+    if (!token) {
+      navigate("/mes");
+      return;
+    }
     let userId = localStorage.getItem("user_id");
     if (!userId && token) {
       try {
         const decoded = JSON.parse(atob(token.split(".")[1]));
         userId = decoded.id ?? decoded.user_id ?? decoded.sub ?? null;
         if (userId != null) localStorage.setItem("user_id", String(userId));
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
     userId = userId ? parseInt(userId, 10) : null;
-    if (!userId) { navigate("/mes"); return; }
+    if (!userId) {
+      navigate("/mes");
+      return;
+    }
     const headers = { Authorization: `Bearer ${token}` };
     try {
       const [prodRes, svcRes] = await Promise.all([
@@ -114,32 +172,26 @@ export default function Sidebar() {
       const prodList = normalizeList(prodRes);
       const svcList = normalizeList(svcRes);
 
-      // Match by user_id — compare both as numbers; prefer workstation with active operation
       const prodAll = prodList.filter((ws) => ws.user_id != null && Number(ws.user_id) === userId);
       if (prodAll.length > 0) {
         const prodWs = prodAll.find((ws) => ws.current_operation_id) || prodAll[0];
         const dest = prodWs.current_operation_id
           ? `/mes/production/machine/${prodWs.id}/panel/${prodWs.current_operation_id}`
           : `/mes/production/machine/${prodWs.id}`;
-        console.log(`[MES Nav] prod ws=${prodWs.id} → ${dest}`);
         navigate(dest);
         return;
       }
       const svcWs = svcList.find((ws) => ws.user_id != null && Number(ws.user_id) === userId);
       if (svcWs) {
-        let dest;
         if (svcWs.aktualne_przezbrojenie_id) {
-          dest = `/mes/service/workstation/${svcWs.id}/changeover/${svcWs.aktualne_przezbrojenie_id}`;
+          navigate(`/mes/service/workstation/${svcWs.id}/changeover/${svcWs.aktualne_przezbrojenie_id}`);
         } else if (svcWs.st) {
-          dest = `/mes/service/workstation/${svcWs.id}/panel/${svcWs.st}`;
+          navigate(`/mes/service/workstation/${svcWs.id}/panel/${svcWs.st}`);
         } else {
-          dest = `/mes/service/workstation/${svcWs.id}`;
+          navigate(`/mes/service/workstation/${svcWs.id}`);
         }
-        console.log(`[MES Nav] svc ws=${svcWs.id} → ${dest}`);
-        navigate(dest);
         return;
       }
-      console.log("[MES Nav] no match, userId:", userId);
       navigate("/mes");
     } catch (err) {
       console.error("[MES Nav] error:", err);
@@ -148,24 +200,45 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-16 bg-slate-800/90 border-r border-slate-800/80 backdrop-blur-md z-[60] opacity-100">
-      <div className="flex h-full flex-col items-center gap-3 py-4">
-        {items.map((item) =>
-          item.smartMes ? (
-            <button
-              key={item.to}
-              onClick={handleMesClick}
-              title={item.label}
-              aria-label={item.label}
-              className={`${baseItemClasses} ${idleClasses}`}
-            >
-              <item.icon className="w-5 h-5" />
-            </button>
-          ) : (
-            <NavItem key={item.to} {...item} />
-          )
-        )}
-      </div>
-    </aside>
+    <>
+      <aside className="fixed left-0 top-0 z-[70] h-full w-16 border-r border-slate-700/80 bg-slate-800 backdrop-blur-md">
+        <div className="grid h-full grid-rows-3">
+          {visibleModules.map((item) => {
+            const active = item.key === activeModule;
+            return (
+              <NavLink
+                key={item.key}
+                to={item.to}
+                title={item.label}
+                aria-label={item.label}
+                className={`${active ? moduleActiveClasses : moduleIdleClasses} flex items-center justify-center border-b border-slate-800/80 transition last:border-b-0`}
+              >
+                <item.icon className="h-6 w-6" />
+              </NavLink>
+            );
+          })}
+        </div>
+      </aside>
+
+      <aside className="fixed left-16 top-0 z-[60] h-full w-16 border-r border-slate-800/80 bg-slate-800/90 opacity-100 backdrop-blur-md">
+        <div className="flex h-full flex-col items-center gap-3 py-4">
+          {items.map((item) =>
+            item.smartMes ? (
+              <button
+                key={item.to}
+                onClick={handleMesClick}
+                title={item.label}
+                aria-label={item.label}
+                className={`${baseItemClasses} ${idleClasses}`}
+              >
+                <item.icon className="h-5 w-5" />
+              </button>
+            ) : (
+              <NavItem key={item.to} {...item} />
+            )
+          )}
+        </div>
+      </aside>
+    </>
   );
 }

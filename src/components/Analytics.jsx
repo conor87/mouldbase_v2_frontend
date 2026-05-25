@@ -32,6 +32,25 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 const sortByUsername = (items) =>
   [...items].sort((a, b) => (a.username || "").localeCompare(b.username || "", "pl", { sensitivity: "base" }));
 
+const LOGS_PAGE_SIZE = 50;
+
+const paginateRows = (rows, page, pageSize = LOGS_PAGE_SIZE) => {
+  const total = rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(Math.max(page, 1), totalPages);
+  const startIndex = (safePage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, total);
+
+  return {
+    rows: rows.slice(startIndex, endIndex),
+    total,
+    totalPages,
+    safePage,
+    startItem: total ? startIndex + 1 : 0,
+    endItem: endIndex,
+  };
+};
+
 const tabs = [
   { id: "workers", label: "Pracownicy", icon: Users },
   { id: "machines", label: "Maszyny", icon: Cpu },
@@ -68,6 +87,41 @@ const DataTable = ({ columns, rows, getRowKey }) => {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+};
+
+const PaginationControls = ({ pageData, onPageChange }) => {
+  if (pageData.totalPages <= 1) return null;
+
+  const { safePage, totalPages, startItem, endItem, total } = pageData;
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-400">
+      <span>
+        Pokazano {startItem}-{endItem} z {total}
+      </span>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onPageChange(safePage - 1)}
+          disabled={safePage <= 1}
+          className="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-200 transition hover:border-slate-500 disabled:opacity-40 disabled:hover:border-slate-700"
+        >
+          Poprzednia
+        </button>
+        <span className="px-2 text-slate-300">
+          {safePage} / {totalPages}
+        </span>
+        <button
+          type="button"
+          onClick={() => onPageChange(safePage + 1)}
+          disabled={safePage >= totalPages}
+          className="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-200 transition hover:border-slate-500 disabled:opacity-40 disabled:hover:border-slate-700"
+        >
+          Następna
+        </button>
+      </div>
     </div>
   );
 };
@@ -213,6 +267,9 @@ export default function Analytics() {
   const [productionLogs, setProductionLogs] = useState([]);
   const [serviceLogs, setServiceLogs] = useState([]);
   const [sessionLogs, setSessionLogs] = useState([]);
+  const [productionLogsPage, setProductionLogsPage] = useState(1);
+  const [serviceLogsPage, setServiceLogsPage] = useState(1);
+  const [sessionLogsPage, setSessionLogsPage] = useState(1);
   const [logsLoading, setLogsLoading] = useState(false);
 
   // Production log form state
@@ -939,6 +996,18 @@ export default function Analytics() {
   // Lookup maps for production logs
   const userMap = useMemo(() => Object.fromEntries(allUsers.map((u) => [u.id, u])), [allUsers]);
   const wsMap = useMemo(() => Object.fromEntries(allWorkstations.map((w) => [w.id, w])), [allWorkstations]);
+  const productionLogsPageData = useMemo(
+    () => paginateRows(productionLogs, productionLogsPage),
+    [productionLogs, productionLogsPage]
+  );
+  const serviceLogsPageData = useMemo(
+    () => paginateRows(serviceLogs, serviceLogsPage),
+    [serviceLogs, serviceLogsPage]
+  );
+  const sessionLogsPageData = useMemo(
+    () => paginateRows(sessionLogs, sessionLogsPage),
+    [sessionLogs, sessionLogsPage]
+  );
 
   // ===== Render =====
   return (
@@ -1373,7 +1442,7 @@ export default function Analytics() {
 
                 <div className="text-sm text-slate-400 mb-3">{productionLogs.length} rekordów</div>
                 <DataTable
-                  rows={productionLogs}
+                  rows={productionLogsPageData.rows}
                   getRowKey={(row) => row.id}
                   columns={[
                     { key: "id", header: "ID" },
@@ -1399,6 +1468,7 @@ export default function Analytics() {
                     }] : []),
                   ]}
                 />
+                <PaginationControls pageData={productionLogsPageData} onPageChange={setProductionLogsPage} />
               </section>
             )}
 
@@ -1508,7 +1578,7 @@ export default function Analytics() {
 
                 <div className="text-sm text-slate-400 mb-3">{serviceLogs.length} rekordów</div>
                 <DataTable
-                  rows={serviceLogs}
+                  rows={serviceLogsPageData.rows}
                   getRowKey={(row) => row.id}
                   columns={[
                     { key: "id", header: "ID" },
@@ -1535,6 +1605,7 @@ export default function Analytics() {
                     }] : []),
                   ]}
                 />
+                <PaginationControls pageData={serviceLogsPageData} onPageChange={setServiceLogsPage} />
               </section>
             )}
 
@@ -1544,7 +1615,7 @@ export default function Analytics() {
                 <h2 className="text-lg font-bold mb-4">Logi sesji MES</h2>
                 <div className="text-sm text-slate-400 mb-3">{sessionLogs.length} rekordów</div>
                 <DataTable
-                  rows={sessionLogs}
+                  rows={sessionLogsPageData.rows}
                   getRowKey={(row) => row.id}
                   columns={[
                     { key: "id", header: "ID" },
@@ -1554,6 +1625,7 @@ export default function Analytics() {
                     { key: "created_at", header: "Data" },
                   ]}
                 />
+                <PaginationControls pageData={sessionLogsPageData} onPageChange={setSessionLogsPage} />
               </section>
             )}
           </main>
