@@ -9,7 +9,7 @@ export default function AppLayout() {
   return (
     <div className="min-h-screen">
       {!isStartPage && <Sidebar />}
-      <div className={`${isStartPage ? "" : "pl-32"} max-w-[100vw] overflow-x-hidden`}>
+      <div className={`${isStartPage ? "" : "pl-24"} max-w-[100vw] overflow-x-hidden`}>
         <Outlet />
       </div>
     </div>
