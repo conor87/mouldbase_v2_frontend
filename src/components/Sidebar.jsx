@@ -80,9 +80,9 @@ const navItems = [
 const baseItemClasses =
   "w-10 h-10 rounded-xl flex items-center justify-center transition border border-transparent";
 const idleClasses = "text-slate-300 hover:text-white hover:bg-slate-800/70";
-const activeClasses = "bg-blue-500/90 text-white shadow-lg shadow-blue-500/20";
+const activeClasses = "bg-blue-500/20 border-blue-500 text-blue-200";
 const moduleIdleClasses = "text-slate-300 bg-slate-800 hover:text-white hover:bg-slate-700/70";
-const moduleActiveClasses = "bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20";
+const moduleActiveClasses = activeClasses;
 
 const moduleForPath = (pathname) => {
   if (
@@ -201,7 +201,7 @@ export default function Sidebar() {
 
   return (
     <>
-      <aside className="fixed left-0 top-0 z-[70] h-full w-12 border-r border-slate-700/80 bg-slate-800 backdrop-blur-md">
+      <aside className="fixed left-0 top-0 z-[70] h-full w-10 border-r border-slate-700/80 bg-slate-800 backdrop-blur-md">
         <div className="grid h-full grid-rows-3">
           {visibleModules.map((item) => {
             const active = item.key === activeModule;
@@ -213,14 +213,14 @@ export default function Sidebar() {
                 aria-label={item.label}
                 className={`${active ? moduleActiveClasses : moduleIdleClasses} flex items-center justify-center border-b border-slate-800/80 transition last:border-b-0`}
               >
-                <item.icon className="h-5 w-5" />
+                <item.icon className="h-4 w-4" />
               </NavLink>
             );
           })}
         </div>
       </aside>
 
-      <aside className="fixed left-12 top-0 z-[60] h-full w-12 border-r border-slate-800/80 bg-slate-800/90 opacity-100 backdrop-blur-md">
+      <aside className="fixed left-10 top-0 z-[60] h-full w-12 border-r border-slate-800/80 bg-slate-800/90 opacity-100 backdrop-blur-md">
         <div className="flex h-full flex-col items-center gap-3 py-4">
           {items.map((item) =>
             item.smartMes ? (
