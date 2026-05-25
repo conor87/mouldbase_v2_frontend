@@ -18,6 +18,25 @@ const toIntOrZero = (value) => {
   return Number.isNaN(parsed) ? 0 : parsed;
 };
 
+const PAGE_SIZE = 50;
+
+const paginateRows = (rows, page, pageSize = PAGE_SIZE) => {
+  const total = rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(Math.max(page, 1), totalPages);
+  const startIndex = (safePage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, total);
+
+  return {
+    rows: rows.slice(startIndex, endIndex),
+    total,
+    totalPages,
+    safePage,
+    startItem: total ? startIndex + 1 : 0,
+    endItem: endIndex,
+  };
+};
+
 const DataTable = ({ columns, rows, getRowKey }) => {
   if (!rows.length) {
     return <div className="text-sm text-slate-400">No records yet.</div>;
@@ -51,6 +70,41 @@ const DataTable = ({ columns, rows, getRowKey }) => {
   );
 };
 
+const PaginationControls = ({ pageData, onPageChange }) => {
+  if (pageData.totalPages <= 1) return null;
+
+  const { safePage, totalPages, startItem, endItem, total } = pageData;
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-400">
+      <span>
+        Pokazano {startItem}-{endItem} z {total}
+      </span>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onPageChange(safePage - 1)}
+          disabled={safePage <= 1}
+          className="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-200 transition hover:border-slate-500 disabled:opacity-40 disabled:hover:border-slate-700"
+        >
+          Poprzednia
+        </button>
+        <span className="px-2 text-slate-300">
+          {safePage} / {totalPages}
+        </span>
+        <button
+          type="button"
+          onClick={() => onPageChange(safePage + 1)}
+          disabled={safePage >= totalPages}
+          className="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-200 transition hover:border-slate-500 disabled:opacity-40 disabled:hover:border-slate-700"
+        >
+          Następna
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export default function ProductionAdmin() {
   const [activeTab, setActiveTab] = useState("machine_statuses");
   const [message, setMessage] = useState(null);
@@ -73,6 +127,9 @@ export default function ProductionAdmin() {
   const [operationTaskSearch, setOperationTaskSearch] = useState("");
   const [operationTaskFilter, setOperationTaskFilter] = useState("");
   const [operationOrderFilter, setOperationOrderFilter] = useState("");
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [tasksPage, setTasksPage] = useState(1);
+  const [operationsPage, setOperationsPage] = useState(1);
 
   const [statusForm, setStatusForm] = useState({ status_no: "", name: "", color: "" });
   const [orderTypeForm, setOrderTypeForm] = useState({ code: "", name: "" });
@@ -305,6 +362,24 @@ export default function ProductionAdmin() {
     }
     return list.slice().sort((a, b) => (a.task_id ?? 0) - (b.task_id ?? 0) || (a.operation_no ?? 0) - (b.operation_no ?? 0));
   }, [operations, operationTaskSearch, operationTaskFilter, operationOrderFilter, taskLabelById, taskOptions]);
+  const ordersPageData = useMemo(() => paginateRows(orders, ordersPage), [orders, ordersPage]);
+  const tasksPageData = useMemo(() => paginateRows(filteredTasks, tasksPage), [filteredTasks, tasksPage]);
+  const operationsPageData = useMemo(
+    () => paginateRows(filteredOperations, operationsPage),
+    [filteredOperations, operationsPage]
+  );
+
+  useEffect(() => {
+    setOrdersPage(1);
+  }, [orders.length]);
+
+  useEffect(() => {
+    setTasksPage(1);
+  }, [filteredTasks.length, orderSearch]);
+
+  useEffect(() => {
+    setOperationsPage(1);
+  }, [filteredOperations.length, operationTaskSearch, operationTaskFilter, operationOrderFilter]);
 
   const handleCreateStatus = async (e) => {
     e.preventDefault();
@@ -1185,7 +1260,7 @@ export default function ProductionAdmin() {
                 </form>
                 <div className="text-sm text-slate-400 mb-3">{orders.length} rekordów</div>
                 <DataTable
-                  rows={orders}
+                  rows={ordersPageData.rows}
                   getRowKey={(row) => row.id}
                   columns={[
                     { key: "id", header: "ID" },
@@ -1238,6 +1313,7 @@ export default function ProductionAdmin() {
                       : []),
                   ]}
                 />
+                <PaginationControls pageData={ordersPageData} onPageChange={setOrdersPage} />
               </section>
             )}
 
@@ -1321,7 +1397,7 @@ export default function ProductionAdmin() {
                 </form>
                 <div className="text-sm text-slate-400 mb-3">{filteredTasks.length} / {tasks.length} rekordów</div>
                 <DataTable
-                  rows={filteredTasks}
+                  rows={tasksPageData.rows}
                   getRowKey={(row) => row.id}
                   columns={[
                     { key: "id", header: "ID" },
@@ -1371,6 +1447,7 @@ export default function ProductionAdmin() {
                       : []),
                   ]}
                 />
+                <PaginationControls pageData={tasksPageData} onPageChange={setTasksPage} />
               </section>
             )}
 
@@ -1775,7 +1852,7 @@ export default function ProductionAdmin() {
                 )}
                 <div className="text-sm text-slate-400 mb-3">{filteredOperations.length} / {operations.length} rekordów</div>
                 <DataTable
-                  rows={filteredOperations}
+                  rows={operationsPageData.rows}
                   getRowKey={(row) => row.id}
                   columns={[
                     { key: "id", header: "ID" },
@@ -1883,6 +1960,7 @@ export default function ProductionAdmin() {
                       : []),
                   ]}
                 />
+                <PaginationControls pageData={operationsPageData} onPageChange={setOperationsPage} />
               </section>
             )}
 
