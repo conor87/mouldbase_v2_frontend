@@ -1,6 +1,9 @@
 // MouldDetails_BasicInfo.jsx
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import axios from "axios";
+import { QRCodeCanvas } from "qrcode.react";
+
+const QR_PUBLIC_ORIGIN = "http://10.10.77.75:5173";
 
 // do input[type="date"] => "YYYY-MM-DD"
 const toDateInputValue = (value) => {
@@ -55,6 +58,9 @@ export default function MouldDetails_BasicInfo({
   const [productPhotoPreview, setProductPhotoPreview] = useState("");
   const [mouldPhotoFile, setMouldPhotoFile] = useState(null);
   const [mouldPhotoPreview, setMouldPhotoPreview] = useState("");
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [qrDescription, setQrDescription] = useState("");
+  const qrCanvasRef = useRef(null);
 
   const serverPreviewFallback = useMemo(() => {
     return imageSrc || buildMediaSrc(API_BASE, mouldData?.product_photo) || "/media/default.png";
@@ -63,6 +69,83 @@ export default function MouldDetails_BasicInfo({
   const serverMouldPreviewFallback = useMemo(() => {
     return buildMediaSrc(API_BASE, mouldData?.mould_photo) || "/media/default.png";
   }, [API_BASE, mouldData?.mould_photo]);
+
+  const mouldDetailsUrl = useMemo(() => {
+    const number = mouldData?.mould_number ? encodeURIComponent(mouldData.mould_number) : "";
+    return `${QR_PUBLIC_ORIGIN}/moulds/${number}`;
+  }, [mouldData?.mould_number]);
+
+  const openQrModal = () => {
+    const defaultDescription = [
+      mouldData?.mould_number,
+      mouldData?.product,
+    ].filter(Boolean).join(" - ");
+    setQrDescription(defaultDescription);
+    setIsQrModalOpen(true);
+  };
+
+  const closeQrModal = () => {
+    setIsQrModalOpen(false);
+  };
+
+  const drawWrappedText = (ctx, text, x, y, maxWidth, lineHeight) => {
+    const words = String(text || "").split(/\s+/).filter(Boolean);
+    let line = "";
+    let currentY = y;
+
+    words.forEach((word) => {
+      const testLine = line ? `${line} ${word}` : word;
+      if (ctx.measureText(testLine).width > maxWidth && line) {
+        ctx.fillText(line, x, currentY);
+        line = word;
+        currentY += lineHeight;
+      } else {
+        line = testLine;
+      }
+    });
+
+    if (line) ctx.fillText(line, x, currentY);
+    return currentY + lineHeight;
+  };
+
+  const downloadQr = () => {
+    const sourceCanvas = qrCanvasRef.current;
+    if (!sourceCanvas) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 560;
+    canvas.height = qrDescription.trim() ? 700 : 640;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "#0f172a";
+    ctx.font = "700 28px Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(`Forma ${mouldData?.mould_number || ""}`, canvas.width / 2, 54);
+
+    let y = 94;
+    if (qrDescription.trim()) {
+      ctx.font = "400 18px Arial, sans-serif";
+      y = drawWrappedText(ctx, qrDescription.trim(), canvas.width / 2, y, 480, 26);
+      y += 12;
+    }
+
+    const qrSize = 360;
+    const qrX = (canvas.width - qrSize) / 2;
+    ctx.drawImage(sourceCanvas, qrX, y, qrSize, qrSize);
+
+    ctx.font = "400 16px Arial, sans-serif";
+    ctx.fillStyle = "#334155";
+    drawWrappedText(ctx, mouldDetailsUrl, canvas.width / 2, y + qrSize + 38, 480, 22);
+
+    const link = document.createElement("a");
+    link.download = `qr-${String(mouldData?.mould_number || "forma").replace(/[^\w.-]+/g, "_")}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  };
 
   const setDraftField = (key, value) => {
     setMouldDraft((prev) => ({ ...prev, [key]: value }));
@@ -200,6 +283,15 @@ export default function MouldDetails_BasicInfo({
       <div className="border rounded-xl border-blue-500 p-4">
         <h3 className="text-3xl text-cyan-400 font-bold mb-4 flex items-center gap-3">
           Podstawowe informacje:
+          <button
+            type="button"
+            onClick={openQrModal}
+            className="px-4 py-2 rounded-lg bg-blue-500/20 border border-blue-500 text-blue-200 hover:bg-blue-500/30 text-sm"
+            title="Wygeneruj kod QR do szczegółów formy"
+            aria-label="Wygeneruj kod QR do szczegółów formy"
+          >
+            QR
+          </button>
           {/* ✅ tylko admin */}
           {isAdmin && (
             <button
@@ -294,6 +386,77 @@ export default function MouldDetails_BasicInfo({
           </div>
         )}
       </div>
+
+      {isQrModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeQrModal();
+          }}
+        >
+          <div className="w-full max-w-lg rounded-2xl bg-slate-800 border border-white/10 shadow-2xl p-5 text-white">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-cyan-400">Kod QR formy</h3>
+              <button
+                type="button"
+                onClick={closeQrModal}
+                className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20"
+                aria-label="Zamknij"
+              >
+                x
+              </button>
+            </div>
+
+            <label className="block text-sm text-slate-300 mb-2">
+              Mały opis
+            </label>
+            <input
+              value={qrDescription}
+              onChange={(e) => setQrDescription(e.target.value)}
+              className="w-full rounded-lg p-2 bg-white/5 border border-white/10 text-white"
+              placeholder="Np. numer formy, wyrób, lokalizacja"
+            />
+
+            <div className="mt-4 rounded-xl bg-white p-5 text-slate-900 flex flex-col items-center">
+              <div className="text-lg font-bold mb-1 text-center">
+                {mouldData?.mould_number}
+              </div>
+              {qrDescription.trim() && (
+                <div className="text-sm text-slate-600 mb-4 text-center max-w-sm">
+                  {qrDescription.trim()}
+                </div>
+              )}
+              <QRCodeCanvas
+                ref={qrCanvasRef}
+                value={mouldDetailsUrl}
+                size={220}
+                level="M"
+                includeMargin
+              />
+              <div className="mt-3 text-xs text-slate-500 break-all text-center">
+                {mouldDetailsUrl}
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeQrModal}
+                className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20"
+              >
+                Zamknij
+              </button>
+              <button
+                type="button"
+                onClick={downloadQr}
+                className="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black font-semibold"
+              >
+                Pobierz PNG
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL EDYCJI FORMY (tylko admin) */}
       {isAdmin && isEditModalOpen && (
