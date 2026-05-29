@@ -53,16 +53,16 @@ export default function MouldCard({ mould }) {
         className="relative bg-slate-800/50 backdrop-blur-sm border rounded-xl sm:rounded-2xl p-6 sm:p-8 hover:scale-105 transition-all duration-300 overflow-visible group flex flex-col h-full border-blue-500 shadow-2xl shadow-blue-500/20"
       >
         {/* Firma */}
-        <div className="absolute -top-2 sm:-top-3 left-1/4 transform -translate-x-1/2 z-10">
-          <div className="flex items-center space-x-1 px-4 py-1 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full text-sm font-semibold shadow-lg">
-            <span>{mould?.company ?? "-"}</span>
+        <div className="absolute -top-2 sm:-top-3 left-[18%] transform -translate-x-1/2 z-10">
+          <div className="flex h-6 max-w-[4.5rem] items-center justify-center rounded-full bg-gradient-to-b from-blue-500 to-cyan-500 px-2 text-[10px] font-semibold leading-none shadow-lg sm:max-w-[5.5rem] sm:px-3 sm:text-xs">
+            <span className="truncate">{mould?.company ?? "-"}</span>
           </div>
         </div>
 
         {/* Procent */}
-        <div className="absolute -top-2 sm:-top-3 left-1/2 transform -translate-x-1/2 z-10">
+        <div className={`absolute -top-2 sm:-top-3 ${hasOpenTpm ? "left-1/2" : "left-[68%]"} transform -translate-x-1/2 z-10`}>
           <div
-            className={`flex items-center space-x-1 px-4 py-1 rounded-full text-sm font-semibold shadow-lg ${percentBadgeClass}`}
+            className={`flex h-6 items-center justify-center rounded-full px-2 text-[10px] font-semibold leading-none shadow-lg sm:px-3 sm:text-xs ${percentBadgeClass}`}
           >
             <span>{percent}%</span>
           </div>
@@ -70,8 +70,8 @@ export default function MouldCard({ mould }) {
 
         {/* ✅ TPM badge (tylko gdy są otwarte) */}
         {hasOpenTpm && (
-          <div className="absolute -top-2 sm:-top-3 left-3/4 transform -translate-x-1/2 z-10">
-            <div className="flex items-center space-x-1 px-4 py-1 rounded-full text-sm font-semibold shadow-lg bg-gradient-to-b from-red-500 to-orange-500">
+          <div className="absolute -top-2 sm:-top-3 left-[82%] transform -translate-x-1/2 z-10">
+            <div className="flex h-6 items-center justify-center rounded-full bg-gradient-to-b from-red-500 to-orange-500 px-2 text-[10px] font-semibold leading-none shadow-lg sm:px-3 sm:text-xs">
               <span>TPM</span>
             </div>
           </div>

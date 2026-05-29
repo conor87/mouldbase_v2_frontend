@@ -919,12 +919,12 @@ export default function MouldDetails_Tpm({
 
       {isAdmin && logged && isGuideOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          className="fixed bottom-0 right-0 top-0 left-0 md:left-[88px] z-50 flex items-center justify-center bg-black/70 p-3 sm:p-4"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) closeGuide();
           }}
         >
-          <div className="w-full max-w-6xl max-h-[88vh] rounded-2xl bg-slate-800 border border-white/10 shadow-2xl p-5 text-white flex flex-col">
+          <div className="w-full max-w-6xl max-h-[88vh] rounded-2xl bg-slate-800 border border-white/10 shadow-2xl p-4 sm:p-5 text-white flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-cyan-400">
                 {selectedGuide ? "Przewodnik serwisowania" : "Nowy przewodnik serwisowania"}
@@ -986,7 +986,7 @@ export default function MouldDetails_Tpm({
 
               {selectedGuide && (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-[64px_minmax(520px,1fr)_auto] gap-3 mb-4 items-stretch">
+                  <div className="grid grid-cols-1 lg:grid-cols-[64px_minmax(0,1fr)_auto] gap-3 mb-4 items-stretch">
                     <input
                       type="number"
                       min="1"
