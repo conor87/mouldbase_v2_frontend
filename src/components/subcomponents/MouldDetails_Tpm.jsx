@@ -153,6 +153,7 @@ export default function MouldDetails_Tpm({
   const [guideSaving, setGuideSaving] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [selectedGuide, setSelectedGuide] = useState(null);
+  const [editingStepId, setEditingStepId] = useState(null);
   const [guideDraft, setGuideDraft] = useState({
     guide_number: "",
     product_name: "",
@@ -353,6 +354,7 @@ export default function MouldDetails_Tpm({
     setIsGuideOpen(false);
     setSelectedGuide(null);
     setGuideError(null);
+    setEditingStepId(null);
   };
 
   const updateGuideStatus = async (guide, action) => {
@@ -500,6 +502,65 @@ export default function MouldDetails_Tpm({
     setStepDraft({ lp: (res.data.steps?.length || 0) + 1, fault: "", confirmed_by: "", repair: "", performed_by: "" });
     setStepPhoto1(null);
     setStepPhoto2(null);
+  };
+
+  const startEditStep = (step) => {
+    setEditingStepId(step.id);
+    setStepDraft({
+      lp: step.lp,
+      fault: step.fault || "",
+      confirmed_by: step.confirmed_by || "",
+      repair: step.repair || "",
+      performed_by: step.performed_by || "",
+    });
+    setStepPhoto1(null);
+    setStepPhoto2(null);
+  };
+
+  const cancelEditStep = () => {
+    setEditingStepId(null);
+    setStepDraft({
+      lp: (selectedGuide?.steps?.length || 0) + 1,
+      fault: "",
+      confirmed_by: "",
+      repair: "",
+      performed_by: "",
+    });
+    setStepPhoto1(null);
+    setStepPhoto2(null);
+  };
+
+  const saveGuideStepEdit = async () => {
+    const guide = selectedGuide;
+    if (!guide?.id || !editingStepId) return;
+
+    try {
+      setGuideSaving(true);
+      setGuideError(null);
+
+      const fd = new FormData();
+      fd.append("lp", String(Number(stepDraft.lp) || 1));
+      fd.append("repair", stepDraft.repair ?? "");
+      if (stepPhoto1) fd.append("extra_photo_1", stepPhoto1);
+      if (stepPhoto2) fd.append("extra_photo_2", stepPhoto2);
+
+      await axios.put(`${API_BASE}/service-guides/${guide.id}/steps/${editingStepId}`, fd, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          ...(authHeaders?.() ?? {}),
+        },
+      });
+
+      const res = await axios.get(`${API_BASE}/service-guides/${guide.id}`);
+      setSelectedGuide(res.data);
+      await refreshGuides();
+      cancelEditStep();
+    } catch (err) {
+      console.error(err);
+      setGuideError(String(err?.response?.data?.detail || "Nie udało się zapisać zmian w czynności."));
+    } finally {
+      setGuideSaving(false);
+    }
   };
 
   const deleteGuideStep = async (step) => {
@@ -1124,32 +1185,73 @@ export default function MouldDetails_Tpm({
 
               {selectedGuide && (
                 <>
-                  <div className="grid grid-cols-1 lg:grid-cols-[64px_minmax(0,1fr)_auto] gap-3 mb-3 items-stretch">
-                    <input
-                      type="number"
-                      min="1"
-                      className="h-12 rounded-xl px-3 bg-white/5 border border-white/10 text-white"
-                      value={stepDraft.lp}
-                      onChange={(e) => setStepDraft((p) => ({ ...p, lp: e.target.value }))}
-                    />
-                    <input
-                      className="h-12 rounded-xl px-3 bg-white/5 border border-white/10 text-white"
-                      placeholder="Naprawa"
-                      value={stepDraft.repair}
-                      onChange={(e) => setStepDraft((p) => ({ ...p, repair: e.target.value }))}
-                    />
-                    <button
-                      type="button"
-                      onClick={addGuideStep}
-                      className="h-12 px-4 rounded-lg bg-white/10 hover:bg-white/20 font-semibold"
-                    >
-                      Dodaj czynność
-                    </button>
-                  </div>
+                  {editingStepId ? (
+                    <div className="border border-cyan-500/30 p-3 rounded-xl bg-cyan-500/5 mb-3">
+                      <div className="text-sm font-semibold text-cyan-400 mb-2">
+                        Edycja czynności L.P. {stepDraft.lp}
+                      </div>
+                      <div className="grid grid-cols-1 lg:grid-cols-[64px_minmax(0,1fr)_auto] gap-3 items-stretch">
+                        <input
+                          type="number"
+                          min="1"
+                          className="h-12 rounded-xl px-3 bg-white/5 border border-white/10 text-white"
+                          value={stepDraft.lp}
+                          onChange={(e) => setStepDraft((p) => ({ ...p, lp: e.target.value }))}
+                        />
+                        <input
+                          className="h-12 rounded-xl px-3 bg-white/5 border border-white/10 text-white"
+                          placeholder="Naprawa"
+                          value={stepDraft.repair}
+                          onChange={(e) => setStepDraft((p) => ({ ...p, repair: e.target.value }))}
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={saveGuideStepEdit}
+                            className="h-12 px-4 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black font-semibold"
+                          >
+                            Zapisz zmiany
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelEditStep}
+                            className="h-12 px-4 rounded-lg bg-white/10 hover:bg-white/20 font-semibold"
+                          >
+                            Anuluj
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-[64px_minmax(0,1fr)_auto] gap-3 mb-3 items-stretch">
+                      <input
+                        type="number"
+                        min="1"
+                        className="h-12 rounded-xl px-3 bg-white/5 border border-white/10 text-white"
+                        value={stepDraft.lp}
+                        onChange={(e) => setStepDraft((p) => ({ ...p, lp: e.target.value }))}
+                      />
+                      <input
+                        className="h-12 rounded-xl px-3 bg-white/5 border border-white/10 text-white"
+                        placeholder="Naprawa"
+                        value={stepDraft.repair}
+                        onChange={(e) => setStepDraft((p) => ({ ...p, repair: e.target.value }))}
+                      />
+                      <button
+                        type="button"
+                        onClick={addGuideStep}
+                        className="h-12 px-4 rounded-lg bg-white/10 hover:bg-white/20 font-semibold"
+                      >
+                        Dodaj czynność
+                      </button>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                     <label className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm">
-                      <span className="block mb-1 opacity-80">Zdjęcie 1</span>
+                      <span className="block mb-1 opacity-80">
+                        {editingStepId ? "Zdjęcie 1 (wybierz nowe, by zmienić)" : "Zdjęcie 1"}
+                      </span>
                       <input
                         type="file"
                         accept="image/*"
@@ -1159,7 +1261,9 @@ export default function MouldDetails_Tpm({
                       {stepPhoto1 && <span className="mt-1 block text-xs text-cyan-200">{stepPhoto1.name}</span>}
                     </label>
                     <label className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm">
-                      <span className="block mb-1 opacity-80">Zdjęcie 2</span>
+                      <span className="block mb-1 opacity-80">
+                        {editingStepId ? "Zdjęcie 2 (wybierz nowe, by zmienić)" : "Zdjęcie 2"}
+                      </span>
                       <input
                         type="file"
                         accept="image/*"
@@ -1260,6 +1364,14 @@ export default function MouldDetails_Tpm({
                                     title={step.is_done ? "Cofnij potwierdzenie" : "Potwierdź wykonanie czynności"}
                                   >
                                     {step.is_done ? "↺" : "✓"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => startEditStep(step)}
+                                    className="px-3 py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-200"
+                                    title="Edytuj czynność"
+                                  >
+                                    ✎
                                   </button>
                                   <button
                                     type="button"
