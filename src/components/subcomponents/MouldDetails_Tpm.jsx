@@ -28,6 +28,13 @@ const formatDateOnly = (value) => {
   return d.toLocaleDateString("pl-PL");
 };
 
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
 // enumy (dopasowane do modelu TPM)
 const STATUS_OPTIONS = [
   { value: 0, label: "Otwarty" },
@@ -159,6 +166,8 @@ export default function MouldDetails_Tpm({
     repair: "",
     performed_by: "",
   });
+  const [stepPhoto1, setStepPhoto1] = useState(null);
+  const [stepPhoto2, setStepPhoto2] = useState(null);
 
   const refreshTpms = async () => {
     if (!mouldNumber) return;
@@ -273,6 +282,8 @@ export default function MouldDetails_Tpm({
       review_reason: "",
     });
     setStepDraft({ lp: 1, fault: "", confirmed_by: "", repair: "", performed_by: "" });
+    setStepPhoto1(null);
+    setStepPhoto2(null);
     setIsGuideOpen(true);
   };
 
@@ -291,6 +302,8 @@ export default function MouldDetails_Tpm({
       repair: "",
       performed_by: "",
     });
+    setStepPhoto1(null);
+    setStepPhoto2(null);
     setIsGuideOpen(true);
   };
 
@@ -368,21 +381,125 @@ export default function MouldDetails_Tpm({
     await refreshGuides();
   };
 
+  const handlePrintServiceGuide = async (guide) => {
+    if (!guide?.id) return;
+
+    try {
+      setGuideError(null);
+      const res = await axios.get(`${API_BASE}/service-guides/${guide.id}`, {
+        headers: { ...(authHeaders?.() ?? {}) },
+      });
+      const fullGuide = res.data || guide;
+      const steps = [...(fullGuide.steps || [])].sort((a, b) => Number(a.lp) - Number(b.lp));
+      const statusLabel = fullGuide.status === "done" ? "Wykonano" : "Otwarty";
+      const photoCell = (photo) => {
+        const url = normalizeMediaUrl(API_BASE, photo);
+        return url
+          ? `<img class="step-photo" src="${escapeHtml(url)}" alt="Zdjecie czynnosci">`
+          : `<span class="empty-photo">-</span>`;
+      };
+      const rows = steps.length
+        ? steps.map((step) => `
+          <tr>
+            <td class="lp">${escapeHtml(step.lp)}</td>
+            <td class="repair">${escapeHtml(step.repair || "-").replace(/\n/g, "<br>")}</td>
+            <td class="photo">${photoCell(step.extra_photo_1)}</td>
+            <td class="photo">${photoCell(step.extra_photo_2)}</td>
+            <td class="done">${step.is_done ? `<strong>wykonano</strong><br>${escapeHtml(step.performed_by || "-")}` : "-"}</td>
+          </tr>
+        `).join("")
+        : `<tr><td colspan="5" class="empty-row">Brak czynnosci.</td></tr>`;
+
+      const html = `<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Przewodnik serwisowania - ${escapeHtml(fullGuide.guide_number || "")}</title>
+  <style>
+    *{box-sizing:border-box}html,body{margin:0;padding:0}
+    body{font-family:Arial,Helvetica,sans-serif;background:#e7e5df;color:#111;padding:8px 0 18px}
+    .sheet{width:277mm;min-height:190mm;margin:8px auto;padding:8mm;background:#fff;border:1px solid #111;box-shadow:0 1px 6px rgba(0,0,0,.12)}
+    .header{text-align:center;border-bottom:2px solid #111;padding-bottom:4mm;margin-bottom:4mm}
+    h1{margin:0;font-size:20px;letter-spacing:.3px;text-transform:uppercase}
+    .meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid #111;border-bottom:none;margin-bottom:6mm}
+    .field{border-right:1px solid #111;border-bottom:1px solid #111;padding:2mm;min-height:13mm}
+    .field:nth-child(4n){border-right:none}.field-wide{grid-column:span 2}
+    .label{font-size:10px;text-transform:uppercase;font-weight:700;margin-bottom:1mm}
+    .value{font-size:13px;line-height:1.25;white-space:pre-wrap}
+    table{width:100%;border-collapse:collapse;table-layout:fixed}
+    th,td{border:1px solid #111;padding:2mm;vertical-align:top;font-size:12px;line-height:1.25}
+    th{background:#f2f2f2;text-transform:uppercase;text-align:center;font-size:11px}
+    .lp{text-align:center;font-weight:700}.repair{white-space:pre-wrap}.photo{text-align:center;vertical-align:middle}.done{text-align:center}
+    .step-photo{display:block;max-width:65mm;max-height:50mm;object-fit:contain;margin:0 auto}.empty-photo{color:#555}
+    .empty-row{text-align:center;color:#555;padding:8mm}
+    .toolbar{width:277mm;margin:12px auto 4px;display:flex;gap:8px}
+    .btn{appearance:none;border:2px solid #111;background:#fff;color:#111;padding:8px 12px;cursor:pointer;font-weight:700}
+    .btn:hover{background:#f3f3f3}
+    @page{size:A4 landscape;margin:10mm}
+    @media print{body{background:#fff;padding:0}.sheet{width:auto;min-height:auto;margin:0;padding:0;border:none;box-shadow:none}.toolbar{display:none}tr{break-inside:avoid;page-break-inside:avoid}.step-photo{max-width:65mm;max-height:50mm}}
+    @media screen and (max-width:1150px){.sheet,.toolbar{width:calc(100vw - 16px)}.meta{grid-template-columns:repeat(2,minmax(0,1fr))}.field:nth-child(4n){border-right:1px solid #111}.field:nth-child(2n){border-right:none}.field-wide{grid-column:span 2}}
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <div class="header"><h1>Przewodnik serwisowania</h1></div>
+    <div class="meta">
+      <div class="field"><div class="label">Nr przewodnika</div><div class="value">${escapeHtml(fullGuide.guide_number || "-")}</div></div>
+      <div class="field"><div class="label">Nazwa wyrobu</div><div class="value">${escapeHtml(fullGuide.product_name || "-")}</div></div>
+      <div class="field"><div class="label">Data przegladu</div><div class="value">${escapeHtml(formatDateOnly(fullGuide.review_date))}</div></div>
+      <div class="field"><div class="label">Status</div><div class="value">${escapeHtml(statusLabel)}</div></div>
+      <div class="field field-wide"><div class="label">Przyczyna przegladu</div><div class="value">${escapeHtml(fullGuide.review_reason || "-")}</div></div>
+      <div class="field field-wide"><div class="label">Forma</div><div class="value">${escapeHtml(mouldNumber || "-")}</div></div>
+    </div>
+    <table>
+      <colgroup><col style="width:12mm"><col><col style="width:70mm"><col style="width:70mm"><col style="width:40mm"></colgroup>
+      <thead><tr><th>L.P.</th><th>Naprawa</th><th>Foto 1</th><th>Foto 2</th><th>Wykonano / przez kogo</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>
+  <div class="toolbar"><button class="btn" onclick="window.print()">Drukuj</button></div>
+</body>
+</html>`;
+
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) {
+        setGuideError("Przegladarka zablokowala nowe okno z wydrukiem.");
+        return;
+      }
+      printWindow.document.write(html);
+      printWindow.document.close();
+    } catch (err) {
+      console.error(err);
+      setGuideError(String(err?.response?.data?.detail || "Nie udalo sie wygenerowac przewodnika PDF."));
+    }
+  };
+
   const addGuideStep = async () => {
     const guide = selectedGuide;
     if (!guide?.id) {
       setGuideError("Najpierw zapisz przewodnik.");
       return;
     }
-    await axios.post(
-      `${API_BASE}/service-guides/${guide.id}/steps`,
-      { ...stepDraft, lp: Number(stepDraft.lp) || 1 },
-      { headers: { ...(authHeaders?.() ?? {}) } }
-    );
+    const fd = new FormData();
+    fd.append("lp", String(Number(stepDraft.lp) || 1));
+    fd.append("fault", stepDraft.fault ?? "");
+    fd.append("confirmed_by", stepDraft.confirmed_by ?? "");
+    fd.append("repair", stepDraft.repair ?? "");
+    fd.append("performed_by", stepDraft.performed_by ?? "");
+    fd.append("is_done", "false");
+    if (stepPhoto1) fd.append("extra_photo_1", stepPhoto1);
+    if (stepPhoto2) fd.append("extra_photo_2", stepPhoto2);
+
+    await axios.post(`${API_BASE}/service-guides/${guide.id}/steps`, fd, {
+      headers: { ...(authHeaders?.() ?? {}) },
+    });
     const res = await axios.get(`${API_BASE}/service-guides/${guide.id}`);
     setSelectedGuide(res.data);
     await refreshGuides();
     setStepDraft({ lp: (res.data.steps?.length || 0) + 1, fault: "", confirmed_by: "", repair: "", performed_by: "" });
+    setStepPhoto1(null);
+    setStepPhoto2(null);
   };
 
   const deleteGuideStep = async (step) => {
@@ -833,13 +950,14 @@ export default function MouldDetails_Tpm({
               <tr>
                 <th className="text-center px-4 py-3 font-semibold">Przewodnik</th>
                 <th className="text-center px-4 py-3 font-semibold">Status</th>
+                <th className="text-center px-4 py-3 font-semibold">PDF</th>
                 {isAdmin && logged && <th className="text-center px-4 py-3 font-semibold">Akcje</th>}
               </tr>
             </thead>
             <tbody className="text-center">
               {!guideLoading && sortedGuides.length === 0 && (
                 <tr>
-                  <td colSpan={isAdmin && logged ? 3 : 2} className="px-4 py-6 opacity-80">
+                  <td colSpan={isAdmin && logged ? 4 : 3} className="px-4 py-6 opacity-80">
                     Brak przewodników dla tej formy.
                   </td>
                 </tr>
@@ -866,6 +984,16 @@ export default function MouldDetails_Tpm({
                     >
                       {guide.status === "done" ? "Wykonano" : "Otwarty"}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => handlePrintServiceGuide(guide)}
+                      className="px-3 py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 font-semibold"
+                      title="Wygeneruj PDF przewodnika"
+                    >
+                      PDF
+                    </button>
                   </td>
                   {isAdmin && logged && (
                     <td className="px-4 py-3">
@@ -929,6 +1057,16 @@ export default function MouldDetails_Tpm({
               <h3 className="text-xl font-bold text-cyan-400">
                 {selectedGuide ? "Przewodnik serwisowania" : "Nowy przewodnik serwisowania"}
               </h3>
+              {selectedGuide && (
+                <button
+                  type="button"
+                  onClick={() => handlePrintServiceGuide(selectedGuide)}
+                  className="ml-auto mr-2 px-3 py-1 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 font-semibold"
+                  title="Wygeneruj PDF przewodnika"
+                >
+                  PDF
+                </button>
+              )}
               <button type="button" onClick={closeGuide} className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20">
                 ✕
               </button>
@@ -986,7 +1124,7 @@ export default function MouldDetails_Tpm({
 
               {selectedGuide && (
                 <>
-                  <div className="grid grid-cols-1 lg:grid-cols-[64px_minmax(0,1fr)_auto] gap-3 mb-4 items-stretch">
+                  <div className="grid grid-cols-1 lg:grid-cols-[64px_minmax(0,1fr)_auto] gap-3 mb-3 items-stretch">
                     <input
                       type="number"
                       min="1"
@@ -1009,18 +1147,45 @@ export default function MouldDetails_Tpm({
                     </button>
                   </div>
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                    <label className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm">
+                      <span className="block mb-1 opacity-80">Zdjęcie 1</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="w-full text-sm text-white file:mr-3 file:rounded-lg file:border-0 file:bg-white/20 file:px-3 file:py-2 file:text-white file:hover:bg-white/30"
+                        onChange={(e) => setStepPhoto1(e.target.files?.[0] || null)}
+                      />
+                      {stepPhoto1 && <span className="mt-1 block text-xs text-cyan-200">{stepPhoto1.name}</span>}
+                    </label>
+                    <label className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm">
+                      <span className="block mb-1 opacity-80">Zdjęcie 2</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="w-full text-sm text-white file:mr-3 file:rounded-lg file:border-0 file:bg-white/20 file:px-3 file:py-2 file:text-white file:hover:bg-white/30"
+                        onChange={(e) => setStepPhoto2(e.target.files?.[0] || null)}
+                      />
+                      {stepPhoto2 && <span className="mt-1 block text-xs text-cyan-200">{stepPhoto2.name}</span>}
+                    </label>
+                  </div>
+
                   <div className="overflow-x-auto rounded-2xl border border-white/10">
-                    <table className="w-full min-w-[980px] text-sm table-fixed">
+                    <table className="w-full min-w-[1080px] text-sm table-fixed">
                       <colgroup>
                         <col className="w-20" />
-                        <col className="w-[58%]" />
-                        <col className="w-[26%]" />
+                        <col className="w-[44%]" />
+                        <col className="w-28" />
+                        <col className="w-28" />
+                        <col className="w-[22%]" />
                         <col className="w-40" />
                       </colgroup>
                       <thead className="bg-white/5">
                         <tr>
                           <th className="px-3 py-3">L.P.</th>
                           <th className="px-3 py-3">Naprawa</th>
+                          <th className="px-3 py-3">Foto 1</th>
+                          <th className="px-3 py-3">Foto 2</th>
                           <th className="px-3 py-3">Wykonał</th>
                           <th className="px-3 py-3">Akcje</th>
                         </tr>
@@ -1028,7 +1193,7 @@ export default function MouldDetails_Tpm({
                       <tbody>
                         {(selectedGuide.steps || []).length === 0 && (
                           <tr>
-                            <td colSpan={4} className="px-3 py-5 text-center opacity-80">
+                            <td colSpan={6} className="px-3 py-5 text-center opacity-80">
                               Brak czynności.
                             </td>
                           </tr>
@@ -1042,6 +1207,34 @@ export default function MouldDetails_Tpm({
                             >
                               <td className="px-3 py-3 text-center font-semibold">{step.lp}</td>
                               <td className="px-3 py-3 whitespace-pre-wrap">{step.repair || "-"}</td>
+                              <td className="px-3 py-3 text-center">
+                                {step.extra_photo_1 ? (
+                                  <a
+                                    href={normalizeMediaUrl(API_BASE, step.extra_photo_1)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex px-2 py-1 rounded-lg bg-blue-500/20 text-blue-200 hover:bg-blue-500/30"
+                                  >
+                                    Foto
+                                  </a>
+                                ) : (
+                                  "-"
+                                )}
+                              </td>
+                              <td className="px-3 py-3 text-center">
+                                {step.extra_photo_2 ? (
+                                  <a
+                                    href={normalizeMediaUrl(API_BASE, step.extra_photo_2)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex px-2 py-1 rounded-lg bg-blue-500/20 text-blue-200 hover:bg-blue-500/30"
+                                  >
+                                    Foto
+                                  </a>
+                                ) : (
+                                  "-"
+                                )}
+                              </td>
                               <td className="px-3 py-3 whitespace-pre-wrap">
                                 {step.is_done ? (
                                   <div className="flex flex-col items-center gap-1">
