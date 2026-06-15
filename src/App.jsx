@@ -41,6 +41,7 @@ import MES_Production_Dashboard from "./components/MES_Production_Dashboard.jsx"
 import Analytics from "./components/Analytics.jsx";
 import OrdersTree from "./components/OrdersTree.jsx";
 import StartPage from "./components/StartPage.jsx";
+import LicenseGate from "./components/LicenseGate.jsx";
 
 
 
@@ -122,7 +123,8 @@ function App() {
   return (
     <div className="min-h-screen bg-slate-800 text-white overflow-hidden">
       <Router>
-        <AutoLogoutTrigger />
+        <LicenseGate>
+          <AutoLogoutTrigger />
         {/* <Navbar /> */}
 
           <Routes>
@@ -179,6 +181,7 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/unauthorized" element={<div>Brak uprawnień</div>} />
           </Routes>
+        </LicenseGate>
 
         {/* (opcjonalnie) Footer */}
         {/* <Footer /> */}
