@@ -70,6 +70,7 @@ const navItems = [
   { module: "mes", to: "/mes/service/dashboard", label: "Dashboard serwisu", icon: LayoutDashboard, mesOnly: true },
   { module: "mes", to: "/changeovers", label: "Przezbrojenia", icon: ArrowLeftRight, mesOnly: true },
   { module: "mes", to: "/current_sv", label: "Maszyny", icon: Factory, mesOnly: true },
+  { module: "mes", to: "/superadmin", label: "Settings", icon: Settings, superAdminOnly: true },
 
   { module: "admin", to: "/production_admin", label: "Production Admin", icon: ShieldCheck, adminOnly: true },
   { module: "admin", to: "/service_admin", label: "Service Admin", icon: Hammer, adminOnly: true },
@@ -88,7 +89,8 @@ const moduleForPath = (pathname) => {
   if (
     pathname.startsWith("/mes") ||
     pathname.startsWith("/changeovers") ||
-    pathname.startsWith("/current_sv")
+    pathname.startsWith("/current_sv") ||
+    pathname.startsWith("/superadmin")
   ) {
     return "mes";
   }

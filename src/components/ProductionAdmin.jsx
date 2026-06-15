@@ -1865,6 +1865,22 @@ export default function ProductionAdmin() {
                         return orderLabelById.get(task.order_id) ?? row.task_id;
                       },
                     },
+                    {
+                      key: "detail_number",
+                      header: "Numer detalu",
+                      render: (row) => {
+                        const task = taskOptions.find((t) => t.id === row.task_id);
+                        return task ? (task.detail_number || "—") : "—";
+                      },
+                    },
+                    {
+                      key: "detail_name",
+                      header: "Nazwa detalu",
+                      render: (row) => {
+                        const task = taskOptions.find((t) => t.id === row.task_id);
+                        return task ? (task.detail_name || "—") : "—";
+                      },
+                    },
                     { key: "operation_no", header: "Nr operacji" },
                     { key: "description", header: "Opis" },
                     { key: "suggested_duration_min", header: "Sugerowany czas (min)" },

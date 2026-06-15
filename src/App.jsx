@@ -7,7 +7,10 @@ import Testimonials from './components/Testimonials.jsx'
 import Moulds from './components/Moulds.jsx'
 import Footer from './components/Footer.jsx'
 
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
+import { releaseAssignedMesResources } from "./utils/mesRelease.js";
+import { API_BASE } from "./config/api.js";
+import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom";
 import MouldDetails from "./components/MouldDetails";
 
 import Login from "./components/Login";
@@ -41,10 +44,85 @@ import StartPage from "./components/StartPage.jsx";
 
 
 
+function useDailyAutoLogout() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkTimeAndLogout = async () => {
+      const token = localStorage.getItem("access_token");
+      const userId = localStorage.getItem("user_id");
+      const uname = localStorage.getItem("username") || "";
+
+      if (!token || !userId) return;
+
+      const now = new Date();
+      const hours = now.getHours();
+      const minutes = now.getMinutes();
+
+      // Zwalnianie stanowisk o 23:45
+      if (hours === 23 && minutes >= 45) {
+        // Sprawdź czy automatyczne wylogowywanie jest aktywne w systemie
+        try {
+          const res = await fetch(`${API_BASE}/settings/auto-logout`);
+          const settings = await res.json();
+          if (settings && settings.enabled === false) {
+            console.log("Automatyczne wylogowanie o 23:45 jest obecnie WYŁĄCZONE w panelu admina.");
+            return;
+          }
+        } catch (err) {
+          console.error("Błąd podczas sprawdzania statusu autowylogowania:", err);
+          // W razie błędu serwera kontynuujemy wylogowywanie dla bezpieczeństwa
+        }
+
+        console.log("Automatyczne wylogowanie zwalniające stanowiska (23:45)...");
+
+        try {
+          await releaseAssignedMesResources({
+            token,
+            userId: parseInt(userId, 10),
+            username: uname,
+          });
+        } catch (err) {
+          console.error("Błąd podczas zwalniania zasobów:", err);
+        }
+
+        try {
+          const p = (n) => String(n).padStart(2, "0");
+          const created_at = `${now.getFullYear()}-${p(now.getMonth()+1)}-${p(now.getDate())}T${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+          await fetch(`${API_BASE}/mes-session/logs`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ user_id: parseInt(userId, 10), username: uname, action: "logout", created_at }),
+          });
+        } catch { /* ignore */ }
+
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("username");
+        localStorage.removeItem("role");
+        localStorage.removeItem("user_id");
+
+        window.dispatchEvent(new Event("storage"));
+        navigate("/login");
+      }
+    };
+
+    const interval = setInterval(checkTimeAndLogout, 30000);
+    checkTimeAndLogout();
+
+    return () => clearInterval(interval);
+  }, [navigate]);
+}
+
+function AutoLogoutTrigger() {
+  useDailyAutoLogout();
+  return null;
+}
+
 function App() {
   return (
     <div className="min-h-screen bg-slate-800 text-white overflow-hidden">
       <Router>
+        <AutoLogoutTrigger />
         {/* <Navbar /> */}
 
           <Routes>

@@ -132,8 +132,24 @@ ALTER TABLE analytica_machines ADD CONSTRAINT uq_ws_date_op_user UNIQUE (worksta
 
 ---
 
+## 11. Tabela `system_settings` — nowa tabela ustawień globalnych
+
+Dodano tabelę do przechowywania globalnych ustawień systemu, takich jak status włączenia automatycznego wylogowywania pracowników.
+
+```sql
+CREATE TABLE IF NOT EXISTS system_settings (
+    key VARCHAR(100) PRIMARY KEY,
+    value VARCHAR(255) NOT NULL
+);
+
+-- Domyślne włączenie funkcji autowylogowania
+INSERT INTO system_settings (key, value) VALUES ('auto_logout_enabled', 'true') ON CONFLICT (key) DO NOTHING;
+```
+
+---
+
 ## Kolejność wykonania
 
 1. Najpierw utwórz tabelę `machine_groups` (punkt 1)
 2. Potem dodaj kolumnę `machine_group_id` w `workstations` (punkt 3) — wymaga istnienia tabeli `machine_groups`
-3. Punkty 2, 4, 5, 6, 7, 8, 9 i 10 można wykonać niezależnie. W przypadku 9 i 10, po wgraniu skryptów zrestartuj backend.
+3. Punkty 2, 4, 5, 6, 7, 8, 9, 10 i 11 można wykonać niezależnie. Po wdrożeniu skryptów (szczególnie nowych tabel) zrestartuj backend.
