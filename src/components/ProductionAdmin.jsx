@@ -1419,6 +1419,7 @@ export default function ProductionAdmin() {
                     { key: "quantity", header: "Ilość" },
                     {
                       key: "is_done",
+                      className: "w-[5%]",
                       header: "Zakończone",
                       render: (row) => (
                         <button
@@ -1865,11 +1866,11 @@ export default function ProductionAdmin() {
                   compact
                   tableClassName="w-full table-fixed text-xs"
                   columns={[
-                    { key: "id", header: "ID", className: "w-[42px]" },
+                    { key: "id", header: "ID", className: "w-[3%]" },
                     {
                       key: "task_id",
                       header: "Zlecenie",
-                      className: "w-[110px] break-words",
+                      className: "w-[16%] break-words text-left",
                       render: (row) => {
                         const task = taskOptions.find((t) => t.id === row.task_id);
                         if (!task) return row.task_id;
@@ -1879,7 +1880,7 @@ export default function ProductionAdmin() {
                     {
                       key: "detail_number",
                       header: "Numer detalu",
-                      className: "w-[76px] break-words",
+                      className: "w-[4%] break-words",
                       render: (row) => {
                         const task = taskOptions.find((t) => t.id === row.task_id);
                         return task ? (task.detail_number || "—") : "—";
@@ -1888,21 +1889,30 @@ export default function ProductionAdmin() {
                     {
                       key: "detail_name",
                       header: "Nazwa detalu",
-                      className: "w-[115px] break-words",
+                      className: "w-[14%] break-words text-left",
                       render: (row) => {
                         const task = taskOptions.find((t) => t.id === row.task_id);
                         return task ? (task.detail_name || "—") : "—";
                       },
                     },
-                    { key: "operation_no", header: "Nr op.", className: "w-[54px]" },
-                    { key: "description", header: "Opis", className: "w-[180px] break-words text-left" },
-                    { key: "suggested_duration_min", header: "Sug. czas (min)", className: "w-[70px]" },
-                    { key: "duration_total_min", header: "Wyk. (min)", className: "w-[62px]" },
-                    { key: "duration_shift_min", header: "Zmiana (min)", className: "w-[70px]" },
+                    { key: "operation_no", header: "Nr op.", className: "w-[4%]" },
+                    { key: "description", header: "Opis", className: "w-[19%] break-words text-left" },
+                    {
+                      key: "workstation_id",
+                      className: "w-[8%] break-words",
+                      header: "Stanowisko",
+                      render: (row) => {
+                        const ws = workstationOptions.find((w) => w.id === row.workstation_id);
+                        return ws ? ws.name : row.workstation_id ?? "—";
+                      },
+                    },
+                    { key: "suggested_duration_min", header: "Sug. czas (min)", className: "w-[5%]" },
+                    { key: "duration_total_min", header: "Wyk. (min)", className: "w-[4%]" },
+                    { key: "duration_shift_min", header: "Zmiana (min)", className: "w-[4%]" },
                     {
                       key: "is_released",
                       header: "Przekazane",
-                      className: "w-[58px]",
+                      className: "w-[5%]",
                       render: (row) => (
                         <button
                           type="button"
@@ -1938,20 +1948,12 @@ export default function ProductionAdmin() {
                         </button>
                       ),
                     },
-                    { key: "is_started", header: "Rozpoczęte", render: (row) => (row.is_started ? "tak" : "nie") },
-                    {
-                      key: "workstation_id",
-                      className: "w-[82px] break-words",
-                      header: "Stanowisko",
-                      render: (row) => {
-                        const ws = workstationOptions.find((w) => w.id === row.workstation_id);
-                        return ws ? ws.name : row.workstation_id ?? "—";
-                      },
-                    },
+                    { key: "is_started", header: "Rozp.", className: "w-[4%]", render: (row) => (row.is_started ? "tak" : "nie") },
                     ...(canEdit
                       ? [
                           {
                             key: "actions",
+                            className: "w-[5%]",
                             header: "Akcje",
                             render: (row) => (
                               <div className="flex flex-wrap gap-1 justify-center">
