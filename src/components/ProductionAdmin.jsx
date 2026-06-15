@@ -360,7 +360,7 @@ export default function ProductionAdmin() {
         return fields.some((v) => v.includes(term));
       });
     }
-    return list.slice().sort((a, b) => (a.task_id ?? 0) - (b.task_id ?? 0) || (a.operation_no ?? 0) - (b.operation_no ?? 0));
+    return list.slice().sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
   }, [operations, operationTaskSearch, operationTaskFilter, operationOrderFilter, taskLabelById, taskOptions]);
   const ordersPageData = useMemo(() => paginateRows(orders, ordersPage), [orders, ordersPage]);
   const tasksPageData = useMemo(() => paginateRows(filteredTasks, tasksPage), [filteredTasks, tasksPage]);
