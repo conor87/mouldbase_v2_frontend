@@ -37,18 +37,21 @@ const paginateRows = (rows, page, pageSize = PAGE_SIZE) => {
   };
 };
 
-const DataTable = ({ columns, rows, getRowKey }) => {
+const DataTable = ({ columns, rows, getRowKey, tableClassName = "min-w-full text-sm", compact = false }) => {
   if (!rows.length) {
     return <div className="text-sm text-slate-400">No records yet.</div>;
   }
 
   return (
     <div className="overflow-x-auto border border-slate-700 rounded-lg">
-      <table className="min-w-full text-sm">
+      <table className={tableClassName}>
         <thead className="bg-slate-900/60 text-slate-300">
           <tr>
             {columns.map((col) => (
-              <th key={col.key} className="px-3 py-2 text-center font-medium">
+              <th
+                key={col.key}
+                className={`${compact ? "px-1.5 py-2" : "px-3 py-2"} text-center font-medium ${col.className ?? ""}`}
+              >
                 {col.header}
               </th>
             ))}
@@ -58,7 +61,10 @@ const DataTable = ({ columns, rows, getRowKey }) => {
           {rows.map((row, index) => (
             <tr key={getRowKey(row, index)} className="hover:bg-slate-800/40">
               {columns.map((col) => (
-                <td key={col.key} className="px-3 py-2 text-slate-200 text-center">
+                <td
+                  key={col.key}
+                  className={`${compact ? "px-1.5 py-2" : "px-3 py-2"} text-slate-200 text-center align-middle ${col.className ?? ""}`}
+                >
                   {col.render ? col.render(row) : row[col.key]}
                 </td>
               ))}
@@ -1093,6 +1099,7 @@ export default function ProductionAdmin() {
                       ? [
                           {
                             key: "actions",
+                            className: "w-[100px]",
                             header: "Akcje",
                             render: (row) => (
                               <button
@@ -1275,6 +1282,7 @@ export default function ProductionAdmin() {
                     },
                     {
                       key: "is_done",
+                      className: "w-[58px]",
                       header: "Zakończone",
                       render: (row) => (
                         <button
@@ -1854,11 +1862,14 @@ export default function ProductionAdmin() {
                 <DataTable
                   rows={operationsPageData.rows}
                   getRowKey={(row) => row.id}
+                  compact
+                  tableClassName="w-full table-fixed text-xs"
                   columns={[
-                    { key: "id", header: "ID" },
+                    { key: "id", header: "ID", className: "w-[42px]" },
                     {
                       key: "task_id",
                       header: "Zlecenie",
+                      className: "w-[110px] break-words",
                       render: (row) => {
                         const task = taskOptions.find((t) => t.id === row.task_id);
                         if (!task) return row.task_id;
@@ -1868,6 +1879,7 @@ export default function ProductionAdmin() {
                     {
                       key: "detail_number",
                       header: "Numer detalu",
+                      className: "w-[76px] break-words",
                       render: (row) => {
                         const task = taskOptions.find((t) => t.id === row.task_id);
                         return task ? (task.detail_number || "—") : "—";
@@ -1876,19 +1888,21 @@ export default function ProductionAdmin() {
                     {
                       key: "detail_name",
                       header: "Nazwa detalu",
+                      className: "w-[115px] break-words",
                       render: (row) => {
                         const task = taskOptions.find((t) => t.id === row.task_id);
                         return task ? (task.detail_name || "—") : "—";
                       },
                     },
-                    { key: "operation_no", header: "Nr operacji" },
-                    { key: "description", header: "Opis" },
-                    { key: "suggested_duration_min", header: "Sugerowany czas (min)" },
-                    { key: "duration_total_min", header: "Czas wykonania (min)" },
-                    { key: "duration_shift_min", header: "Czas na zmianie (min)" },
+                    { key: "operation_no", header: "Nr op.", className: "w-[54px]" },
+                    { key: "description", header: "Opis", className: "w-[180px] break-words text-left" },
+                    { key: "suggested_duration_min", header: "Sug. czas (min)", className: "w-[70px]" },
+                    { key: "duration_total_min", header: "Wyk. (min)", className: "w-[62px]" },
+                    { key: "duration_shift_min", header: "Zmiana (min)", className: "w-[70px]" },
                     {
                       key: "is_released",
                       header: "Przekazane",
+                      className: "w-[58px]",
                       render: (row) => (
                         <button
                           type="button"
@@ -1927,6 +1941,7 @@ export default function ProductionAdmin() {
                     { key: "is_started", header: "Rozpoczęte", render: (row) => (row.is_started ? "tak" : "nie") },
                     {
                       key: "workstation_id",
+                      className: "w-[82px] break-words",
                       header: "Stanowisko",
                       render: (row) => {
                         const ws = workstationOptions.find((w) => w.id === row.workstation_id);
@@ -1939,11 +1954,11 @@ export default function ProductionAdmin() {
                             key: "actions",
                             header: "Akcje",
                             render: (row) => (
-                              <div className="flex gap-2 justify-center">
+                              <div className="flex flex-wrap gap-1 justify-center">
                                 <button
                                   type="button"
                                   onClick={() => startEditOperation(row)}
-                                  className="px-2 py-1 rounded-md border border-slate-600 text-slate-200 hover:border-slate-400"
+                                  className="px-1.5 py-1 rounded-md border border-slate-600 text-slate-200 hover:border-slate-400"
                                 >
                                   Edytuj
                                 </button>
@@ -1965,7 +1980,7 @@ export default function ProductionAdmin() {
                                       setMessage("Błąd usuwania operacji: " + err.message);
                                     }
                                   }}
-                                  className="px-2 py-1 rounded-md border border-red-600 text-red-400 hover:border-red-400 hover:text-red-300"
+                                  className="px-1.5 py-1 rounded-md border border-red-600 text-red-400 hover:border-red-400 hover:text-red-300"
                                 >
                                   Usuń
                                 </button>

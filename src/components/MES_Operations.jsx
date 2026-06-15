@@ -218,21 +218,21 @@ export default function MES_Operations() {
         <p className="text-slate-400">Brak operacji dla tej maszyny.</p>
       ) : (
         <>
-          <div className="flex flex-col sm:flex-row gap-3 mb-4 w-full max-w-2xl mx-auto items-stretch sm:items-center">
-            <div className="relative flex-1">
+          <div className="flex flex-col sm:flex-row gap-3 mb-4 w-full max-w-5xl mx-auto items-stretch sm:items-center">
+            <div className="relative w-full sm:w-[320px] sm:shrink-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <input
                 type="text"
                 placeholder="Szukaj operacji..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm"
+                className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm text-slate-100 placeholder:text-slate-500 caret-cyan-300 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/40"
               />
             </div>
             <select
               value={selectedOrderId}
               onChange={(e) => setSelectedOrderId(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm flex-1"
+              className="min-w-0 px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm flex-1"
             >
               <option value="">Wszystkie zlecenia</option>
               {orderSelectOptions.map((o) => (
