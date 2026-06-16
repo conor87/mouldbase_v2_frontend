@@ -80,6 +80,8 @@ export default function Kalendarz() {
   const [moulds, setMoulds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [savingAdd, setSavingAdd] = useState(false);
@@ -166,6 +168,36 @@ export default function Kalendarz() {
     });
     return rows;
   }, [entries]);
+
+  const totalPages = Math.ceil(sorted.length / pageSize) || 1;
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * pageSize;
+  const currentRows = sorted.slice(startIndex, startIndex + pageSize);
+
+  const goToPage = (page) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
+
+  const paginationItems = useMemo(() => {
+    const delta = 3;
+    const pagesSet = new Set([1, totalPages]);
+
+    for (let p = safePage - delta; p <= safePage + delta; p++) {
+      if (p >= 1 && p <= totalPages) pagesSet.add(p);
+    }
+
+    const pages = Array.from(pagesSet).sort((a, b) => a - b);
+
+    const items = [];
+    let prev = null;
+    for (const p of pages) {
+      if (prev !== null && p - prev > 1) items.push("...");
+      items.push(p);
+      prev = p;
+    }
+    return items;
+  }, [safePage, totalPages]);
 
   const openAdd = () => {
     if (!canEditCalendar) return;
@@ -413,7 +445,7 @@ export default function Kalendarz() {
             </thead>
 
             <tbody className="text-center">
-              {sorted.map((row) => {
+              {currentRows.map((row) => {
                 const badge = statusBadge(Boolean(row?.is_active));
                 const isDeletingThis = deletingId !== null && String(deletingId) === String(row.id);
 
@@ -493,6 +525,46 @@ export default function Kalendarz() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!loading && !error && sorted.length > 0 && totalPages > 1 && (
+        <div className="flex flex-wrap items-center justify-center gap-2 mt-6">
+          <button
+            onClick={() => goToPage(safePage - 1)}
+            disabled={safePage === 1}
+            className="px-3 py-2 border border-slate-700 rounded-lg disabled:opacity-40 hover:border-slate-500"
+          >
+            &lsaquo;
+          </button>
+
+          {paginationItems.map((item, idx) =>
+            item === "..." ? (
+              <span key={`dots-${idx}`} className="px-3 py-2 text-gray-400 select-none">
+                ...
+              </span>
+            ) : (
+              <button
+                key={item}
+                onClick={() => goToPage(item)}
+                className={`px-3 py-2 rounded-lg border ${
+                  safePage === item
+                    ? "bg-blue-500 border-blue-500 text-white"
+                    : "border-slate-700 hover:border-slate-500"
+                }`}
+              >
+                {item}
+              </button>
+            )
+          )}
+
+          <button
+            onClick={() => goToPage(safePage + 1)}
+            disabled={safePage === totalPages}
+            className="px-3 py-2 border border-slate-700 rounded-lg disabled:opacity-40 hover:border-slate-500"
+          >
+            &rsaquo;
+          </button>
         </div>
       )}
 
