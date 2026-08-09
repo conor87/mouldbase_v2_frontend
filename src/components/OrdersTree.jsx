@@ -12,6 +12,19 @@ const getAuthHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem("access_token")}`,
 });
 
+const collator = new Intl.Collator("pl", {
+  numeric: true,
+  sensitivity: "base",
+});
+
+const sortByDetailNumber = (items) =>
+  [...items].sort((a, b) =>
+    collator.compare(String(a.detail_number ?? ""), String(b.detail_number ?? ""))
+  );
+
+const sortByOperationNo = (items) =>
+  [...items].sort((a, b) => (Number(a.operation_no) || 0) - (Number(b.operation_no) || 0));
+
 function statusLabel(op) {
   if (op.is_done) return { text: "Zakończone", cls: "bg-emerald-500/90 text-white" };
   if (op.is_started) return { text: "W toku", cls: "bg-amber-400 text-slate-900" };
@@ -38,7 +51,7 @@ function TaskRow({ task, workstationMap, canToggleDone, onOperationDoneChange })
           headers: getAuthHeaders(),
           params: { task_id: task.id },
         });
-        setOperations(normalizeList(res.data));
+        setOperations(sortByOperationNo(normalizeList(res.data)));
         loaded.current = true;
       } catch (err) {
         console.error("Error fetching operations:", err);
@@ -227,7 +240,8 @@ export default function OrdersTree() {
     return allOrders.filter((order) => {
       const matchesQuery =
         !normalizedQuery ||
-        order.order_number?.toLowerCase().includes(normalizedQuery);
+        order.team?.toLowerCase().includes(normalizedQuery) ||
+        order.product_name?.toLowerCase().includes(normalizedQuery);
       const matchesOpen = !openOnly || !order.is_done;
       return matchesQuery && matchesOpen;
     });
@@ -316,7 +330,7 @@ export default function OrdersTree() {
           ? fetchWorkstations()
           : Promise.resolve(workstationMap),
       ]);
-      const nextTasks = normalizeList(tasksRes.data);
+      const nextTasks = sortByDetailNumber(normalizeList(tasksRes.data));
       setTasks(nextTasks);
       const operationsResults = await Promise.all(
         nextTasks.map(async (task) => {
@@ -324,7 +338,7 @@ export default function OrdersTree() {
             headers: getAuthHeaders(),
             params: { task_id: task.id },
           });
-          return [task.id, normalizeList(res.data)];
+          return [task.id, sortByOperationNo(normalizeList(res.data))];
         })
       );
       setOperationsByTaskId(Object.fromEntries(operationsResults));
@@ -425,7 +439,7 @@ export default function OrdersTree() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Numer zamówienia..."
+            placeholder="Zespół lub nazwa wyrobu..."
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10
                        text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500/60
                        focus:ring-1 focus:ring-blue-500/30 transition"
@@ -470,7 +484,7 @@ export default function OrdersTree() {
           {orders.length === 0 && !loading ? (
             <p className="text-slate-500 text-sm">
               {query.trim()
-                ? `Brak wyników dla "${query}"`
+                ? `Brak wyników dla zespołu lub nazwy wyrobu "${query}"`
                 : openOnly
                   ? "Brak otwartych zleceń"
                   : "Brak zleceń"}
