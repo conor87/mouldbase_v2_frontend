@@ -23,7 +23,7 @@ function progressValue(op) {
   return op.is_done ? 100 : 0;
 }
 
-function TaskRow({ task, workstationMap, canToggleDone }) {
+function TaskRow({ task, workstationMap, canToggleDone, onOperationDoneChange }) {
   const [expanded, setExpanded] = useState(false);
   const [operations, setOperations] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -61,6 +61,7 @@ function TaskRow({ task, workstationMap, canToggleDone }) {
       setOperations((prev) =>
         prev.map((item) => (item.id === op.id ? { ...item, ...res.data } : item))
       );
+      onOperationDoneChange?.(task.id, res.data);
     } catch (err) {
       console.error("Error updating operation status:", err);
     } finally {
@@ -196,14 +197,17 @@ export default function OrdersTree() {
   const currentUser = getCurrentUser();
   const canToggleDone = ["admindn", "superadmin"].includes(currentUser?.role);
   const [query, setQuery] = useState("");
-  const [orders, setOrders] = useState([]);
+  const [allOrders, setAllOrders] = useState([]);
+  const [openOnly, setOpenOnly] = useState(true);
   const [activeOrders, setActiveOrders] = useState([]);
   const [selectedActiveOrderId, setSelectedActiveOrderId] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [tasks, setTasks] = useState([]);
+  const [operationsByTaskId, setOperationsByTaskId] = useState({});
   const [workstationMap, setWorkstationMap] = useState({});
   const [loading, setLoading] = useState(false);
   const [loadingActiveOrders, setLoadingActiveOrders] = useState(false);
+  const [savingOrderDone, setSavingOrderDone] = useState(false);
   const [searched, setSearched] = useState(false);
 
   const orderOptionLabel = (order) => {
@@ -217,6 +221,28 @@ export default function OrdersTree() {
     activeOrders.forEach((order) => map.set(String(order.id), order));
     return map;
   }, [activeOrders]);
+
+  const orders = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return allOrders.filter((order) => {
+      const matchesQuery =
+        !normalizedQuery ||
+        order.order_number?.toLowerCase().includes(normalizedQuery);
+      const matchesOpen = !openOnly || !order.is_done;
+      return matchesQuery && matchesOpen;
+    });
+  }, [allOrders, openOnly, query]);
+
+  const selectedOrderOperations = useMemo(
+    () => Object.values(operationsByTaskId).flat(),
+    [operationsByTaskId]
+  );
+
+  const canCloseSelectedOrder =
+    tasks.length > 0 &&
+    tasks.every((task) => operationsByTaskId[task.id]) &&
+    selectedOrderOperations.length > 0 &&
+    selectedOrderOperations.every((op) => op.is_done);
 
   const fetchWorkstations = async () => {
     try {
@@ -235,23 +261,19 @@ export default function OrdersTree() {
   };
 
   const handleSearch = async () => {
-    if (!query.trim()) return;
     setLoading(true);
     setSearched(true);
     setSelectedOrder(null);
     setTasks([]);
+    setOperationsByTaskId({});
     try {
       const res = await axios.get(`${API_BASE}/production/orders`, {
         headers: getAuthHeaders(),
       });
-      const all = normalizeList(res.data);
-      const filtered = all.filter((o) =>
-        o.order_number?.toLowerCase().includes(query.trim().toLowerCase())
-      );
-      setOrders(filtered);
+      setAllOrders(normalizeList(res.data));
     } catch (err) {
       console.error("Error fetching orders:", err);
-      setOrders([]);
+      setAllOrders([]);
     } finally {
       setLoading(false);
     }
@@ -282,6 +304,7 @@ export default function OrdersTree() {
   const handleSelectOrder = async (order) => {
     setSelectedOrder(order);
     setSelectedActiveOrderId(String(order.id));
+    setOperationsByTaskId({});
     setLoading(true);
     try {
       const [tasksRes, wsMap] = await Promise.all([
@@ -293,7 +316,18 @@ export default function OrdersTree() {
           ? fetchWorkstations()
           : Promise.resolve(workstationMap),
       ]);
-      setTasks(normalizeList(tasksRes.data));
+      const nextTasks = normalizeList(tasksRes.data);
+      setTasks(nextTasks);
+      const operationsResults = await Promise.all(
+        nextTasks.map(async (task) => {
+          const res = await axios.get(`${API_BASE}/production/operations`, {
+            headers: getAuthHeaders(),
+            params: { task_id: task.id },
+          });
+          return [task.id, normalizeList(res.data)];
+        })
+      );
+      setOperationsByTaskId(Object.fromEntries(operationsResults));
       if (Object.keys(workstationMap).length === 0) setWorkstationMap(wsMap);
     } catch (err) {
       console.error("Error fetching tasks:", err);
@@ -308,7 +342,7 @@ export default function OrdersTree() {
     const order = activeOrderById.get(String(value));
     if (order) {
       setSearched(false);
-      setOrders([]);
+      setAllOrders([]);
       setQuery("");
       handleSelectOrder(order);
     }
@@ -316,6 +350,39 @@ export default function OrdersTree() {
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter") handleSearch();
+  };
+
+  const handleOperationDoneChange = (taskId, updatedOperation) => {
+    setOperationsByTaskId((prev) => ({
+      ...prev,
+      [taskId]: (prev[taskId] || []).map((op) =>
+        op.id === updatedOperation.id ? { ...op, ...updatedOperation } : op
+      ),
+    }));
+  };
+
+  const handleToggleSelectedOrderDone = async () => {
+    if (!selectedOrder || savingOrderDone) return;
+    const newDone = !selectedOrder.is_done;
+    if (newDone && !canCloseSelectedOrder) return;
+    setSavingOrderDone(true);
+    try {
+      const res = await axios.put(
+        `${API_BASE}/production/orders/${selectedOrder.id}`,
+        { is_done: newDone },
+        { headers: getAuthHeaders() }
+      );
+      const updatedOrder = { ...selectedOrder, ...res.data };
+      setSelectedOrder(updatedOrder);
+      setAllOrders((prev) =>
+        prev.map((order) => (order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order))
+      );
+      await fetchActiveOrders();
+    } catch (err) {
+      console.error("Error updating order status:", err);
+    } finally {
+      setSavingOrderDone(false);
+    }
   };
 
   return (
@@ -350,7 +417,7 @@ export default function OrdersTree() {
       </div>
 
       {/* Search bar */}
-      <div className="flex items-center gap-3 mb-8">
+      <div className="flex flex-wrap items-center gap-3 mb-8">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -364,9 +431,28 @@ export default function OrdersTree() {
                        focus:ring-1 focus:ring-blue-500/30 transition"
           />
         </div>
+        <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-slate-200">
+          <span>Otwarte</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={openOnly}
+            aria-label="Pokaż tylko otwarte zlecenia"
+            onClick={() => setOpenOnly((prev) => !prev)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              openOnly ? "bg-blue-600" : "bg-slate-600"
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+                openOnly ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
         <button
           onClick={handleSearch}
-          disabled={loading || !query.trim()}
+          disabled={loading}
           className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500
                      text-white font-medium rounded-xl transition cursor-pointer disabled:cursor-not-allowed
                      flex items-center gap-2"
@@ -382,7 +468,13 @@ export default function OrdersTree() {
       {searched && !selectedOrder && (
         <div className="mb-6">
           {orders.length === 0 && !loading ? (
-            <p className="text-slate-500 text-sm">Brak wyników dla "{query}"</p>
+            <p className="text-slate-500 text-sm">
+              {query.trim()
+                ? `Brak wyników dla "${query}"`
+                : openOnly
+                  ? "Brak otwartych zleceń"
+                  : "Brak zleceń"}
+            </p>
           ) : (
             <div className="space-y-2">
               {orders.map((order) => (
@@ -432,6 +524,7 @@ export default function OrdersTree() {
             onClick={() => {
               setSelectedOrder(null);
               setTasks([]);
+              setOperationsByTaskId({});
             }}
             className="text-sm text-blue-400 hover:text-blue-300 mb-3 flex items-center gap-1 transition cursor-pointer"
           >
@@ -445,8 +538,36 @@ export default function OrdersTree() {
             {selectedOrder.product_name && (
               <span className="text-slate-300">&mdash; {selectedOrder.product_name}</span>
             )}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={selectedOrder.is_done}
+              aria-label="Zamknij zlecenie"
+              title={
+                selectedOrder.is_done
+                  ? "Otwórz zlecenie ponownie"
+                  : canCloseSelectedOrder
+                    ? "Zamknij zlecenie"
+                    : "Zlecenie można zamknąć dopiero po zamknięciu wszystkich operacji"
+              }
+              onClick={handleToggleSelectedOrderDone}
+              disabled={
+                savingOrderDone ||
+                loading ||
+                (!selectedOrder.is_done && !canCloseSelectedOrder)
+              }
+              className={`ml-auto relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                selectedOrder.is_done ? "bg-emerald-600" : "bg-slate-600"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+                  selectedOrder.is_done ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
             <span
-              className={`ml-auto text-xs px-2.5 py-1 rounded-full font-medium ${
+              className={`text-xs px-2.5 py-1 rounded-full font-medium ${
                 selectedOrder.is_done
                   ? "bg-emerald-500/90 text-white"
                   : "bg-amber-400 text-slate-900"
@@ -477,6 +598,7 @@ export default function OrdersTree() {
                 task={task}
                 workstationMap={workstationMap}
                 canToggleDone={canToggleDone}
+                onOperationDoneChange={handleOperationDoneChange}
               />
             ))
           )}
