@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import SafeImg from "./SafeImg.jsx";
 import { useNavigate } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
+import { ListChecks } from "lucide-react";
 
 export default function MouldCard({ mould }) {
   const { id, mould_number, product, product_photo } = mould || {};
@@ -45,6 +46,8 @@ export default function MouldCard({ mould }) {
 
   // ✅ czy są otwarte TPM (backend powinien zwrócić has_open_tpm)
   const hasOpenTpm = Boolean(mould?.has_open_tpm);
+  const hasOpenGuide = Boolean(mould?.has_open_guide);
+  const hasOpenIndicator = hasOpenTpm || hasOpenGuide;
 
   return (
     <div className="section-center featured-center">
@@ -60,7 +63,7 @@ export default function MouldCard({ mould }) {
         </div>
 
         {/* Procent */}
-        <div className={`absolute -top-2 sm:-top-3 ${hasOpenTpm ? "left-1/2" : "left-[68%]"} transform -translate-x-1/2 z-10`}>
+        <div className={`absolute -top-2 sm:-top-3 ${hasOpenIndicator ? "left-1/2" : "left-[68%]"} transform -translate-x-1/2 z-10`}>
           <div
             className={`flex h-6 items-center justify-center rounded-full px-2 text-[10px] font-semibold leading-none shadow-lg sm:px-3 sm:text-xs ${percentBadgeClass}`}
           >
@@ -69,11 +72,22 @@ export default function MouldCard({ mould }) {
         </div>
 
         {/* ✅ TPM badge (tylko gdy są otwarte) */}
-        {hasOpenTpm && (
-          <div className="absolute -top-2 sm:-top-3 left-[82%] transform -translate-x-1/2 z-10">
-            <div className="flex h-6 items-center justify-center rounded-full bg-gradient-to-b from-red-500 to-orange-500 px-2 text-[10px] font-semibold leading-none shadow-lg sm:px-3 sm:text-xs">
-              <span>TPM</span>
-            </div>
+        {hasOpenIndicator && (
+          <div className="absolute -top-2 sm:-top-3 right-4 z-10 flex items-center gap-1">
+            {hasOpenTpm && (
+              <div className="flex h-6 items-center justify-center rounded-full bg-gradient-to-b from-red-500 to-orange-500 px-2 text-[10px] font-semibold leading-none shadow-lg sm:px-3 sm:text-xs">
+                <span>TPM</span>
+              </div>
+            )}
+            {hasOpenGuide && (
+              <div
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-b from-emerald-500 to-teal-500 text-white shadow-lg"
+                title="Otwarty przewodnik"
+                aria-label="Otwarty przewodnik"
+              >
+                <ListChecks className="h-4 w-4" aria-hidden="true" />
+              </div>
+            )}
           </div>
         )}
 

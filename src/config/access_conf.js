@@ -45,6 +45,12 @@ export const ACCESS_TABLE = [
     description: "Total Productive Maintenance",
   },
   {
+    module: "Przewodniki",
+    path: "/open-service-guides",
+    allowedRoles: "all",
+    description: "Formy z otwartymi przewodnikami serwisowania",
+  },
+  {
     module: "Kalendarz",
     path: "/kalendarz",
     allowedRoles: "all",

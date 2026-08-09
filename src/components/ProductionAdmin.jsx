@@ -193,6 +193,7 @@ export default function ProductionAdmin() {
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [copyFromTaskId, setCopyFromTaskId] = useState("");
   const [copyToTaskId, setCopyToTaskId] = useState("");
+  const [bulkReleaseUpdating, setBulkReleaseUpdating] = useState(false);
 
   const authHeaders = () => {
     const token = localStorage.getItem("access_token");
@@ -374,6 +375,11 @@ export default function ProductionAdmin() {
     () => paginateRows(filteredOperations, operationsPage),
     [filteredOperations, operationsPage]
   );
+  const visibleOperationsReleaseTarget = useMemo(() => {
+    const visibleRows = operationsPageData.rows;
+    if (!visibleRows.length) return true;
+    return visibleRows.some((op) => !op.is_released);
+  }, [operationsPageData.rows]);
 
   useEffect(() => {
     setOrdersPage(1);
@@ -533,6 +539,44 @@ export default function ProductionAdmin() {
       await apiGet("/production/operations", setOperations);
       setMessage(newReleased ? "Operacja przekazana." : "Operacja cofnięta.");
     });
+  };
+
+  const handleToggleVisibleOperationsReleased = async () => {
+    const visibleRows = operationsPageData.rows;
+    if (!visibleRows.length || bulkReleaseUpdating) return;
+
+    const newReleased = visibleOperationsReleaseTarget;
+    const rowsToUpdate = visibleRows.filter((op) => Boolean(op.is_released) !== newReleased);
+    if (!rowsToUpdate.length) return;
+
+    try {
+      setBulkReleaseUpdating(true);
+      await Promise.all(
+        rowsToUpdate.map((op) =>
+          fetch(`${API_BASE}/production/operations/${op.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", ...authHeaders() },
+            body: JSON.stringify({ is_released: newReleased }),
+          }).then(async (res) => {
+            if (!res.ok) {
+              const msg = await res.text();
+              throw new Error(msg || `PUT operation ${op.id} failed`);
+            }
+          })
+        )
+      );
+      await apiGet("/production/operations", setOperations);
+      setMessage(
+        newReleased
+          ? `Przekazano widoczne operacje: ${rowsToUpdate.length}.`
+          : `Cofnieto przekazanie widocznych operacji: ${rowsToUpdate.length}.`
+      );
+    } catch (err) {
+      console.error(err);
+      setMessage("Blad zbiorczej zmiany przekazania: " + err.message);
+    } finally {
+      setBulkReleaseUpdating(false);
+    }
   };
 
   const handleCreateTask = async (e) => {
@@ -1911,7 +1955,32 @@ export default function ProductionAdmin() {
                     { key: "duration_shift_min", header: "Zmiana (min)", className: "w-[4%]" },
                     {
                       key: "is_released",
-                      header: "Przekazane",
+                      header: (
+                        <button
+                          type="button"
+                          onClick={handleToggleVisibleOperationsReleased}
+                          disabled={!operationsPageData.rows.length || bulkReleaseUpdating}
+                          className="inline-flex flex-col items-center justify-center gap-1 text-slate-200 hover:text-cyan-300 disabled:opacity-50 disabled:hover:text-slate-200"
+                          title={
+                            visibleOperationsReleaseTarget
+                              ? "Przekaz wszystkie aktualnie widoczne operacje"
+                              : "Cofnij przekazanie wszystkich aktualnie widocznych operacji"
+                          }
+                        >
+                          <span>Przekazane</span>
+                          <span
+                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                              visibleOperationsReleaseTarget ? "bg-slate-600" : "bg-blue-600"
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                                visibleOperationsReleaseTarget ? "translate-x-1" : "translate-x-5"
+                              }`}
+                            />
+                          </span>
+                        </button>
+                      ),
                       className: "w-[5%]",
                       render: (row) => (
                         <button

@@ -28,6 +28,13 @@ const formatDateOnly = (value) => {
   return d.toLocaleDateString("pl-PL");
 };
 
+const toSortableDate = (value) => {
+  if (!value) return 0;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return 0;
+  return d.getTime();
+};
+
 const escapeHtml = (value) =>
   String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -101,6 +108,7 @@ export default function MouldDetails_Tpm({
   logged,
   isAdmin, // admin/superadmin => true
   authHeaders, // () => ({ Authorization: `Bearer ...` })
+  initialOpenGuideId,
 }) {
   const [tpms, setTpms] = useState([]);
   const [loadingTpms, setLoadingTpms] = useState(false);
@@ -146,6 +154,7 @@ export default function MouldDetails_Tpm({
   // --- DELETE ---
   const [deletingId, setDeletingId] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
+  const [tpmSort, setTpmSort] = useState({ key: "id", direction: "desc" });
 
   const [guides, setGuides] = useState([]);
   const [guideError, setGuideError] = useState(null);
@@ -153,6 +162,7 @@ export default function MouldDetails_Tpm({
   const [guideSaving, setGuideSaving] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [selectedGuide, setSelectedGuide] = useState(null);
+  const [openedInitialGuideId, setOpenedInitialGuideId] = useState(null);
   const [editingStepId, setEditingStepId] = useState(null);
   const [guideDraft, setGuideDraft] = useState({
     guide_number: "",
@@ -250,7 +260,21 @@ export default function MouldDetails_Tpm({
     return () => controller.abort();
   }, [API_BASE, mouldId]);
 
+  const toggleTpmSort = (key) => {
+    setTpmSort((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "desc" ? "asc" : "desc",
+    }));
+  };
+
+  const tpmSortIcon = (key) => {
+    if (tpmSort.key !== key) return "⇅";
+    return tpmSort.direction === "asc" ? "▲" : "▼";
+  };
+
   const sortedTpms = useMemo(() => {
+    const direction = tpmSort.direction === "asc" ? 1 : -1;
+
     return [...tpms].sort((a, b) => {
       const aStatus = Number(a?.status ?? a?.state ?? a?.status_code);
       const bStatus = Number(b?.status ?? b?.state ?? b?.status_code);
@@ -259,9 +283,23 @@ export default function MouldDetails_Tpm({
       const bClosed = bStatus === 2;
       if (aClosed !== bClosed) return aClosed ? 1 : -1;
 
-      return Number(b?.id ?? 0) - Number(a?.id ?? 0);
+      if (tpmSort.key === "created") {
+        const aDate = toSortableDate(pickFirst(a, ["created", "created_at", "timestamp"], null));
+        const bDate = toSortableDate(pickFirst(b, ["created", "created_at", "timestamp"], null));
+        if (aDate !== bDate) return (aDate - bDate) * direction;
+      }
+
+      if (tpmSort.key === "changed") {
+        const aDate = toSortableDate(pickFirst(a, ["changed", "updated", "updated_at", "modified", "modified_at"], null));
+        const bDate = toSortableDate(pickFirst(b, ["changed", "updated", "updated_at", "modified", "modified_at"], null));
+        if (aDate !== bDate) return (aDate - bDate) * direction;
+      }
+
+      const aId = Number(pickFirst(a, ["id", "pk", "tpm_id"], 0)) || 0;
+      const bId = Number(pickFirst(b, ["id", "pk", "tpm_id"], 0)) || 0;
+      return (aId - bId) * direction;
     });
-  }, [tpms]);
+  }, [tpms, tpmSort]);
 
   const visibleTpms = showAll ? sortedTpms : sortedTpms.slice(0, 10);
 
@@ -307,6 +345,14 @@ export default function MouldDetails_Tpm({
     setStepPhoto2(null);
     setIsGuideOpen(true);
   };
+
+  useEffect(() => {
+    if (!initialOpenGuideId || openedInitialGuideId === initialOpenGuideId) return;
+    const guide = guides.find((item) => String(item?.id) === String(initialOpenGuideId));
+    if (!guide) return;
+    openGuideDetails(guide);
+    setOpenedInitialGuideId(initialOpenGuideId);
+  }, [guides, initialOpenGuideId, openedInitialGuideId]);
 
   const saveGuide = async () => {
     if (!isAdmin || !logged) return;
@@ -832,12 +878,39 @@ export default function MouldDetails_Tpm({
                 <table className="min-w-full text-sm">
                   <thead className="bg-white/5">
                     <tr>
-                      <th className="text-center px-4 py-3 font-semibold">ID</th>
+                      <th className="text-center px-4 py-3 font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => toggleTpmSort("id")}
+                          className="inline-flex items-center justify-center gap-1 hover:text-cyan-300"
+                          title="Sortuj po ID"
+                        >
+                          ID <span className="text-xs">{tpmSortIcon("id")}</span>
+                        </button>
+                      </th>
                       <th className="text-center px-4 py-3 font-semibold">Opis zgłoszenia</th>
                       <th className="text-center px-4 py-3 font-semibold">Czas reakcji</th>
                       <th className="text-center px-4 py-3 font-semibold">Status</th>
-                      <th className="text-center px-4 py-3 font-semibold">Utworzono</th>
-                      <th className="text-center px-4 py-3 font-semibold">Zmieniono</th>
+                      <th className="text-center px-4 py-3 font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => toggleTpmSort("created")}
+                          className="inline-flex items-center justify-center gap-1 hover:text-cyan-300"
+                          title="Sortuj po dacie utworzenia"
+                        >
+                          Utworzono <span className="text-xs">{tpmSortIcon("created")}</span>
+                        </button>
+                      </th>
+                      <th className="text-center px-4 py-3 font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => toggleTpmSort("changed")}
+                          className="inline-flex items-center justify-center gap-1 hover:text-cyan-300"
+                          title="Sortuj po dacie zmiany"
+                        >
+                          Zmieniono <span className="text-xs">{tpmSortIcon("changed")}</span>
+                        </button>
+                      </th>
                       <th className="text-center px-4 py-3 font-semibold">Foto 1</th>
                       <th className="text-center px-4 py-3 font-semibold">Foto 2</th>
 

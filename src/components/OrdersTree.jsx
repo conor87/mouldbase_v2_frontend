@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { API_BASE } from "../config/api.js";
+import { getCurrentUser } from "../auth.js";
 import { ChevronDown, ChevronRight, Search, Loader2 } from "lucide-react";
 import MES_UserBar from "./MES_UserBar.jsx";
 
@@ -22,10 +23,11 @@ function progressValue(op) {
   return op.is_done ? 100 : 0;
 }
 
-function TaskRow({ task, workstationMap }) {
+function TaskRow({ task, workstationMap, canToggleDone }) {
   const [expanded, setExpanded] = useState(false);
   const [operations, setOperations] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [savingOperationId, setSavingOperationId] = useState(null);
   const loaded = useRef(false);
 
   const toggle = async () => {
@@ -45,6 +47,25 @@ function TaskRow({ task, workstationMap }) {
       }
     }
     setExpanded((prev) => !prev);
+  };
+
+  const toggleOperationDone = async (op) => {
+    if (!canToggleDone) return;
+    setSavingOperationId(op.id);
+    try {
+      const res = await axios.put(
+        `${API_BASE}/production/operations/${op.id}`,
+        { is_done: !op.is_done },
+        { headers: getAuthHeaders() }
+      );
+      setOperations((prev) =>
+        prev.map((item) => (item.id === op.id ? { ...item, ...res.data } : item))
+      );
+    } catch (err) {
+      console.error("Error updating operation status:", err);
+    } finally {
+      setSavingOperationId(null);
+    }
   };
 
   const pct = operations.length
@@ -89,6 +110,7 @@ function TaskRow({ task, workstationMap }) {
                   <th className="px-4 py-2.5 text-left font-semibold">Opis operacji</th>
                   <th className="px-4 py-2.5 text-center font-semibold">Stanowisko</th>
                   <th className="px-4 py-2.5 text-center font-semibold">Status</th>
+                  <th className="px-4 py-2.5 text-center font-semibold">Zakończone</th>
                   <th className="px-4 py-2.5 text-center font-semibold">Postęp</th>
                   <th className="px-4 py-2.5 text-center rounded-tr-lg font-semibold">Czas [min]</th>
                 </tr>
@@ -118,6 +140,28 @@ function TaskRow({ task, workstationMap }) {
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${st.cls}`}>
                           {st.text}
                         </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => toggleOperationDone(op)}
+                          disabled={!canToggleDone || savingOperationId === op.id}
+                          aria-pressed={op.is_done}
+                          title={
+                            canToggleDone
+                              ? op.is_done ? "Ustaw jako niezakończone" : "Ustaw jako zakończone"
+                              : "Tylko admindn i superadmin"
+                          }
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                            op.is_done ? "bg-emerald-600" : "bg-slate-600"
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+                              op.is_done ? "translate-x-6" : "translate-x-1"
+                            }`}
+                          />
+                        </button>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2 justify-center">
@@ -149,6 +193,8 @@ function TaskRow({ task, workstationMap }) {
 }
 
 export default function OrdersTree() {
+  const currentUser = getCurrentUser();
+  const canToggleDone = ["admindn", "superadmin"].includes(currentUser?.role);
   const [query, setQuery] = useState("");
   const [orders, setOrders] = useState([]);
   const [activeOrders, setActiveOrders] = useState([]);
@@ -426,7 +472,12 @@ export default function OrdersTree() {
             </p>
           ) : (
             tasks.map((task) => (
-              <TaskRow key={task.id} task={task} workstationMap={workstationMap} />
+              <TaskRow
+                key={task.id}
+                task={task}
+                workstationMap={workstationMap}
+                canToggleDone={canToggleDone}
+              />
             ))
           )}
         </div>

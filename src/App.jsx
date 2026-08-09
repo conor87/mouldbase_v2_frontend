@@ -20,6 +20,7 @@ import SuperAdminPanel from "./components/SuperAdminPanel";
 import AdminPanel from "./components/AdminPanel";
 import Changeovers from "./components/Changeovers.jsx";
 import Tpm from "./components/Tpm.jsx";
+import OpenServiceGuides from "./components/OpenServiceGuides.jsx";
 import Kalendarz from "./components/Kalendarz.jsx";
 import ProductionAdmin from "./components/ProductionAdmin.jsx";
 import ServiceAdmin from "./components/ServiceAdmin.jsx";
@@ -135,6 +136,7 @@ function App() {
               <Route path="/changeovers" element={<Changeovers />} />
               <Route path="/current_sv" element={<CurrentSv />} />
               <Route path="/tpm" element={<Tpm />} />
+              <Route path="/open-service-guides" element={<OpenServiceGuides />} />
               <Route path="/kalendarz" element={<Kalendarz />} />
             </Route>
 

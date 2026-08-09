@@ -27,6 +27,13 @@ const formatDateOnly = (value) => {
   return d.toLocaleDateString("pl-PL");
 };
 
+const toSortableDate = (value) => {
+  if (!value) return 0;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return 0;
+  return d.getTime();
+};
+
 const TPM_TYPE_OPTIONS = [
   { value: 0, label: "AWARIA" },
   { value: 1, label: "USUNIĘCIE AWARII" },
@@ -108,12 +115,38 @@ export default function MouldsDetails_Book({
   // --- DELETE ---
   const [deletingId, setDeletingId] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
+  const [bookSort, setBookSort] = useState({ key: "created", direction: "desc" });
+
+  const toggleBookSort = (key) => {
+    setBookSort((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "desc" ? "asc" : "desc",
+    }));
+  };
+
+  const bookSortIcon = (key) => {
+    if (bookSort.key !== key) return "⇅";
+    return bookSort.direction === "asc" ? "▲" : "▼";
+  };
 
   const sortedBooks = useMemo(() => {
-    return [...books].sort(
-      (a, b) => new Date(b.created).getTime() - new Date(a.created).getTime()
-    );
-  }, [books]);
+    const direction = bookSort.direction === "asc" ? 1 : -1;
+    return [...books].sort((a, b) => {
+      if (bookSort.key === "id") {
+        const aId = Number(pickFirst(a, ["id", "pk", "book_id"], 0)) || 0;
+        const bId = Number(pickFirst(b, ["id", "pk", "book_id"], 0)) || 0;
+        return (aId - bId) * direction;
+      }
+
+      const aDate = toSortableDate(pickFirst(a, ["created", "created_at", "date", "timestamp"], ""));
+      const bDate = toSortableDate(pickFirst(b, ["created", "created_at", "date", "timestamp"], ""));
+      if (aDate !== bDate) return (aDate - bDate) * direction;
+
+      const aId = Number(pickFirst(a, ["id", "pk", "book_id"], 0)) || 0;
+      const bId = Number(pickFirst(b, ["id", "pk", "book_id"], 0)) || 0;
+      return bId - aId;
+    });
+  }, [books, bookSort]);
 
   // --- fetch list ---
   const refreshBooks = async () => {
@@ -365,8 +398,26 @@ export default function MouldsDetails_Book({
             <table className="min-w-full text-sm">
               <thead className="bg-white/5">
                 <tr>
-                  <th className="text-center px-4 py-3 font-semibold">ID</th>
-                  <th className="text-center px-4 py-3 font-semibold">Created</th>
+                  <th className="text-center px-4 py-3 font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => toggleBookSort("id")}
+                      className="inline-flex items-center justify-center gap-1 hover:text-cyan-300"
+                      title="Sortuj po ID"
+                    >
+                      ID <span className="text-xs">{bookSortIcon("id")}</span>
+                    </button>
+                  </th>
+                  <th className="text-center px-4 py-3 font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => toggleBookSort("created")}
+                      className="inline-flex items-center justify-center gap-1 hover:text-cyan-300"
+                      title="Sortuj po dacie utworzenia"
+                    >
+                      Created <span className="text-xs">{bookSortIcon("created")}</span>
+                    </button>
+                  </th>
                   <th className="text-center px-4 py-3 font-semibold">Opis zgłoszenia</th>
                   <th className="text-center px-4 py-3 font-semibold">Typ</th>
                   <th className="text-center px-4 py-3 font-semibold">Czas trwania</th>

@@ -4,6 +4,7 @@ import { API_BASE } from "../config/api.js";
 import {
   ArrowLeftRight,
   BarChart3,
+  BookOpen,
   Calendar,
   ClipboardList,
   Cpu,
@@ -63,6 +64,7 @@ const navItems = [
   { module: "moulds", to: "/moulds", label: "Formy", icon: Home, end: true },
   { module: "moulds", to: "/kalendarz", label: "Kalendarz", icon: Calendar },
   { module: "moulds", to: "/tpm", label: "TPM", icon: Wrench },
+  { module: "moulds", to: "/open-service-guides", label: "Przewodniki", icon: BookOpen },
   { module: "moulds", to: "/moulds-admin", label: "Dodaj formę", icon: Settings, adminOnly: true },
 
   { module: "mes", to: "/mes", label: "MES", icon: Cpu, mesOnly: true, end: true, smartMes: true },

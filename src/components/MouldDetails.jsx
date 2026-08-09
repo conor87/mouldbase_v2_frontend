@@ -78,6 +78,7 @@ export default function MouldDetails() {
   const navigate = useNavigate();
 
   const mouldFromNav = location.state?.mould;
+  const openGuideId = location.state?.openGuideId;
 
   // lokalny stan formy
   const [mouldData, setMouldData] = useState(mouldFromNav ?? null);
@@ -227,6 +228,7 @@ export default function MouldDetails() {
             mouldId={mouldData?.id}
             mouldNumber={mouldData?.mould_number}
             mouldProduct={mouldData?.product}
+            initialOpenGuideId={openGuideId}
           />
         </section>
 

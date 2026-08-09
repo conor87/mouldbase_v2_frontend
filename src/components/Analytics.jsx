@@ -4,7 +4,7 @@ import { API_BASE } from "../config/api.js";
 import { getCurrentUser } from "../auth.js";
 import {
   BarChart3, Save, RotateCcw, ChevronDown, ChevronUp, Clock,
-  User, Loader2, Cpu, Users, ScrollText, Wrench, LogIn, Plus, Pencil, Trash2, X, Factory, CalendarDays, LineChart,
+  Loader2, Cpu, ScrollText, Wrench, LogIn, Plus, Pencil, Trash2, X, Factory,
 } from "lucide-react";
 import Navbar from "./Navbar.jsx";
 
@@ -22,8 +22,21 @@ const formatMinutes = (mins) => {
 const formatProductionEntryLabel = (entry) => {
   const name = entry.workstation_name || `Stanowisko #${entry.workstation_id}`;
   const parts = [name];
-  if (entry.order_number) parts.push(`Zl: ${entry.order_number}`);
-  if (entry.order_team) parts.push(`Zespół: ${entry.order_team}`);
+  if (entry.order_number) parts.push(entry.order_number);
+  if (entry.order_team) parts.push(entry.order_team);
+  if (entry.order_product_name) parts.push(entry.order_product_name);
+  return parts.join(" | ");
+};
+
+const formatMachineEntryLabel = (entry) => {
+  const operation = `Op ${entry.operation_no ?? entry.operation_id}`;
+  const parts = [];
+  if (entry.order_number) parts.push(entry.order_number);
+  if (entry.order_team) parts.push(entry.order_team);
+  if (entry.order_product_name) parts.push(entry.order_product_name);
+  if (entry.detail_name) parts.push(entry.detail_name);
+  parts.push(operation);
+  if (entry.username) parts.push(entry.username);
   return parts.join(" | ");
 };
 
@@ -52,7 +65,6 @@ const paginateRows = (rows, page, pageSize = LOGS_PAGE_SIZE) => {
 };
 
 const tabs = [
-  { id: "workers", label: "Pracownicy", icon: Users },
   { id: "machines", label: "Maszyny", icon: Cpu },
   { id: "operators", label: "Operatorzy", icon: Factory },
   { id: "service", label: "Serwis", icon: Wrench },
@@ -232,7 +244,10 @@ function CardRow({
 
 export default function Analytics() {
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState(() => searchParams.get("tab") || "workers");
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = searchParams.get("tab");
+    return tabs.some((item) => item.id === tab) ? tab : "machines";
+  });
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
@@ -259,7 +274,6 @@ export default function Analytics() {
   // Operators state
   const [operators, setOperators] = useState([]);
   const [expandedOperator, setExpandedOperator] = useState(null);
-  const [operatorEdits, setOperatorEdits] = useState({});
 
   // Logs state
   const [allUsers, setAllUsers] = useState([]);
@@ -320,7 +334,7 @@ export default function Analytics() {
       const data = await res.json();
       const wData = (data.workers || []).map((w) => ({
         ...w,
-        entries: w.entries.map((e) => ({ ...e, _key: `${e.workstation_id}_${e.order_number || e.order_id || Math.random()}_${e.order_team || ""}` })),
+        entries: w.entries.map((e) => ({ ...e, _key: `${e.workstation_id}_${e.order_number || e.order_id || Math.random()}_${e.order_team || ""}_${e.order_product_name || ""}` })),
       }));
       setWorkers(sortByUsername(wData));
       setWorkerEdits({});
@@ -397,25 +411,57 @@ export default function Analytics() {
     }
   }, [selectedDate]);
 
-  const fetchOperators = useCallback(async () => {
+  const fetchOperators = useCallback(async (showLoading = true) => {
     if (!selectedDate) return;
-    setLoading(true);
-    setMessage(null);
+    if (showLoading) setLoading(true);
+    if (showLoading) setMessage(null);
     try {
-      const res = await fetch(`${API_BASE}/analytics/worker-cards?date=${selectedDate}`, { headers: authHeaders() });
+      const res = await fetch(`${API_BASE}/analytics/machine-cards?date=${selectedDate}`, { headers: authHeaders() });
       if (!res.ok) throw new Error();
       const data = await res.json();
-      const opData = (data.workers || []).map((w) => ({
-        ...w,
-        entries: w.entries.map((e) => ({ ...e, _key: `${e.workstation_id}_${e.order_number || e.order_id || Math.random()}_${e.order_team || ""}` })),
+      const workersById = new Map();
+      (data.machines || []).forEach((machine) => {
+        (machine.entries || []).forEach((entry) => {
+          if (!entry.user_id || entry.minutes <= 0) return;
+          const worker = workersById.get(entry.user_id) || {
+            user_id: entry.user_id,
+            username: entry.username || `User #${entry.user_id}`,
+            source: machine.source,
+            entriesByKey: new Map(),
+          };
+          if (machine.source === "saved") worker.source = "saved";
+
+          const key = [
+            machine.workstation_id,
+            entry.order_number || "",
+            entry.order_team || "",
+            entry.order_product_name || "",
+          ].join("|");
+          const current = worker.entriesByKey.get(key);
+          const next = {
+            workstation_id: machine.workstation_id,
+            workstation_name: machine.workstation_name,
+            order_number: entry.order_number,
+            order_team: entry.order_team,
+            order_product_name: entry.order_product_name,
+            minutes: (current?.minutes || 0) + entry.minutes,
+          };
+          next._key = `${next.workstation_id}_${next.order_number || ""}_${next.order_team || ""}_${next.order_product_name || ""}`;
+          worker.entriesByKey.set(key, next);
+          workersById.set(entry.user_id, worker);
+        });
+      });
+
+      const opData = Array.from(workersById.values()).map(({ entriesByKey, ...worker }) => ({
+        ...worker,
+        entries: Array.from(entriesByKey.values()),
       }));
       setOperators(sortByUsername(opData));
-      setOperatorEdits({});
     } catch {
       setMessage("Błąd pobierania danych operatorów.");
       setOperators([]);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, [selectedDate]);
 
@@ -467,25 +513,19 @@ export default function Analytics() {
   }, []);
 
   const fetchData = useCallback(() => {
-    if (activeTab === "workers") return fetchWorkers();
     if (activeTab === "machines") return fetchMachines();
     if (activeTab === "service") return fetchServiceWorkers();
     if (activeTab === "operators") return fetchOperators();
     if (activeTab === "production_logs") return fetchProductionLogs();
     if (activeTab === "service_logs") return fetchServiceLogs();
     if (activeTab === "session_logs") return fetchSessionLogs();
-  }, [activeTab, fetchWorkers, fetchMachines, fetchServiceWorkers, fetchOperators, fetchProductionLogs, fetchServiceLogs, fetchSessionLogs]);
+  }, [activeTab, fetchMachines, fetchServiceWorkers, fetchOperators, fetchProductionLogs, fetchServiceLogs, fetchSessionLogs]);
 
   useEffect(() => {
     if (selectedDate) fetchData();
   }, [selectedDate, fetchData]);
 
-  useEffect(() => {
-    if (activeTab === "workers" && workerView === "calendar") fetchWorkerCalendar();
-  }, [activeTab, workerView, fetchWorkerCalendar]);
-
   const refreshCurrentView = () => {
-    if (activeTab === "workers" && workerView === "calendar") return fetchWorkerCalendar();
     return fetchData();
   };
 
@@ -589,6 +629,7 @@ export default function Analytics() {
       if (!res.ok) throw new Error();
       setMessage(`Zapisano kartę: ${machine.workstation_name}`);
       await fetchMachines();
+      await fetchOperators(false);
     } catch {
       setMessage(`Błąd zapisu: ${machine.workstation_name}`);
     } finally {
@@ -607,6 +648,7 @@ export default function Analytics() {
       setMessage(`Zresetowano kartę: ${machine.workstation_name}`);
       setMachineEdits((p) => { const c = { ...p }; delete c[machine.workstation_id]; return c; });
       await fetchMachines();
+      await fetchOperators(false);
     } catch {
       setMessage(`Błąd resetowania: ${machine.workstation_name}`);
     } finally {
@@ -812,58 +854,9 @@ export default function Analytics() {
 
   // ===== Operators logic =====
 
-  const getOperatorEntries = (w) => operatorEdits[w.user_id] || w.entries;
+  const getOperatorEntries = (w) => w.entries;
   const getOperatorTotal = (w) => getOperatorEntries(w).reduce((s, e) => s + e.minutes, 0);
 
-
-  const handleOperatorSlider = (userId, wsId, mins) => {
-    setOperatorEdits((prev) => {
-      const worker = operators.find((w) => w.user_id === userId);
-      const cur = prev[userId] || worker.entries.map((e) => ({ ...e }));
-      return { ...prev, [userId]: cur.map((e) => e.workstation_id === wsId ? { ...e, minutes: mins } : e) };
-    });
-  };
-
-  const saveOperator = async (worker) => {
-    const entries = getOperatorEntries(worker);
-    setSaving((p) => ({ ...p, [`op${worker.user_id}`]: true }));
-    try {
-      const res = await fetch(`${API_BASE}/analytics/worker-cards`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({
-          user_id: worker.user_id,
-          date: selectedDate,
-          entries: entries.map((e) => ({ workstation_id: e.workstation_id, order_number: e.order_number || null, minutes: e.minutes })),
-        }),
-      });
-      if (!res.ok) throw new Error();
-      setMessage(`Zapisano kartę operatora: ${worker.username}`);
-      await fetchOperators();
-    } catch {
-      setMessage(`Błąd zapisu: ${worker.username}`);
-    } finally {
-      setSaving((p) => ({ ...p, [`op${worker.user_id}`]: false }));
-    }
-  };
-
-  const resetOperator = async (worker) => {
-    setSaving((p) => ({ ...p, [`op${worker.user_id}`]: true }));
-    try {
-      const res = await fetch(
-        `${API_BASE}/analytics/worker-cards?user_id=${worker.user_id}&date=${selectedDate}`,
-        { method: "DELETE", headers: authHeaders() }
-      );
-      if (!res.ok) throw new Error();
-      setMessage(`Zresetowano kartę operatora: ${worker.username}`);
-      setOperatorEdits((p) => { const c = { ...p }; delete c[worker.user_id]; return c; });
-      await fetchOperators();
-    } catch {
-      setMessage(`Błąd resetowania: ${worker.username}`);
-    } finally {
-      setSaving((p) => ({ ...p, [`op${worker.user_id}`]: false }));
-    }
-  };
 
   // ===== Production log CRUD =====
   const resetProdLogForm = () => {
@@ -1058,37 +1051,11 @@ export default function Analytics() {
                 />
                 <button
                   onClick={refreshCurrentView}
-                  disabled={loading || workerCalendarLoading}
+                  disabled={loading}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
                 >
-                  {(loading || workerCalendarLoading) ? "Ładowanie..." : "Odśwież"}
+                  {loading ? "Ładowanie..." : "Odśwież"}
                 </button>
-                {activeTab === "workers" && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setWorkerView("calendar")}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition ${
-                        workerView === "calendar"
-                          ? "bg-blue-500/20 border-blue-500 text-blue-200"
-                          : "bg-slate-700 border-slate-600 text-slate-200 hover:border-slate-500"
-                      }`}
-                    >
-                      <CalendarDays className="w-4 h-4" />
-                      Kalendarz
-                    </button>
-                    <button
-                      onClick={() => setWorkerView("chart")}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition ${
-                        workerView === "chart"
-                          ? "bg-blue-500/20 border-blue-500 text-blue-200"
-                          : "bg-slate-700 border-slate-600 text-slate-200 hover:border-slate-500"
-                      }`}
-                    >
-                      <LineChart className="w-4 h-4" />
-                      Wykres
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -1106,48 +1073,6 @@ export default function Analytics() {
                 <span className="ml-3 text-slate-400">Ładowanie danych...</span>
               </div>
             )}
-
-            {/* ===== Workers tab ===== */}
-            {activeTab === "workers" && !loading && workerView === "chart" && (
-              <section>
-                {workers.length === 0 && selectedDate && (
-                  <div className="text-center py-12 text-slate-400">
-                    Brak danych pracowników na dzień {selectedDate}
-                  </div>
-                )}
-                {workers.length > 0 && (
-                  <div className="space-y-3">
-                    <div className="text-sm text-slate-400 mb-2">
-                      {workers.length} pracowników &middot; {selectedDate}
-                    </div>
-                    {workers.map((worker) => (
-                      <CardRow
-                        key={worker.user_id}
-                        id={worker.user_id}
-                        label={worker.username}
-                        icon={User}
-                        source={worker.source}
-                        edited={!!workerEdits[worker.user_id]}
-                        total={getWorkerTotal(worker)}
-                        isOpen={expandedWorker === worker.user_id}
-                        onToggle={() => setExpandedWorker(expandedWorker === worker.user_id ? null : worker.user_id)}
-                        entries={getWorkerEntries(worker)}
-                        entryKey="_key"
-                        entryLabel={formatProductionEntryLabel}
-                        canEdit={canEdit}
-                        onSlider={handleWorkerSlider}
-                        onSave={() => saveWorker(worker)}
-                        onReset={() => resetWorker(worker)}
-                        isSaving={saving[`w${worker.user_id}`]}
-                        renderExtra={() => renderProportionalBar(getWorkerEntries(worker), formatProductionEntryLabel)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </section>
-            )}
-
-            {activeTab === "workers" && !loading && workerView === "calendar" && renderWorkerCalendar()}
 
             {/* ===== Machines tab ===== */}
             {activeTab === "machines" && !loading && (
@@ -1175,7 +1100,7 @@ export default function Analytics() {
                         onToggle={() => setExpandedMachine(expandedMachine === machine.workstation_id ? null : machine.workstation_id)}
                         entries={getMachineEntries(machine)}
                         entryKey="_key"
-                        entryLabel={(e) => (e.operation_label || `Operacja #${e.operation_id}`) + (e.username ? ` | Opr: ${e.username}` : '')}
+                        entryLabel={formatMachineEntryLabel}
                         canEdit={canEdit}
                         onSlider={handleMachineSlider}
                         onSave={() => saveMachine(machine)}
@@ -1244,7 +1169,6 @@ export default function Analytics() {
                       const entries = getOperatorEntries(worker);
                       const total = getOperatorTotal(worker);
                       const isOpen = expandedOperator === worker.user_id;
-                      const edited = !!operatorEdits[worker.user_id];
                       return (
                         <div key={worker.user_id} className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
                           <button
@@ -1263,11 +1187,6 @@ export default function Analytics() {
                               >
                                 {worker.source === "saved" ? "zapisane" : "z logów"}
                               </span>
-                              {edited && (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-orange-900/50 text-orange-300 border border-orange-700">
-                                  edytowane
-                                </span>
-                              )}
                             </div>
                             <div className="flex items-center gap-3">
                               <div className="flex items-center gap-1.5 text-sm text-slate-300">
@@ -1298,24 +1217,12 @@ export default function Analytics() {
                                         {formatMinutes(entry.minutes)}
                                       </span>
                                     </div>
-                                    {canEdit ? (
-                                      <input
-                                        type="range"
-                                        min={0}
-                                        max={720}
-                                        step={5}
-                                        value={entry.minutes}
-                                        onChange={(e) => handleOperatorSlider(worker.user_id, entry._key, parseInt(e.target.value, 10))}
-                                        className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                    <div className="w-full bg-slate-700 rounded-full h-2">
+                                      <div
+                                        className="bg-blue-500 h-2 rounded-full"
+                                        style={{ width: `${Math.min((entry.minutes / 480) * 100, 100)}%` }}
                                       />
-                                    ) : (
-                                      <div className="w-full bg-slate-700 rounded-full h-2">
-                                        <div
-                                          className="bg-blue-500 h-2 rounded-full"
-                                          style={{ width: `${Math.min((entry.minutes / 480) * 100, 100)}%` }}
-                                        />
-                                      </div>
-                                    )}
+                                    </div>
                                   </div>
                                 ))}
                               </div>
@@ -1331,27 +1238,6 @@ export default function Analytics() {
                                 return formatProductionEntryLabel(e);
                               })}
 
-                              {/* Save / Reset */}
-                              {canEdit && (
-                                <div className="mt-4 flex gap-3">
-                                  <button
-                                    onClick={() => saveOperator(worker)}
-                                    disabled={saving[`op${worker.user_id}`]}
-                                    className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
-                                  >
-                                    {saving[`op${worker.user_id}`] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                    Zapisz kartę
-                                  </button>
-                                  <button
-                                    onClick={() => resetOperator(worker)}
-                                    disabled={saving[`op${worker.user_id}`]}
-                                    className="flex items-center gap-2 px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
-                                  >
-                                    <RotateCcw className="w-4 h-4" />
-                                    Resetuj kartę
-                                  </button>
-                                </div>
-                              )}
                             </div>
                           )}
                         </div>
