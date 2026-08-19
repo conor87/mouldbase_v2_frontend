@@ -33,7 +33,7 @@ export async function releaseAssignedMesResources({ token, userId, username }) {
               headers,
               body: JSON.stringify({
                 operation_id: ws.current_operation_id,
-                status_id: ws.status_id || null,
+                status_id: null,
                 workstation_id: ws.id,
                 user_id: Number(userId),
                 note: "Wylogowanie",
