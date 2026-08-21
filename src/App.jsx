@@ -39,6 +39,7 @@ import MES_ServicePanel from "./components/MES_ServicePanel.jsx";
 import MES_Service_Dashboard from "./components/MES_Service_Dashboard.jsx";
 import MES_ChangeoverPanel from "./components/MES_ChangeoverPanel.jsx";
 import MES_Production_Dashboard from "./components/MES_Production_Dashboard.jsx";
+import MES_ProductionCalendar from "./components/MES_ProductionCalendar.jsx";
 import Analytics from "./components/Analytics.jsx";
 import OrdersTree from "./components/OrdersTree.jsx";
 import StartPage from "./components/StartPage.jsx";
@@ -168,6 +169,7 @@ function App() {
 
             <Route element={<RequireRole allowedRoles={["admindn", "superadmin"]} />}>
               <Route element={<AppLayout />}>
+                <Route path="/mes/production/calendar" element={<MES_ProductionCalendar />} />
                 <Route path="/moulds-admin" element={<MouldsAdmin />} />
               </Route>
             </Route>

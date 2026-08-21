@@ -70,6 +70,7 @@ const navItems = [
   { module: "mes", to: "/mes", label: "MES", icon: Cpu, mesOnly: true, end: true, smartMes: true },
   { module: "mes", to: "/mes/production/dashboard", label: "Dashboard produkcji", icon: LayoutDashboard, mesOnly: true },
   { module: "mes", to: "/mes/service/dashboard", label: "Dashboard serwisu", icon: LayoutDashboard, mesOnly: true },
+  { module: "mes", to: "/mes/production/calendar", label: "Kalendarz produkcji", icon: Calendar, mesOnly: true, adminOnly: true },
   { module: "mes", to: "/changeovers", label: "Przezbrojenia", icon: ArrowLeftRight, mesOnly: true },
   { module: "mes", to: "/current_sv", label: "Maszyny", icon: Factory, mesOnly: true },
   { module: "mes", to: "/superadmin", label: "Settings", icon: Settings, superAdminOnly: true },
