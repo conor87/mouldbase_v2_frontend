@@ -138,6 +138,22 @@ const PaginationControls = ({ pageData, onPageChange }) => {
   );
 };
 
+const UserFilter = ({ value, users, onChange }) => (
+  <label className="flex flex-col gap-1 text-xs text-slate-400 sm:w-64">
+    Użytkownik
+    <select
+      className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 text-sm text-white focus:outline-none focus:border-blue-500"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      <option value="">Wszyscy użytkownicy</option>
+      {users.map((u) => (
+        <option key={u.id} value={u.id}>{u.username}</option>
+      ))}
+    </select>
+  </label>
+);
+
 // ===== Shared accordion card component =====
 function CardRow({
   id, label, icon: Icon, source, edited, total, isOpen, onToggle,
@@ -284,6 +300,9 @@ export default function Analytics() {
   const [productionLogsPage, setProductionLogsPage] = useState(1);
   const [serviceLogsPage, setServiceLogsPage] = useState(1);
   const [sessionLogsPage, setSessionLogsPage] = useState(1);
+  const [productionLogsUserFilter, setProductionLogsUserFilter] = useState("");
+  const [serviceLogsUserFilter, setServiceLogsUserFilter] = useState("");
+  const [sessionLogsUserFilter, setSessionLogsUserFilter] = useState("");
   const [logsLoading, setLogsLoading] = useState(false);
 
   // Production log form state
@@ -989,17 +1008,34 @@ export default function Analytics() {
   // Lookup maps for production logs
   const userMap = useMemo(() => Object.fromEntries(allUsers.map((u) => [u.id, u])), [allUsers]);
   const wsMap = useMemo(() => Object.fromEntries(allWorkstations.map((w) => [w.id, w])), [allWorkstations]);
+  const filteredProductionLogs = useMemo(
+    () => productionLogsUserFilter
+      ? productionLogs.filter((row) => String(row.user_id ?? "") === productionLogsUserFilter)
+      : productionLogs,
+    [productionLogs, productionLogsUserFilter]
+  );
+  const filteredServiceLogs = useMemo(() => {
+    if (!serviceLogsUserFilter) return serviceLogs;
+    const username = (userMap[Number(serviceLogsUserFilter)]?.username || "").trim().toLowerCase();
+    return serviceLogs.filter((row) => (row.operator || "").trim().toLowerCase() === username);
+  }, [serviceLogs, serviceLogsUserFilter, userMap]);
+  const filteredSessionLogs = useMemo(
+    () => sessionLogsUserFilter
+      ? sessionLogs.filter((row) => String(row.user_id ?? "") === sessionLogsUserFilter)
+      : sessionLogs,
+    [sessionLogs, sessionLogsUserFilter]
+  );
   const productionLogsPageData = useMemo(
-    () => paginateRows(productionLogs, productionLogsPage),
-    [productionLogs, productionLogsPage]
+    () => paginateRows(filteredProductionLogs, productionLogsPage),
+    [filteredProductionLogs, productionLogsPage]
   );
   const serviceLogsPageData = useMemo(
-    () => paginateRows(serviceLogs, serviceLogsPage),
-    [serviceLogs, serviceLogsPage]
+    () => paginateRows(filteredServiceLogs, serviceLogsPage),
+    [filteredServiceLogs, serviceLogsPage]
   );
   const sessionLogsPageData = useMemo(
-    () => paginateRows(sessionLogs, sessionLogsPage),
-    [sessionLogs, sessionLogsPage]
+    () => paginateRows(filteredSessionLogs, sessionLogsPage),
+    [filteredSessionLogs, sessionLogsPage]
   );
 
   // ===== Render =====
@@ -1326,7 +1362,17 @@ export default function Analytics() {
                   </form>
                 )}
 
-                <div className="text-sm text-slate-400 mb-3">{productionLogs.length} rekordów</div>
+                <div className="flex flex-wrap items-end justify-between gap-3 mb-3">
+                  <UserFilter
+                    value={productionLogsUserFilter}
+                    users={allUsers}
+                    onChange={(value) => { setProductionLogsUserFilter(value); setProductionLogsPage(1); }}
+                  />
+                  <div className="text-sm text-slate-400">
+                    {filteredProductionLogs.length} rekordów
+                    {productionLogsUserFilter && ` z ${productionLogs.length}`}
+                  </div>
+                </div>
                 <DataTable
                   rows={productionLogsPageData.rows}
                   getRowKey={(row) => row.id}
@@ -1462,7 +1508,17 @@ export default function Analytics() {
                   </form>
                 )}
 
-                <div className="text-sm text-slate-400 mb-3">{serviceLogs.length} rekordów</div>
+                <div className="flex flex-wrap items-end justify-between gap-3 mb-3">
+                  <UserFilter
+                    value={serviceLogsUserFilter}
+                    users={allUsers}
+                    onChange={(value) => { setServiceLogsUserFilter(value); setServiceLogsPage(1); }}
+                  />
+                  <div className="text-sm text-slate-400">
+                    {filteredServiceLogs.length} rekordów
+                    {serviceLogsUserFilter && ` z ${serviceLogs.length}`}
+                  </div>
+                </div>
                 <DataTable
                   rows={serviceLogsPageData.rows}
                   getRowKey={(row) => row.id}
@@ -1499,7 +1555,17 @@ export default function Analytics() {
             {activeTab === "session_logs" && !logsLoading && (
               <section>
                 <h2 className="text-lg font-bold mb-4">Logi sesji MES</h2>
-                <div className="text-sm text-slate-400 mb-3">{sessionLogs.length} rekordów</div>
+                <div className="flex flex-wrap items-end justify-between gap-3 mb-3">
+                  <UserFilter
+                    value={sessionLogsUserFilter}
+                    users={allUsers}
+                    onChange={(value) => { setSessionLogsUserFilter(value); setSessionLogsPage(1); }}
+                  />
+                  <div className="text-sm text-slate-400">
+                    {filteredSessionLogs.length} rekordów
+                    {sessionLogsUserFilter && ` z ${sessionLogs.length}`}
+                  </div>
+                </div>
                 <DataTable
                   rows={sessionLogsPageData.rows}
                   getRowKey={(row) => row.id}
