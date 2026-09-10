@@ -131,6 +131,7 @@ export default function ProductionAdmin() {
 
   const [orderSearch, setOrderSearch] = useState("");
   const [operationTaskSearch, setOperationTaskSearch] = useState("");
+  const [operationFormTaskSearch, setOperationFormTaskSearch] = useState("");
   const [operationTaskFilter, setOperationTaskFilter] = useState("");
   const [operationOrderFilter, setOperationOrderFilter] = useState("");
   const [ordersPage, setOrdersPage] = useState(1);
@@ -334,6 +335,28 @@ export default function ProductionAdmin() {
     const orderId = Number(operationOrderFilter);
     return filteredTaskOptionsForOperations.filter((t) => t.order_id === orderId);
   }, [filteredTaskOptionsForOperations, operationOrderFilter]);
+  const operationFormTaskOptions = useMemo(() => {
+    const base = operationOrderFilter
+      ? taskOptions.filter((t) => t.order_id === Number(operationOrderFilter))
+      : taskOptions;
+    const term = operationFormTaskSearch.trim().toLowerCase();
+    if (!term) return base;
+    return base.filter((task) => {
+      const meta = orderMetaById.get(task.order_id) ?? {};
+      const label = taskLabelById.get(task.id) ?? "";
+      const fields = [
+        label,
+        meta.order_number,
+        meta.team,
+        meta.product,
+        task.detail_number,
+        task.detail_name,
+      ]
+        .filter(Boolean)
+        .map((value) => String(value).toLowerCase());
+      return fields.some((value) => value.includes(term));
+    });
+  }, [operationFormTaskSearch, operationOrderFilter, orderMetaById, taskLabelById, taskOptions]);
   const filteredTasks = useMemo(() => {
     const term = orderSearch.trim().toLowerCase();
     if (!term) return tasks;
@@ -685,6 +708,7 @@ export default function ProductionAdmin() {
       await apiPut(`/production/operations/${editingOperationId}`, payload, async () => {
         setEditingOperationId(null);
         setShowOperationModal(false);
+        setOperationFormTaskSearch("");
         setOperationForm({
           task_id: "",
           operation_no: "",
@@ -704,6 +728,7 @@ export default function ProductionAdmin() {
     }
     await apiPost("/production/operations", payload, async () => {
       setShowOperationModal(false);
+      setOperationFormTaskSearch("");
       setOperationForm({
         task_id: "",
         operation_no: "",
@@ -861,6 +886,7 @@ export default function ProductionAdmin() {
   const startEditOperation = (row) => {
     setEditingOperationId(row.id);
     setShowOperationModal(true);
+    setOperationFormTaskSearch("");
     setOperationForm({
       task_id: row.task_id != null ? String(row.task_id) : "",
       operation_no: row.operation_no != null ? String(row.operation_no) : "",
@@ -1668,6 +1694,7 @@ export default function ProductionAdmin() {
                             workstation_id: "",
                           });
                           setOperationTaskSearch("");
+                          setOperationFormTaskSearch("");
                           setShowOperationModal(true);
                         }}
                         className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm"
@@ -1741,13 +1768,20 @@ export default function ProductionAdmin() {
                         {editingOperationId ? "Edytuj operację" : "Dodaj operację"}
                       </h3>
                       <form onSubmit={handleCreateOperation} className="grid md:grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          placeholder="Filtruj pozycje..."
+                          value={operationFormTaskSearch}
+                          onChange={(e) => setOperationFormTaskSearch(e.target.value)}
+                          className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 md:col-span-2"
+                        />
                         <select
                           value={operationForm.task_id}
                           onChange={(e) => setOperationForm({ ...operationForm, task_id: e.target.value })}
                           className="px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-700 md:col-span-2"
                         >
                           <option value="">Wybierz zlecenie</option>
-                          {(operationOrderFilter ? tasksFilteredByOrder : taskOptions).map((t) => (
+                          {operationFormTaskOptions.map((t) => (
                             <option key={t.id} value={t.id}>
                               {taskLabelById.get(t.id) ?? t.detail_name}
                             </option>

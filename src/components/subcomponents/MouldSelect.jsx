@@ -31,7 +31,7 @@ export default function MouldSelect({
   }, [q, moulds]);
 
   return (
-    <label className="grid gap-1 text-sm">
+    <label className="grid min-w-0 gap-1 text-sm">
       <span className="opacity-80">{label}</span>
 
       <input
@@ -39,13 +39,13 @@ export default function MouldSelect({
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Szukaj (mould_number / product)…"
-        className="rounded-lg bg-white text-slate-900 placeholder:text-slate-400 border border-slate-300 px-3 py-2"
+        className="w-full min-w-0 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 border border-slate-300 px-3 py-2"
       />
 
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg bg-white text-slate-900 border border-slate-300 px-3 py-2"
+        className="w-full min-w-0 rounded-lg bg-white text-slate-900 border border-slate-300 px-3 py-2"
       >
         <option value="">{placeholder}</option>
         {filtered.map((m) => (

@@ -16,7 +16,7 @@ export default function AddCalendarModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-xl rounded-2xl bg-slate-900 border border-white/10 p-6 text-white">
+      <div className="w-full max-w-2xl min-w-0 rounded-2xl bg-slate-900 border border-white/10 p-6 text-white">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-cyan-300">Dodaj wpis kalendarza</h2>
           <button
@@ -31,7 +31,7 @@ export default function AddCalendarModal({
 
         {error && <p className="mb-3 text-red-300">{error}</p>}
 
-        <div className="grid gap-3">
+        <div className="grid min-w-0 gap-3">
           <MouldSelect
             label="Forma"
             value={draft.mould_id}
@@ -40,40 +40,40 @@ export default function AddCalendarModal({
             labelMould={labelMould}
           />
 
-          <label className="grid gap-1 text-sm">
+          <label className="grid min-w-0 gap-1 text-sm">
             <span className="opacity-80">Od kiedy</span>
             <input
               type="datetime-local"
-              className="rounded-lg bg-white text-slate-900 border border-slate-300 px-3 py-2"
+              className="w-full min-w-0 rounded-lg bg-white text-slate-900 border border-slate-300 px-3 py-2"
               value={draft.start_date}
               onChange={(e) => setDraft((d) => ({ ...d, start_date: e.target.value }))}
             />
           </label>
 
-          <label className="grid gap-1 text-sm">
+          <label className="grid min-w-0 gap-1 text-sm">
             <span className="opacity-80">Do kiedy</span>
             <input
               type="datetime-local"
-              className="rounded-lg bg-white text-slate-900 border border-slate-300 px-3 py-2"
+              className="w-full min-w-0 rounded-lg bg-white text-slate-900 border border-slate-300 px-3 py-2"
               value={draft.end_date}
               onChange={(e) => setDraft((d) => ({ ...d, end_date: e.target.value }))}
             />
           </label>
 
-          <label className="grid gap-1 text-sm">
+          <label className="grid min-w-0 gap-1 text-sm">
             <span className="opacity-80">Komentarz</span>
             <textarea
               rows={3}
-              className="rounded-lg bg-white text-slate-900 border border-slate-300 px-3 py-2"
+              className="w-full min-w-0 rounded-lg bg-white text-slate-900 border border-slate-300 px-3 py-2"
               value={draft.comment}
               onChange={(e) => setDraft((d) => ({ ...d, comment: e.target.value }))}
             />
           </label>
 
-          <label className="grid gap-1 text-sm">
+          <label className="grid min-w-0 gap-1 text-sm">
             <span className="opacity-80">Status</span>
             <select
-              className="rounded-lg bg-white text-slate-900 border border-slate-300 px-3 py-2"
+              className="w-full min-w-0 rounded-lg bg-white text-slate-900 border border-slate-300 px-3 py-2"
               value={draft.is_active ? "active" : "done"}
               onChange={(e) => setDraft((d) => ({ ...d, is_active: e.target.value === "active" }))}
             >
