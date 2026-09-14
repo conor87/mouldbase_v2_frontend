@@ -45,6 +45,8 @@ const TPM_TYPE_OPTIONS = [
   { value: 7, label: "PRZEZBROJENIE" },
 ];
 
+const PRE_PRODUCTION_CHECKS = ["Grzanie", "Chłodzenie", "Kompletność"];
+
 const tpmTypeLabel = (value) => {
   const found = TPM_TYPE_OPTIONS.find((opt) => String(opt.value) === String(value));
   return found?.label ?? String(value ?? "-");
@@ -97,6 +99,13 @@ export default function MouldsDetails_Book({
     czas_trwania: "0",
     czas_wylaczenia: "0",
     tpm_type: "0",
+  });
+  const [isPreProductionModalOpen, setIsPreProductionModalOpen] = useState(false);
+  const [savingPreProductionCheck, setSavingPreProductionCheck] = useState(false);
+  const [preProductionError, setPreProductionError] = useState(null);
+  const [preProductionDraft, setPreProductionDraft] = useState({
+    checks: Object.fromEntries(PRE_PRODUCTION_CHECKS.map((name) => [name, false])),
+    notes: "",
   });
 
   // --- BOOK: edycja wpisu ---
@@ -255,6 +264,80 @@ export default function MouldsDetails_Book({
     }
   };
 
+  const openPreProductionModal = () => {
+    if (!isAdmin) return;
+    setPreProductionError(null);
+    setPreProductionDraft({
+      checks: Object.fromEntries(PRE_PRODUCTION_CHECKS.map((name) => [name, false])),
+      notes: "",
+    });
+    setIsPreProductionModalOpen(true);
+  };
+
+  const closePreProductionModal = () => {
+    if (savingPreProductionCheck) return;
+    setIsPreProductionModalOpen(false);
+    setPreProductionError(null);
+  };
+
+  const togglePreProductionCheck = (name) => {
+    setPreProductionDraft((prev) => ({
+      ...prev,
+      checks: {
+        ...prev.checks,
+        [name]: !prev.checks[name],
+      },
+    }));
+  };
+
+  const savePreProductionCheck = async () => {
+    if (!isAdmin) return;
+
+    if (!mouldId) {
+      setPreProductionError("Brak mould_id (mouldData.id).");
+      return;
+    }
+
+    const checkLines = PRE_PRODUCTION_CHECKS.map(
+      (name) => `${name}: ${preProductionDraft.checks[name] ? "wykonano" : "nie wykonano"}`
+    );
+    const notes = String(preProductionDraft.notes || "").trim();
+    const description = [
+      "Sprawdzenie przed produkcją",
+      ...checkLines,
+      `Uwagi: ${notes || "-"}`,
+    ].join("\n");
+
+    try {
+      setSavingPreProductionCheck(true);
+      setPreProductionError(null);
+
+      const fd = new FormData();
+      fd.append("mould_id", String(mouldId));
+      fd.append("opis_zgloszenia", description);
+      fd.append("created", todayInputValue());
+      fd.append("czas_trwania", "0");
+      fd.append("czas_wylaczenia", "0");
+      fd.append("tpm_type", "4");
+
+      await axios.post(`${API_BASE}/book/`, fd, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          ...(authHeaders?.() ?? {}),
+        },
+      });
+
+      await refreshBooks();
+      closePreProductionModal();
+    } catch (err) {
+      console.error(err);
+      const msg = err?.response?.data?.detail || "Nie udało się dodać sprawdzenia przed produkcją.";
+      setPreProductionError(String(msg));
+    } finally {
+      setSavingPreProductionCheck(false);
+    }
+  };
+
   // --- MODAL: edycja ---
   const openBookEditModal = async (row) => {
     if (!isAdmin) return;
@@ -373,15 +456,24 @@ export default function MouldsDetails_Book({
 
           {/* ✅ tylko admin */}
           {isAdmin && logged && (
-            <button
-              type="button"
-              onClick={openBookModal}
-              className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm"
-              title="Dodaj wpis"
-              aria-label="Dodaj wpis"
-            >
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={openBookModal}
+                className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm"
+                title="Dodaj wpis"
+                aria-label="Dodaj wpis"
+              >
               ＋
-            </button>
+              </button>
+              <button
+                type="button"
+                onClick={openPreProductionModal}
+                className="px-4 py-2 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-100 text-sm"
+              >
+                Sprawdzenie przed produkcją
+              </button>
+            </div>
           )}
         </div>
 
@@ -610,6 +702,75 @@ export default function MouldsDetails_Book({
       )}
 
       {/* MODAL: EDYTUJ WPIS (bez zdjęć i bez sv/ido/status) */}
+      {isAdmin && isPreProductionModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closePreProductionModal();
+          }}
+        >
+          <div className="w-full max-w-lg rounded-2xl bg-slate-800 border border-white/10 shadow-2xl p-5 text-white">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-cyan-400">Sprawdzenie przed produkcją</h3>
+              <button
+                type="button"
+                onClick={closePreProductionModal}
+                className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20"
+                disabled={savingPreProductionCheck}
+              >
+                X
+              </button>
+            </div>
+
+            {preProductionError && <div className="mb-3 text-red-400 text-sm">{preProductionError}</div>}
+
+            <div className="space-y-4">
+              <div className="grid gap-3">
+                {PRE_PRODUCTION_CHECKS.map((name) => (
+                  <label key={name} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(preProductionDraft.checks[name])}
+                      onChange={() => togglePreProductionCheck(name)}
+                    />
+                    <span>{name}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div>
+                <label className="block text-sm opacity-80 mb-1">Uwagi</label>
+                <textarea
+                  className="w-full min-h-[110px] rounded-xl p-3 bg-white/5 border border-white/10 text-white"
+                  value={preProductionDraft.notes}
+                  onChange={(e) => setPreProductionDraft((p) => ({ ...p, notes: e.target.value }))}
+                  placeholder="Wpisz uwagi..."
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={closePreProductionModal}
+                disabled={savingPreProductionCheck}
+                className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-50"
+              >
+                Anuluj
+              </button>
+              <button
+                type="button"
+                onClick={savePreProductionCheck}
+                disabled={savingPreProductionCheck}
+                className="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-black font-semibold"
+              >
+                {savingPreProductionCheck ? "Zapisywanie..." : "Wykonano"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isAdmin && isBookEditModalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
