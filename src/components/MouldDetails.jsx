@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import { API_BASE } from "../config/api.js";
+import SafeImg from "./SafeImg.jsx";
 
 import MouldDetails_BasicInfo from "./subcomponents/MouldDetails_BasicInfo.jsx";
 import MouldDetails_Notes from "./subcomponents/MouldDetails_Notes.jsx";
@@ -211,7 +212,7 @@ export default function MouldDetails() {
 
               {/* 1/3 */}
               <div className="lg:col-span-1">
-                <img
+                <SafeImg
                   src={imageSrc}
                   alt="Zdjęcie produktu"
                   className="mt-4 rounded-2xl w-full"
