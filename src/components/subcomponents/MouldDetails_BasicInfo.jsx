@@ -17,6 +17,7 @@ const toDateInputValue = (value) => {
 const buildMediaSrc = (API_BASE, maybePath) => {
   if (!maybePath) return "";
   const v = String(maybePath);
+  if (/(^|\/)default\.png(?:[?#].*)?$/i.test(v)) return "/media/default2.png";
   if (v.startsWith("http://") || v.startsWith("https://")) return v;
   if (v.startsWith("/media/")) {
     try {
@@ -63,11 +64,11 @@ export default function MouldDetails_BasicInfo({
   const qrCanvasRef = useRef(null);
 
   const serverPreviewFallback = useMemo(() => {
-    return imageSrc || buildMediaSrc(API_BASE, mouldData?.product_photo) || "/media/default.png";
+    return imageSrc || buildMediaSrc(API_BASE, mouldData?.product_photo) || "/media/default2.png";
   }, [API_BASE, imageSrc, mouldData?.product_photo]);
 
   const serverMouldPreviewFallback = useMemo(() => {
-    return buildMediaSrc(API_BASE, mouldData?.mould_photo) || "/media/default.png";
+    return buildMediaSrc(API_BASE, mouldData?.mould_photo) || "/media/default2.png";
   }, [API_BASE, mouldData?.mould_photo]);
 
   const mouldDetailsUrl = useMemo(() => {

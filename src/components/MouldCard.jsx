@@ -13,9 +13,9 @@ export default function MouldCard({ mould }) {
   };
 
   const imageSrc = useMemo(() => {
-    const file = product_photo ?? "";
+    const file = String(product_photo ?? "").trim();
 
-    if (!file) return "/media/default.png";
+    if (!file || /(^|\/)default\.png(?:[?#].*)?$/i.test(file)) return "/media/default2.png";
     if (file.startsWith("http://") || file.startsWith("https://")) return file;
 
     if (file.startsWith("/media/")) {
@@ -95,6 +95,7 @@ export default function MouldCard({ mould }) {
         <div className="flex max-w-sm mx-auto items-baseline justify-center">
           <SafeImg
             src={imageSrc}
+            fallback="/media/default2.png"
             alt={product || mould_number || `mould-${id}`}
             className="rounded-3xl"
           />

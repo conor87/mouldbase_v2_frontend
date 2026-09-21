@@ -60,6 +60,7 @@ const normalizeList = (payload) => {
 const buildMediaSrc = (maybePath) => {
   if (!maybePath) return "";
   const v = String(maybePath);
+  if (/(^|\/)default\.png(?:[?#].*)?$/i.test(v)) return "/media/default2.png";
   if (v.startsWith("http://") || v.startsWith("https://")) return v;
   if (v.startsWith("/media/")) {
     try {
@@ -108,7 +109,7 @@ export default function MouldDetails() {
   }, []);
 
   const imageSrc = useMemo(
-    () => buildMediaSrc(mouldData?.product_photo) || "/media/default.png",
+    () => buildMediaSrc(mouldData?.product_photo) || "/media/default2.png",
     [mouldData?.product_photo]
   );
 
@@ -214,6 +215,7 @@ export default function MouldDetails() {
               <div className="lg:col-span-1">
                 <SafeImg
                   src={imageSrc}
+                  fallback="/media/default2.png"
                   alt="Zdjęcie produktu"
                   className="mt-4 rounded-2xl w-full"
                 />
