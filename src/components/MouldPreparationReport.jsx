@@ -29,10 +29,22 @@ const formatDateTime = (value) => {
   }).format(date);
 };
 
+const dateInputValue = (daysFromToday = 0) => {
+  const date = new Date();
+  date.setDate(date.getDate() + daysFromToday);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const readinessMeta = (value) => {
   const key = String(value || "").toLowerCase();
   if (key === "ready") {
     return { label: "Gotowa", className: "border-emerald-500/40 bg-emerald-500/15 text-emerald-200" };
+  }
+  if (key === "requires_pre_production_check") {
+    return { label: "Do sprawdzenia przed produkcją", className: "border-sky-500/40 bg-sky-500/15 text-sky-100" };
   }
   if (key === "blocked") {
     return { label: "Zablokowana", className: "border-red-500/40 bg-red-500/15 text-red-200" };
@@ -59,7 +71,8 @@ const SummaryCard = ({ icon, label, value, colorClass }) => (
 );
 
 export default function MouldPreparationReport() {
-  const [days, setDays] = useState(7);
+  const [dateFrom, setDateFrom] = useState(() => dateInputValue());
+  const [dateTo, setDateTo] = useState(() => dateInputValue(2));
   const [filter, setFilter] = useState("all");
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -68,13 +81,20 @@ export default function MouldPreparationReport() {
   const token = localStorage.getItem("access_token");
 
   const refreshReport = useCallback(async () => {
+    if (!dateFrom || !dateTo) {
+      setRows([]);
+      setError("Wybierz obie daty raportu.");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
       setUnavailable(false);
 
       const response = await axios.get(`${API_BASE}/production-preparation/`, {
-        params: { days },
+        params: { date_from: dateFrom, date_to: dateTo },
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       setRows(normalizeList(response.data));
@@ -89,7 +109,7 @@ export default function MouldPreparationReport() {
     } finally {
       setLoading(false);
     }
-  }, [days, token]);
+  }, [dateFrom, dateTo, token]);
 
   useEffect(() => {
     refreshReport();
@@ -99,8 +119,11 @@ export default function MouldPreparationReport() {
     const blocked = rows.filter((row) => row?.readiness === "blocked").length;
     const changeovers = rows.filter((row) => Boolean(row?.changeover_required)).length;
     const tpms = rows.filter((row) => Array.isArray(row?.open_tpms) && row.open_tpms.length > 0).length;
+    const preProductionChecks = rows.filter(
+      (row) => row?.readiness === "requires_pre_production_check"
+    ).length;
     const ready = rows.filter((row) => row?.readiness === "ready").length;
-    return { total: rows.length, blocked, changeovers, tpms, ready };
+    return { total: rows.length, blocked, changeovers, tpms, preProductionChecks, ready };
   }, [rows]);
 
   const visibleRows = useMemo(() => {
@@ -108,6 +131,9 @@ export default function MouldPreparationReport() {
     if (filter === "changeover") return rows.filter((row) => Boolean(row?.changeover_required));
     if (filter === "tpm") {
       return rows.filter((row) => Array.isArray(row?.open_tpms) && row.open_tpms.length > 0);
+    }
+    if (filter === "pre-production-check") {
+      return rows.filter((row) => row?.readiness === "requires_pre_production_check");
     }
     if (filter === "ready") return rows.filter((row) => row?.readiness === "ready");
     return rows;
@@ -130,17 +156,31 @@ export default function MouldPreparationReport() {
 
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-sm text-slate-300">
-            Horyzont raportu
-            <select
-              value={days}
-              onChange={(event) => setDays(Number(event.target.value))}
+            Od
+            <input
+              type="date"
+              value={dateFrom}
+              max={dateTo || undefined}
+              onChange={(event) => {
+                const nextDateFrom = event.target.value;
+                setDateFrom(nextDateFrom);
+                if (dateTo && nextDateFrom > dateTo) {
+                  setDateTo(nextDateFrom);
+                }
+              }}
               className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white outline-none focus:border-cyan-400"
-            >
-              <option value={1}>24 godziny</option>
-              <option value={3}>3 dni</option>
-              <option value={7}>7 dni</option>
-              <option value={14}>14 dni</option>
-            </select>
+            />
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm text-slate-300">
+            Do
+            <input
+              type="date"
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={(event) => setDateTo(event.target.value)}
+              className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white outline-none focus:border-cyan-400"
+            />
           </label>
 
           <button
@@ -155,11 +195,12 @@ export default function MouldPreparationReport() {
         </div>
       </div>
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <SummaryCard icon={<CalendarClock className="h-6 w-6" aria-hidden="true" />} label="Zaplanowane formy" value={summary.total} colorClass="bg-blue-500/15 text-blue-300" />
         <SummaryCard icon={<AlertTriangle className="h-6 w-6" aria-hidden="true" />} label="Zablokowane" value={summary.blocked} colorClass="bg-red-500/15 text-red-300" />
         <SummaryCard icon={<ArrowLeftRight className="h-6 w-6" aria-hidden="true" />} label="Do przezbrojenia" value={summary.changeovers} colorClass="bg-amber-500/15 text-amber-300" />
         <SummaryCard icon={<Wrench className="h-6 w-6" aria-hidden="true" />} label="Z otwartym TPM" value={summary.tpms} colorClass="bg-orange-500/15 text-orange-300" />
+        <SummaryCard icon={<ClipboardCheck className="h-6 w-6" aria-hidden="true" />} label="Do sprawdzenia przed produkcją" value={summary.preProductionChecks} colorClass="bg-sky-500/15 text-sky-300" />
         <SummaryCard icon={<CheckCircle2 className="h-6 w-6" aria-hidden="true" />} label="Gotowe" value={summary.ready} colorClass="bg-emerald-500/15 text-emerald-300" />
       </div>
 
@@ -169,6 +210,7 @@ export default function MouldPreparationReport() {
           ["blocked", "Zablokowane"],
           ["changeover", "Przezbrojenia"],
           ["tpm", "TPM"],
+          ["pre-production-check", "Do sprawdzenia przed produkcją"],
           ["ready", "Gotowe"],
         ].map(([value, label]) => (
           <button
