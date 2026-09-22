@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import { Link } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
 
 import ChangeoverHistoryModal from "./subcomponents/ChangeoverHistoryModal";
@@ -83,6 +82,10 @@ export default function Changeovers() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [syncStatus, setSyncStatus] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState(null);
+  const [syncMessage, setSyncMessage] = useState(null);
 
   // ✅ PAGINACJA
   const [page, setPage] = useState(1);
@@ -146,13 +149,15 @@ export default function Changeovers() {
       setLoading(true);
       setError(null);
 
-      const [resCh, resM] = await Promise.all([
+      const [resCh, resM, resSyncStatus] = await Promise.all([
         axios.get(`${API_BASE}/changeovers/`, { params: { limit: 5000 }, headers: { ...authHeaders() } }),
         axios.get(`${API_BASE}/moulds`, { params: { limit: 20000 }, headers: { ...authHeaders() } }),
+        axios.get(`${API_BASE}/changeovers/sync/status`, { headers: { ...authHeaders() } }),
       ]);
 
       setChangeovers(normalizeList(resCh.data));
       setMoulds(normalizeList(resM.data));
+      setSyncStatus(resSyncStatus.data || null);
       setPage(1);
     } catch (err) {
       console.error(err);
@@ -160,6 +165,35 @@ export default function Changeovers() {
       setChangeovers([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const runOracleSync = async () => {
+    if (!isAdmin || syncing) return;
+
+    try {
+      setSyncing(true);
+      setSyncError(null);
+      setSyncMessage(null);
+
+      const response = await axios.post(
+        `${API_BASE}/changeovers/sync`,
+        null,
+        { headers: { ...authHeaders() } }
+      );
+      const result = response.data || {};
+      setSyncStatus(result);
+      setSyncMessage(
+        `Synchronizacja zakończona: dodano ${result.inserted ?? 0}, ` +
+        `zaktualizowano ${result.updated ?? 0}, brakujące formy ${result.missing_moulds ?? 0}.`
+      );
+      await refreshAll();
+    } catch (err) {
+      console.error(err);
+      const msg = err?.response?.data?.detail || "Nie udało się zsynchronizować przezbrojeń.";
+      setSyncError(String(msg));
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -439,28 +473,45 @@ export default function Changeovers() {
   return (
     <>
       <div className="p-10 text-white">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            {/* <Link to="/" className="px-4 py-2 bg-blue-500 rounded-lg text-white font-semibold hover:scale-105">
-              ← Powrót
-            </Link> */}
-
+        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
             <h1 className="text-4xl text-cyan-400 font-bold">Przezbrojenia</h1>
+            <p className="mt-2 text-sm text-slate-300">
+              Ostatnia udana synchronizacja:{" "}
+              <span className="font-semibold text-cyan-200">
+                {syncStatus?.last_success_at
+                  ? formatDateOnly(syncStatus.last_success_at)
+                  : "brak informacji"}
+              </span>
+            </p>
           </div>
 
           {logged && isAdmin && (
-            <button
-              type="button"
-              onClick={openAdd}
-              className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm"
-            >
-              ＋ Dodaj
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={runOracleSync}
+                disabled={syncing}
+                className="px-4 py-2 rounded-lg border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-100 text-sm disabled:opacity-50"
+              >
+                {syncing ? "Synchronizowanie…" : "Synch przezbrojenia"}
+              </button>
+              <button
+                type="button"
+                onClick={openAdd}
+                disabled={syncing}
+                className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm disabled:opacity-50"
+              >
+                ＋ Dodaj
+              </button>
+            </div>
           )}
         </div>
 
         {loading && <p>Ładowanie danych…</p>}
         {error && <p className="text-red-400">{error}</p>}
+        {syncError && <p className="text-red-400">{syncError}</p>}
+        {syncMessage && <p className="text-emerald-300">{syncMessage}</p>}
         {deleteError && <p className="text-red-400">{deleteError}</p>}
         {toggleError && <p className="text-red-400">{toggleError}</p>}
 

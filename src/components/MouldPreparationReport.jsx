@@ -19,6 +19,27 @@ const normalizeList = (payload) => {
   return [];
 };
 
+const parseJwt = (token) => {
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((char) => `%${(`00${char.charCodeAt(0).toString(16)}`).slice(-2)}`)
+        .join("")
+    );
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
+  }
+};
+
+const canSynchronizeChangeovers = (token) => {
+  const role = token ? parseJwt(token)?.role : null;
+  return role === "admindn" || role === "superadmin";
+};
+
 const formatDateTime = (value) => {
   if (!value) return "-";
   const date = new Date(value);
@@ -78,7 +99,12 @@ export default function MouldPreparationReport() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [unavailable, setUnavailable] = useState(false);
+  const [syncStatus, setSyncStatus] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState(null);
+  const [syncMessage, setSyncMessage] = useState(null);
   const token = localStorage.getItem("access_token");
+  const isSyncAdmin = canSynchronizeChangeovers(token);
 
   const refreshReport = useCallback(async () => {
     if (!dateFrom || !dateTo) {
@@ -111,9 +137,49 @@ export default function MouldPreparationReport() {
     }
   }, [dateFrom, dateTo, token]);
 
+  const refreshSyncStatus = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE}/changeovers/sync/status`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      setSyncStatus(response.data || null);
+    } catch (err) {
+      console.error(err);
+      setSyncStatus(null);
+    }
+  }, [token]);
+
+  const runOracleSync = async () => {
+    if (!isSyncAdmin || syncing) return;
+
+    try {
+      setSyncing(true);
+      setSyncError(null);
+      setSyncMessage(null);
+
+      const response = await axios.post(`${API_BASE}/changeovers/sync`, null, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const result = response.data || {};
+      setSyncStatus(result);
+      setSyncMessage(
+        `Synchronizacja zakończona: dodano ${result.inserted ?? 0}, ` +
+          `zaktualizowano ${result.updated ?? 0}, brakujące formy ${result.missing_moulds ?? 0}.`
+      );
+      await Promise.all([refreshReport(), refreshSyncStatus()]);
+    } catch (err) {
+      console.error(err);
+      const message = err?.response?.data?.detail || "Nie udało się zsynchronizować przezbrojeń.";
+      setSyncError(String(message));
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   useEffect(() => {
     refreshReport();
-  }, [refreshReport]);
+    refreshSyncStatus();
+  }, [refreshReport, refreshSyncStatus]);
 
   const summary = useMemo(() => {
     const blocked = rows.filter((row) => row?.readiness === "blocked").length;
@@ -151,6 +217,12 @@ export default function MouldPreparationReport() {
             <p className="mt-2 max-w-3xl text-sm text-slate-300 sm:text-base">
               Nadchodząca produkcja, aktualna i wymagana wersja formy, potrzebne przezbrojenia oraz otwarte TPM-y.
             </p>
+            <p className="mt-2 text-sm text-slate-300">
+              Ostatnia udana synchronizacja:{" "}
+              <span className="font-semibold text-cyan-200">
+                {syncStatus?.last_success_at ? formatDateTime(syncStatus.last_success_at) : "brak informacji"}
+              </span>
+            </p>
           </div>
         </div>
 
@@ -182,6 +254,18 @@ export default function MouldPreparationReport() {
               className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white outline-none focus:border-cyan-400"
             />
           </label>
+
+          {isSyncAdmin && (
+            <button
+              type="button"
+              onClick={runOracleSync}
+              disabled={syncing}
+              className="inline-flex items-center gap-2 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 font-semibold text-cyan-100 hover:bg-cyan-500/20 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} aria-hidden="true" />
+              {syncing ? "Synchronizowanie…" : "Synch przezbrojenia"}
+            </button>
+          )}
 
           <button
             type="button"
@@ -227,6 +311,18 @@ export default function MouldPreparationReport() {
           </button>
         ))}
       </div>
+
+      {syncError && (
+        <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-red-200">
+          {syncError}
+        </div>
+      )}
+
+      {syncMessage && (
+        <div className="mb-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-200">
+          {syncMessage}
+        </div>
+      )}
 
       {loading && (
         <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-10 text-center text-slate-300">
