@@ -15,12 +15,14 @@ import MouldDetails from "./components/MouldDetails";
 
 import Login from "./components/Login";
 import Register from "./components/Register";
+import RequireAuth from "./components/RequireAuth.jsx";
 import RequireRole from './components/RequireRole.jsx';
 import SuperAdminPanel from "./components/SuperAdminPanel";
 import AdminPanel from "./components/AdminPanel";
 import Changeovers from "./components/Changeovers.jsx";
 import Tpm from "./components/Tpm.jsx";
 import OpenServiceGuides from "./components/OpenServiceGuides.jsx";
+import MouldPreparationReport from "./components/MouldPreparationReport.jsx";
 import Kalendarz from "./components/Kalendarz.jsx";
 import ProductionAdmin from "./components/ProductionAdmin.jsx";
 import ServiceAdmin from "./components/ServiceAdmin.jsx";
@@ -138,6 +140,9 @@ function App() {
               <Route path="/current_sv" element={<CurrentSv />} />
               <Route path="/tpm" element={<Tpm />} />
               <Route path="/open-service-guides" element={<OpenServiceGuides />} />
+              <Route element={<RequireAuth />}>
+                <Route path="/raport-przygotowania-form" element={<MouldPreparationReport />} />
+              </Route>
               <Route path="/kalendarz" element={<Kalendarz />} />
             </Route>
 

@@ -6,6 +6,7 @@ import {
   BarChart3,
   BookOpen,
   Calendar,
+  ClipboardCheck,
   ClipboardList,
   Cpu,
   Database,
@@ -65,6 +66,7 @@ const navItems = [
   { module: "moulds", to: "/kalendarz", label: "Kalendarz", icon: Calendar },
   { module: "moulds", to: "/tpm", label: "TPM", icon: Wrench },
   { module: "moulds", to: "/open-service-guides", label: "Przewodniki", icon: BookOpen },
+  { module: "moulds", to: "/raport-przygotowania-form", label: "Raport przygotowania form", icon: ClipboardCheck },
   { module: "moulds", to: "/moulds-admin", label: "Dodaj formę", icon: Settings, adminOnly: true },
 
   { module: "mes", to: "/mes", label: "MES", icon: Cpu, mesOnly: true, end: true, smartMes: true },

@@ -51,6 +51,12 @@ export const ACCESS_TABLE = [
     description: "Formy z otwartymi przewodnikami serwisowania",
   },
   {
+    module: "Raport przygotowania form",
+    path: "/raport-przygotowania-form",
+    allowedRoles: "all",
+    description: "Gotowość form do planowanej produkcji",
+  },
+  {
     module: "Kalendarz",
     path: "/kalendarz",
     allowedRoles: "all",
