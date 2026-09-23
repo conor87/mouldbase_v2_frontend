@@ -100,7 +100,9 @@ export default function MouldPreparationReport() {
   const [error, setError] = useState(null);
   const [unavailable, setUnavailable] = useState(false);
   const [syncStatus, setSyncStatus] = useState(null);
+  const [productionSyncStatus, setProductionSyncStatus] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  const [productionSyncing, setProductionSyncing] = useState(false);
   const [syncError, setSyncError] = useState(null);
   const [syncMessage, setSyncMessage] = useState(null);
   const token = localStorage.getItem("access_token");
@@ -149,8 +151,20 @@ export default function MouldPreparationReport() {
     }
   }, [token]);
 
+  const refreshProductionSyncStatus = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE}/production/sync/status`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      setProductionSyncStatus(response.data || null);
+    } catch (err) {
+      console.error(err);
+      setProductionSyncStatus(null);
+    }
+  }, [token]);
+
   const runOracleSync = async () => {
-    if (!isSyncAdmin || syncing) return;
+    if (!isSyncAdmin || syncing || productionSyncing) return;
 
     try {
       setSyncing(true);
@@ -176,10 +190,38 @@ export default function MouldPreparationReport() {
     }
   };
 
+  const runProductionSync = async () => {
+    if (!isSyncAdmin || syncing || productionSyncing) return;
+
+    try {
+      setProductionSyncing(true);
+      setSyncError(null);
+      setSyncMessage(null);
+
+      const response = await axios.post(`${API_BASE}/production/sync`, null, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const result = response.data || {};
+      setProductionSyncStatus(result);
+      setSyncMessage(
+        `Synchronizacja produkcji zakończona: pobrano ${result.fetched ?? 0}, ` +
+          `zapisano ${result.inserted ?? 0}, pominięto ${result.skipped_invalid ?? 0}.`
+      );
+      await Promise.all([refreshReport(), refreshProductionSyncStatus()]);
+    } catch (err) {
+      console.error(err);
+      const message = err?.response?.data?.detail || "Nie udało się zsynchronizować produkcji.";
+      setSyncError(String(message));
+    } finally {
+      setProductionSyncing(false);
+    }
+  };
+
   useEffect(() => {
     refreshReport();
     refreshSyncStatus();
-  }, [refreshReport, refreshSyncStatus]);
+    refreshProductionSyncStatus();
+  }, [refreshReport, refreshSyncStatus, refreshProductionSyncStatus]);
 
   useEffect(() => {
     if (!syncError) return undefined;
@@ -225,9 +267,17 @@ export default function MouldPreparationReport() {
               Nadchodząca produkcja, aktualna i wymagana wersja formy, potrzebne przezbrojenia oraz otwarte TPM-y.
             </p>
             <p className="mt-2 text-sm text-slate-300">
-              Ostatnia udana synchronizacja:{" "}
+              Ostatnia udana synch. przezbrojeń:{" "}
               <span className="font-semibold text-cyan-200">
                 {syncStatus?.last_success_at ? formatDateTime(syncStatus.last_success_at) : "brak informacji"}
+              </span>
+            </p>
+            <p className="mt-1 text-sm text-slate-300">
+              Ostatnia udana synch. produkcji:{" "}
+              <span className="font-semibold text-cyan-200">
+                {productionSyncStatus?.last_success_at
+                  ? formatDateTime(productionSyncStatus.last_success_at)
+                  : "brak informacji"}
               </span>
             </p>
           </div>
@@ -263,15 +313,29 @@ export default function MouldPreparationReport() {
           </label>
 
           {isSyncAdmin && (
-            <button
-              type="button"
-              onClick={runOracleSync}
-              disabled={syncing}
-              className="inline-flex items-center gap-2 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 font-semibold text-cyan-100 hover:bg-cyan-500/20 disabled:opacity-50"
-            >
-              <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} aria-hidden="true" />
-              {syncing ? "Synchronizowanie…" : "Synch przezbrojenia"}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={runOracleSync}
+                disabled={syncing || productionSyncing}
+                className="inline-flex items-center gap-2 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 font-semibold text-cyan-100 hover:bg-cyan-500/20 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} aria-hidden="true" />
+                {syncing ? "Synchronizowanie…" : "Synch przezbrojenia"}
+              </button>
+              <button
+                type="button"
+                onClick={runProductionSync}
+                disabled={syncing || productionSyncing}
+                className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 font-semibold text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${productionSyncing ? "animate-spin" : ""}`}
+                  aria-hidden="true"
+                />
+                {productionSyncing ? "Synchronizowanie…" : "Synch produkcja"}
+              </button>
+            </>
           )}
 
           <button
