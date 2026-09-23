@@ -181,6 +181,13 @@ export default function MouldPreparationReport() {
     refreshSyncStatus();
   }, [refreshReport, refreshSyncStatus]);
 
+  useEffect(() => {
+    if (!syncError) return undefined;
+
+    const timeoutId = window.setTimeout(() => setSyncError(null), 5000);
+    return () => window.clearTimeout(timeoutId);
+  }, [syncError]);
+
   const summary = useMemo(() => {
     const blocked = rows.filter((row) => row?.readiness === "blocked").length;
     const changeovers = rows.filter((row) => Boolean(row?.changeover_required)).length;

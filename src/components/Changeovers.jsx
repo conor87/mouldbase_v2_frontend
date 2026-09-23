@@ -202,6 +202,13 @@ export default function Changeovers() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!syncError) return undefined;
+
+    const timeoutId = window.setTimeout(() => setSyncError(null), 5000);
+    return () => window.clearTimeout(timeoutId);
+  }, [syncError]);
+
   const sorted = useMemo(() => {
     return [...(changeovers || [])].sort((a, b) => Number(b.id ?? 0) - Number(a.id ?? 0));
   }, [changeovers]);
