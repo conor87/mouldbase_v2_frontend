@@ -89,7 +89,7 @@ export default function Changeovers() {
 
   // ✅ PAGINACJA
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 10;
 
   // --- ADD modal ---
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -149,7 +149,7 @@ export default function Changeovers() {
       setError(null);
 
       const [resCh, resM, resSyncStatus] = await Promise.all([
-        axios.get(`${API_BASE}/changeovers/`, { params: { limit: 5000 }, headers: { ...authHeaders() } }),
+        axios.get(`${API_BASE}/changeovers/`, { headers: { ...authHeaders() } }),
         axios.get(`${API_BASE}/moulds`, { params: { limit: 20000 }, headers: { ...authHeaders() } }),
         axios.get(`${API_BASE}/changeovers/sync/status`, { headers: { ...authHeaders() } }),
       ]);
@@ -209,7 +209,10 @@ export default function Changeovers() {
   }, [syncError]);
 
   const sorted = useMemo(() => {
-    return [...(changeovers || [])].sort((a, b) => Number(b.id ?? 0) - Number(a.id ?? 0));
+    return [...(changeovers || [])].sort((a, b) => {
+      const statusOrder = Number(Boolean(a?.czy_wykonano)) - Number(Boolean(b?.czy_wykonano));
+      return statusOrder || Number(b.id ?? 0) - Number(a.id ?? 0);
+    });
   }, [changeovers]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
