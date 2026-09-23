@@ -205,7 +205,8 @@ export default function MouldPreparationReport() {
       setProductionSyncStatus(result);
       setSyncMessage(
         `Synchronizacja produkcji zakończona: pobrano ${result.fetched ?? 0}, ` +
-          `zapisano ${result.inserted ?? 0}, pominięto ${result.skipped_invalid ?? 0}.`
+          `zapisano ${result.inserted ?? 0}, pominięto ${result.skipped_invalid ?? 0}, ` +
+          `usunięto duplikatów ${result.duplicates_removed ?? 0}.`
       );
       await Promise.all([refreshReport(), refreshProductionSyncStatus()]);
     } catch (err) {
