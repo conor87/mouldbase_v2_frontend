@@ -60,7 +60,7 @@ export default function Moulds() {
     try {
       setLoading(true);
       setError(null);
-      const res = await axios.get(`${API_BASE}/moulds`);
+      const res = await axios.get(`${API_BASE}/moulds`, { params: { limit: 20000 } });
       setMoulds(res.data || []);
     } catch (err) {
       console.error(err);
