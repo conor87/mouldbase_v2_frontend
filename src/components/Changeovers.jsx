@@ -89,6 +89,7 @@ export default function Changeovers() {
 
   // ✅ PAGINACJA
   const [page, setPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
   const PAGE_SIZE = 10;
 
   // --- ADD modal ---
@@ -216,10 +217,33 @@ export default function Changeovers() {
     });
   }, [changeovers]);
 
-  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const filteredRows = useMemo(() => {
+    const term = searchTerm.trim().toLocaleLowerCase("pl-PL");
+    if (!term) return sorted;
+
+    return sorted.filter((row) => {
+      const fromMould = mouldById.get(String(row.from_mould_id));
+      const toMould = mouldById.get(String(row.to_mould_id));
+      const status = row.czy_wykonano ? "wykonano zrealizowane tak" : "niewykonane do wykonania nie";
+      const values = [
+        row.id,
+        fromMould?.mould_number,
+        fromMould?.product,
+        toMould?.mould_number,
+        toMould?.product,
+        row.available_date,
+        row.needed_date,
+        row.updated_by,
+        status,
+      ];
+      return values.some((value) => String(value ?? "").toLocaleLowerCase("pl-PL").includes(term));
+    });
+  }, [sorted, searchTerm, mouldById]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const startIndex = (safePage - 1) * PAGE_SIZE;
-  const pageRows = sorted.slice(startIndex, startIndex + PAGE_SIZE);
+  const pageRows = filteredRows.slice(startIndex, startIndex + PAGE_SIZE);
 
   const paginationItems = useMemo(() => {
     const delta = 3;
@@ -537,14 +561,37 @@ export default function Changeovers() {
         {deleteError && <p className="text-red-400">{deleteError}</p>}
         {toggleError && <p className="text-red-400">{toggleError}</p>}
 
+        {!loading && !error && (
+          <div className="mb-4 max-w-xl">
+            <label htmlFor="changeover-search" className="mb-1 block text-sm text-slate-300">
+              Wyszukaj przezbrojenie
+            </label>
+            <input
+              id="changeover-search"
+              type="search"
+              value={searchTerm}
+              onChange={(event) => {
+                setSearchTerm(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Numer formy, produkt, ID, data lub status…"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
+            />
+          </div>
+        )}
+
         {!loading && !error && sorted.length === 0 && <p className="opacity-80">Brak rekordów przezbrojeń.</p>}
 
-        {!loading && !error && sorted.length > 0 && (
+        {!loading && !error && sorted.length > 0 && filteredRows.length === 0 && (
+          <p className="opacity-80">Brak przezbrojeń pasujących do wyszukiwania.</p>
+        )}
+
+        {!loading && !error && filteredRows.length > 0 && (
           <>
             <div className="mb-3 text-sm opacity-80">
               Rekordy <span className="text-cyan-300 font-semibold">{startIndex + 1}</span>–
-              <span className="text-cyan-300 font-semibold">{Math.min(startIndex + PAGE_SIZE, sorted.length)}</span>{" "}
-              z <span className="text-cyan-300 font-semibold">{sorted.length}</span> — strona{" "}
+              <span className="text-cyan-300 font-semibold">{Math.min(startIndex + PAGE_SIZE, filteredRows.length)}</span>{" "}
+              z <span className="text-cyan-300 font-semibold">{filteredRows.length}</span> — strona{" "}
               <span className="text-cyan-300 font-semibold">{safePage}</span> /{" "}
               <span className="text-cyan-300 font-semibold">{totalPages}</span>
             </div>

@@ -3,12 +3,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   AlertTriangle,
+  ArrowDown,
   ArrowLeftRight,
   CalendarClock,
   CheckCircle2,
   ClipboardCheck,
   RefreshCw,
+  Workflow,
   Wrench,
+  X,
 } from "lucide-react";
 import { API_BASE } from "../config/api.js";
 
@@ -38,6 +41,11 @@ const parseJwt = (token) => {
 const canSynchronizeChangeovers = (token) => {
   const role = token ? parseJwt(token)?.role : null;
   return role === "admindn" || role === "superadmin";
+};
+
+const canViewStatusAlgorithm = (token) => {
+  const role = token ? parseJwt(token)?.role : null;
+  return role === "superadmin";
 };
 
 const formatDateTime = (value) => {
@@ -91,6 +99,187 @@ const SummaryCard = ({ icon, label, value, colorClass }) => (
   </div>
 );
 
+const statusFlowSteps = [
+  {
+    question: "Czy forma z planu produkcji istnieje w kartotece form?",
+    outcomeWhen: "NIE",
+    continueWhen: "TAK",
+    status: "Zablokowana",
+    detail: "Trzeba poprawić lub uzupełnić numer formy w danych produkcyjnych.",
+    className: "border-red-500/40 bg-red-500/10 text-red-100",
+  },
+  {
+    question: "Czy termin produkcji nachodzi na aktywny pobyt formy w narzędziowni?",
+    outcomeWhen: "TAK",
+    continueWhen: "NIE",
+    status: "Zablokowana",
+    detail: "Zakres jest sprawdzany według kalendarza narzędziowni.",
+    className: "border-red-500/40 bg-red-500/10 text-red-100",
+  },
+  {
+    question: "Czy forma ma otwarty TPM z czasem reakcji „Natychmiast”?",
+    outcomeWhen: "TAK",
+    continueWhen: "NIE",
+    status: "Zablokowana",
+    detail: "TPM natychmiastowy ma pierwszeństwo przed pozostałymi statusami.",
+    className: "border-red-500/40 bg-red-500/10 text-red-100",
+  },
+  {
+    question: "Czy aktualnej wersji formy nie da się ustalić z historii przezbrojeń?",
+    outcomeWhen: "TAK",
+    continueWhen: "NIE",
+    status: "Zablokowana",
+    detail: "Wymagane jest potwierdzenie aktualnej wersji formy.",
+    className: "border-red-500/40 bg-red-500/10 text-red-100",
+  },
+  {
+    question: "Czy raport wykrył wymagane przezbrojenie?",
+    outcomeWhen: "TAK",
+    continueWhen: "NIE",
+    status: "Wymaga przezbrojenia",
+    detail: "Istniejący niewykonany wpis → „Wykonać”; brak wpisu przy innej wersji → „Zaplanować”.",
+    className: "border-amber-500/40 bg-amber-500/10 text-amber-100",
+  },
+  {
+    question: "Czy forma ma inne otwarte TPM-y?",
+    outcomeWhen: "TAK",
+    continueWhen: "NIE",
+    status: "Wymaga TPM",
+    detail: "Dotyczy otwartych TPM-ów, które nie mają reakcji „Natychmiast”.",
+    className: "border-orange-500/40 bg-orange-500/10 text-orange-100",
+  },
+  {
+    question: "Czy brakuje ważnego wpisu „Sprawdzenie przed produkcją”?",
+    outcomeWhen: "TAK",
+    continueWhen: "NIE",
+    status: "Do sprawdzenia przed produkcją",
+    detail: "Sprawdzenie wykonane przed ostatnim przezbrojeniem nie jest uznawane za aktualne.",
+    className: "border-sky-500/40 bg-sky-500/10 text-sky-100",
+  },
+];
+
+function StatusAlgorithmModal({ onClose }) {
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-3 backdrop-blur-sm sm:p-6"
+      role="presentation"
+      onMouseDown={onClose}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="status-algorithm-title"
+        className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-2xl border border-cyan-500/30 bg-slate-950 shadow-2xl shadow-black/60"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-white/10 bg-slate-950/95 px-5 py-4 backdrop-blur sm:px-7">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-2 text-cyan-300">
+              <Workflow className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <div>
+              <h2 id="status-algorithm-title" className="text-xl font-bold text-cyan-200 sm:text-2xl">
+                Algorytm przypisywania statusów form
+              </h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Warunki są analizowane od góry. Pierwszy spełniony warunek ustala status końcowy.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-white/10 p-2 text-slate-300 transition-colors hover:border-white/30 hover:bg-white/10 hover:text-white"
+            aria-label="Zamknij schemat algorytmu"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </header>
+
+        <div className="space-y-6 p-5 sm:p-7">
+          <div className="mx-auto max-w-5xl">
+            <div className="mx-auto w-fit rounded-full border border-cyan-500/40 bg-cyan-500/10 px-5 py-2 text-center font-semibold text-cyan-100">
+              Forma zaplanowana do produkcji w wybranym terminie
+            </div>
+            <div className="flex justify-center py-2 text-cyan-400">
+              <ArrowDown className="h-5 w-5" aria-hidden="true" />
+            </div>
+
+            {statusFlowSteps.map((step) => (
+              <div key={step.question}>
+                <div className="grid items-stretch gap-2 md:grid-cols-[minmax(0,1fr)_72px_minmax(240px,0.8fr)] md:gap-3">
+                  <div className="flex items-center justify-center rounded-xl border border-cyan-500/35 bg-cyan-500/[0.07] px-4 py-3 text-center font-semibold text-slate-100">
+                    {step.question}
+                  </div>
+                  <div className="flex items-center justify-center text-xs font-bold text-rose-200 md:flex-col">
+                    <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-1">{step.outcomeWhen}</span>
+                    <span className="mx-2 h-px flex-1 bg-rose-500/40 md:mx-0 md:my-2 md:h-auto md:w-px" />
+                    <span aria-hidden="true">→</span>
+                  </div>
+                  <div className={`rounded-xl border px-4 py-3 ${step.className}`}>
+                    <p className="font-bold">{step.status}</p>
+                    <p className="mt-1 text-xs leading-relaxed opacity-80">{step.detail}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 py-2 pl-4 text-xs font-bold text-emerald-300 md:w-[calc(55%-36px)] md:justify-center md:pl-0">
+                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1">
+                    {step.continueWhen}
+                  </span>
+                  <ArrowDown className="h-4 w-4" aria-hidden="true" />
+                </div>
+              </div>
+            ))}
+
+            <div className="w-full rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-5 py-4 text-center text-emerald-100 md:w-[calc(55%-36px)]">
+              <p className="font-bold">Gotowa</p>
+              <p className="mt-1 text-xs text-emerald-200/80">Brak blokad i wymaganych działań.</p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-4 sm:p-5">
+            <h3 className="font-bold text-amber-200">Jak raport ustala potrzebę przezbrojenia?</h3>
+            <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:items-stretch">
+              <div className="rounded-xl border border-white/10 bg-slate-900/70 p-4">
+                <p className="font-semibold text-white">1. Niewykonane przezbrojenie</p>
+                <p className="mt-2 text-sm text-slate-300">
+                  Jeżeli istnieje wpis prowadzący na wymaganą formę, raport pokazuje „Wykonać przezbrojenie”.
+                </p>
+              </div>
+              <div className="hidden items-center text-amber-300 lg:flex" aria-hidden="true">→</div>
+              <div className="rounded-xl border border-white/10 bg-slate-900/70 p-4">
+                <p className="font-semibold text-white">2. Aktualna wersja</p>
+                <p className="mt-2 text-sm text-slate-300">
+                  Gdy brak takiego wpisu, wersję wyznacza najnowsze wykonane przezbrojenie według pola „Potrzebna na”.
+                </p>
+              </div>
+              <div className="hidden items-center text-amber-300 lg:flex" aria-hidden="true">→</div>
+              <div className="rounded-xl border border-white/10 bg-slate-900/70 p-4">
+                <p className="font-semibold text-white">3. Decyzja</p>
+                <p className="mt-2 text-sm text-slate-300">
+                  Inna wersja oznacza „Zaplanować przezbrojenie”. Dla formy nieprzezbrajalnej dawna historia nie wymusza przezbrojenia.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function MouldPreparationReport() {
   const [dateFrom, setDateFrom] = useState(() => dateInputValue());
   const [dateTo, setDateTo] = useState(() => dateInputValue(2));
@@ -105,8 +294,10 @@ export default function MouldPreparationReport() {
   const [productionSyncing, setProductionSyncing] = useState(false);
   const [syncError, setSyncError] = useState(null);
   const [syncMessage, setSyncMessage] = useState(null);
+  const [isStatusAlgorithmOpen, setIsStatusAlgorithmOpen] = useState(false);
   const token = localStorage.getItem("access_token");
   const isSyncAdmin = canSynchronizeChangeovers(token);
+  const isSuperAdmin = canViewStatusAlgorithm(token);
 
   const refreshReport = useCallback(async () => {
     if (!dateFrom || !dateTo) {
@@ -263,7 +454,20 @@ export default function MouldPreparationReport() {
             <ClipboardCheck className="h-8 w-8" aria-hidden="true" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-cyan-400 sm:text-4xl">Raport przygotowania form</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-cyan-400 sm:text-4xl">Raport przygotowania form</h1>
+              {isSuperAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setIsStatusAlgorithmOpen(true)}
+                  className="inline-flex shrink-0 items-center justify-center rounded-lg border border-cyan-500/40 bg-cyan-500/10 p-2 text-cyan-200 transition-colors hover:bg-cyan-500/20 hover:text-cyan-100"
+                  title="Pokaż algorytm przypisywania statusów"
+                  aria-label="Pokaż algorytm przypisywania statusów"
+                >
+                  <Workflow className="h-5 w-5" aria-hidden="true" />
+                </button>
+              )}
+            </div>
             <p className="mt-2 max-w-3xl text-sm text-slate-300 sm:text-base">
               Nadchodząca produkcja, aktualna i wymagana wersja formy, potrzebne przezbrojenia oraz otwarte TPM-y.
             </p>
@@ -518,6 +722,10 @@ export default function MouldPreparationReport() {
             <div className="p-8 text-center text-slate-400">Brak pozycji dla wybranego filtra.</div>
           )}
         </div>
+      )}
+
+      {isSuperAdmin && isStatusAlgorithmOpen && (
+        <StatusAlgorithmModal onClose={() => setIsStatusAlgorithmOpen(false)} />
       )}
     </div>
   );
