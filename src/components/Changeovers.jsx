@@ -211,7 +211,8 @@ export default function Changeovers() {
   const sorted = useMemo(() => {
     return [...(changeovers || [])].sort((a, b) => {
       const statusOrder = Number(Boolean(a?.czy_wykonano)) - Number(Boolean(b?.czy_wykonano));
-      return statusOrder || Number(b.id ?? 0) - Number(a.id ?? 0);
+      const neededDateOrder = (Date.parse(b?.needed_date ?? "") || 0) - (Date.parse(a?.needed_date ?? "") || 0);
+      return statusOrder || neededDateOrder || Number(b.id ?? 0) - Number(a.id ?? 0);
     });
   }, [changeovers]);
 
