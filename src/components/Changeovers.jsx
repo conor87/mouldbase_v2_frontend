@@ -89,8 +89,7 @@ export default function Changeovers() {
 
   // ✅ PAGINACJA
   const [page, setPage] = useState(1);
-  const DONE_FIRST_PAGE_LIMIT = 10;
-  const DONE_PAGE_SIZE = 20;
+  const PAGE_SIZE = 50;
 
   // --- ADD modal ---
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -213,19 +212,31 @@ export default function Changeovers() {
     return [...(changeovers || [])].sort((a, b) => Number(b.id ?? 0) - Number(a.id ?? 0));
   }, [changeovers]);
 
-  const openRows = useMemo(() => sorted.filter((x) => !x?.czy_wykonano), [sorted]);
-  const doneRows = useMemo(() => sorted.filter((x) => !!x?.czy_wykonano), [sorted]);
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const startIndex = (safePage - 1) * PAGE_SIZE;
+  const pageRows = sorted.slice(startIndex, startIndex + PAGE_SIZE);
 
-  const doneRemainder = Math.max(0, doneRows.length - DONE_FIRST_PAGE_LIMIT);
-  const extraPages = Math.ceil(doneRemainder / DONE_PAGE_SIZE);
-  const totalPages = 1 + extraPages;
+  const paginationItems = useMemo(() => {
+    const delta = 3;
+    const pagesSet = new Set([1, totalPages]);
 
-  const pageRows = useMemo(() => {
-    if (page <= 1) return [...openRows, ...doneRows.slice(0, DONE_FIRST_PAGE_LIMIT)];
-    const start = DONE_FIRST_PAGE_LIMIT + (page - 2) * DONE_PAGE_SIZE;
-    const end = start + DONE_PAGE_SIZE;
-    return doneRows.slice(start, end);
-  }, [page, openRows, doneRows]);
+    for (let current = safePage - delta; current <= safePage + delta; current += 1) {
+      if (current >= 1 && current <= totalPages) pagesSet.add(current);
+    }
+
+    const pages = Array.from(pagesSet).sort((a, b) => a - b);
+    const items = [];
+    let previous = null;
+
+    pages.forEach((current) => {
+      if (previous !== null && current - previous > 1) items.push("...");
+      items.push(current);
+      previous = current;
+    });
+
+    return items;
+  }, [safePage, totalPages]);
 
   const goToPage = (p) => {
     const next = Math.max(1, Math.min(totalPages, p));
@@ -527,9 +538,11 @@ export default function Changeovers() {
         {!loading && !error && sorted.length > 0 && (
           <>
             <div className="mb-3 text-sm opacity-80">
-              Strona <span className="text-cyan-300 font-semibold">{page}</span> /{" "}
-              <span className="text-cyan-300 font-semibold">{totalPages}</span> — na 1. stronie: wszystkie niewykonane +
-              max {DONE_FIRST_PAGE_LIMIT} wykonanych
+              Rekordy <span className="text-cyan-300 font-semibold">{startIndex + 1}</span>–
+              <span className="text-cyan-300 font-semibold">{Math.min(startIndex + PAGE_SIZE, sorted.length)}</span>{" "}
+              z <span className="text-cyan-300 font-semibold">{sorted.length}</span> — strona{" "}
+              <span className="text-cyan-300 font-semibold">{safePage}</span> /{" "}
+              <span className="text-cyan-300 font-semibold">{totalPages}</span>
             </div>
 
             <div className="overflow-x-auto rounded-2xl border border-white/10">
@@ -644,30 +657,38 @@ export default function Changeovers() {
               <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                 <button
                   type="button"
-                  onClick={() => goToPage(page - 1)}
-                  disabled={page <= 1}
+                  onClick={() => goToPage(safePage - 1)}
+                  disabled={safePage <= 1}
                   className="px-3 py-2 border border-white/10 rounded-lg disabled:opacity-40 hover:bg-white/10"
                 >
                   ◀
                 </button>
 
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => goToPage(p)}
-                    className={`px-3 py-2 rounded-lg border ${
-                      p === page ? "bg-cyan-500 text-black border-cyan-400" : "border-white/10 hover:bg-white/10"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
+                {paginationItems.map((item, index) =>
+                  item === "..." ? (
+                    <span key={`dots-${index}`} className="px-3 py-2 text-slate-400 select-none">
+                      ...
+                    </span>
+                  ) : (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => goToPage(item)}
+                      className={`px-3 py-2 rounded-lg border ${
+                        item === safePage
+                          ? "bg-cyan-500 text-black border-cyan-400"
+                          : "border-white/10 hover:bg-white/10"
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  )
+                )}
 
                 <button
                   type="button"
-                  onClick={() => goToPage(page + 1)}
-                  disabled={page >= totalPages}
+                  onClick={() => goToPage(safePage + 1)}
+                  disabled={safePage >= totalPages}
                   className="px-3 py-2 border border-white/10 rounded-lg disabled:opacity-40 hover:bg-white/10"
                 >
                   ▶
