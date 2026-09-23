@@ -46,6 +46,7 @@ export default function MouldDetails_BasicInfo({
   const [mouldDraft, setMouldDraft] = useState({
     mould_number: "",
     company: "",
+    czy_przezbrajalna: false,
     tool_weight: "",
     product: "",
     total_cycles: "",
@@ -161,6 +162,7 @@ export default function MouldDetails_BasicInfo({
     setMouldDraft({
       mould_number: mouldData.mould_number ?? "",
       company: mouldData.company ?? "",
+      czy_przezbrajalna: Boolean(mouldData.czy_przezbrajalna),
       tool_weight: mouldData.tool_weight ?? "",
       product: mouldData.product ?? "",
       total_cycles:
@@ -223,6 +225,7 @@ export default function MouldDetails_BasicInfo({
       fd.append("new_mould_number", nextNumber);
 
       fd.append("company", mouldDraft.company ?? "");
+      fd.append("czy_przezbrajalna", mouldDraft.czy_przezbrajalna ? "true" : "false");
       fd.append("tool_weight", mouldDraft.tool_weight ?? "");
       fd.append("product", mouldDraft.product ?? "");
       fd.append("num_of_cavities", mouldDraft.num_of_cavities ?? "");
@@ -314,6 +317,13 @@ export default function MouldDetails_BasicInfo({
             </span>
             <span className="text-gray-200">
               {mouldData.company}
+            </span>
+          </div>
+
+          <div>
+            <span className="text-blue-400">Czy przezbrajalna: </span>
+            <span className={mouldData.czy_przezbrajalna ? "text-emerald-300" : "text-gray-200"}>
+              {mouldData.czy_przezbrajalna ? "Tak" : "Nie"}
             </span>
           </div>
 
@@ -508,6 +518,20 @@ export default function MouldDetails_BasicInfo({
                             value={mouldDraft.company}
                             onChange={(e) => setDraftField("company", e.target.value)}
                           />
+                        </td>
+                      </tr>
+
+                      <tr className="border-t border-white/10">
+                        <td className="px-4 py-3 font-semibold">Czy przezbrajalna</td>
+                        <td className="px-4 py-3">
+                          <label className="inline-flex items-center gap-2 select-none">
+                            <input
+                              type="checkbox"
+                              checked={mouldDraft.czy_przezbrajalna}
+                              onChange={(e) => setDraftField("czy_przezbrajalna", e.target.checked)}
+                            />
+                            <span>{mouldDraft.czy_przezbrajalna ? "Tak" : "Nie"}</span>
+                          </label>
                         </td>
                       </tr>
 
