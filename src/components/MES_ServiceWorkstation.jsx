@@ -64,7 +64,7 @@ export default function MES_ServiceWorkstation() {
     const headers = { Authorization: `Bearer ${token}` };
     Promise.all([
       fetch(`${API_BASE}/changeovers/`, { headers }).then((r) => r.json()),
-      fetch(`${API_BASE}/moulds`, { headers }).then((r) => r.json()),
+      fetch(`${API_BASE}/moulds?limit=20000`, { headers }).then((r) => r.json()),
     ])
       .then(([chRaw, mouldsRaw]) => {
         const chList = Array.isArray(chRaw) ? chRaw : chRaw.results ?? chRaw.data ?? [];
@@ -80,7 +80,7 @@ export default function MES_ServiceWorkstation() {
     setMode("serwisowanie");
     setMouldsLoading(true);
     const token = localStorage.getItem("access_token");
-    fetch(`${API_BASE}/moulds`, {
+    fetch(`${API_BASE}/moulds?limit=20000`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
