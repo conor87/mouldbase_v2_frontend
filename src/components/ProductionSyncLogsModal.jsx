@@ -7,10 +7,12 @@ export default function ProductionSyncLogsModal({ token, onClose, formatDateTime
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const controller = new AbortController();
     axios.get(`${API_BASE}/production/sync/logs`, {
+      params: { page, page_size: 50 },
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       signal: controller.signal,
     })
@@ -26,7 +28,7 @@ export default function ProductionSyncLogsModal({ token, onClose, formatDateTime
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [token]);
+  }, [token, page]);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -42,6 +44,15 @@ export default function ProductionSyncLogsModal({ token, onClose, formatDateTime
   }, [onClose]);
 
   const items = Array.isArray(data?.items) ? data.items : [];
+  const currentPage = data?.page ?? page;
+  const pageSize = data?.page_size ?? 50;
+  const total = data?.total ?? items.length;
+  const totalPages = data?.total_pages ?? 1;
+  const changePage = (nextPage) => {
+    setLoading(true);
+    setError(null);
+    setPage(nextPage);
+  };
 
   return (
     <div
@@ -66,6 +77,24 @@ export default function ProductionSyncLogsModal({ token, onClose, formatDateTime
               <p className="mt-1 text-sm text-slate-400">
                 Pozycje odrzucone jako nieprawidłowe podczas ostatniej udanej synchronizacji.
               </p>
+              {!error && data?.details_available && total > 0 && (
+                <nav aria-label="Strony logów synchronizacji" className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-300">
+                  <span>
+                    Pozycje {(currentPage - 1) * pageSize + 1}–{(currentPage - 1) * pageSize + items.length} z {total}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <button type="button" onClick={() => changePage(currentPage - 1)} disabled={loading || currentPage <= 1}
+                      className="rounded-lg border border-white/15 px-3 py-2 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40">
+                      Poprzednia
+                    </button>
+                    <span>Strona {currentPage} z {totalPages}</span>
+                    <button type="button" onClick={() => changePage(currentPage + 1)} disabled={loading || currentPage >= totalPages}
+                      className="rounded-lg border border-white/15 px-3 py-2 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40">
+                      Następna
+                    </button>
+                  </div>
+                </nav>
+              )}
             </div>
           </div>
           <button type="button" onClick={onClose} autoFocus
