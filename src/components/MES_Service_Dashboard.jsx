@@ -66,12 +66,21 @@ export default function MES_Service_Dashboard() {
     Promise.all([
       fetch(`${API_BASE}/service/workstations`, { headers }).then((r) => r.json()),
       fetch(`${API_BASE}/production/users`, { headers }).then((r) => r.json()),
-      fetch(`${API_BASE}/moulds`, { headers }).then((r) => r.json()),
     ])
-      .then(([wsRaw, usersRaw, mouldsRaw]) => {
-        setWorkstations(normalizeList(wsRaw));
+      .then(async ([wsRaw, usersRaw]) => {
+        const wsList = normalizeList(wsRaw);
+        setWorkstations(wsList);
         setUsers(normalizeList(usersRaw));
-        setMoulds(normalizeList(mouldsRaw));
+
+        const mouldNumbers = [...new Set(wsList.map((ws) => ws.st).filter(Boolean))];
+        const assignedMoulds = await Promise.all(
+          mouldNumbers.map((number) =>
+            fetch(`${API_BASE}/moulds/${encodeURIComponent(number)}`, { headers })
+              .then((r) => (r.ok ? r.json() : null))
+              .catch(() => null),
+          ),
+        );
+        setMoulds(assignedMoulds.filter(Boolean));
       })
       .catch(() => {})
       .finally(() => setLoading(false));
