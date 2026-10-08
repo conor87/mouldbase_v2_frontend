@@ -106,14 +106,14 @@ export default function MES_ServicePanel() {
 
     Promise.all([
       fetch(`${API_BASE}/service/workstations`, { headers }).then((r) => r.json()),
-      fetch(`${API_BASE}/moulds`, { headers }).then((r) => r.json()),
+      fetch(`${API_BASE}/moulds/${encodeURIComponent(mouldNumber)}`, { headers })
+        .then((r) => (r.ok ? r.json() : null)),
     ])
-      .then(([wsRaw, mouldsRaw]) => {
+      .then(([wsRaw, mouldData]) => {
         const wsList = normalizeList(wsRaw);
-        const mouldsList = normalizeList(mouldsRaw);
         const ws = wsList.find((w) => String(w.id) === workstationId) ?? null;
         setWorkstation(ws);
-        setMould(mouldsList.find((m) => m.mould_number === mouldNumber) ?? null);
+        setMould(mouldData);
         // Restore active status from workstation
         if (ws?.status_changeovers) {
           const match = [...SERVICE_STATUSES, ...AWARIA_STATUSES].find((s) => s.label === ws.status_changeovers);
