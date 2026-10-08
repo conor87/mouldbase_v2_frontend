@@ -8,6 +8,7 @@ import {
   CalendarClock,
   CheckCircle2,
   ClipboardCheck,
+  ListChecks,
   RefreshCw,
   ScrollText,
   Workflow,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 import { API_BASE } from "../config/api.js";
 import ProductionSyncLogsModal from "./ProductionSyncLogsModal.jsx";
+import ProductionSyncItemsModal from "./ProductionSyncItemsModal.jsx";
 
 const normalizeList = (payload) => {
   if (Array.isArray(payload)) return payload;
@@ -298,6 +300,7 @@ export default function MouldPreparationReport() {
   const [syncMessage, setSyncMessage] = useState(null);
   const [isStatusAlgorithmOpen, setIsStatusAlgorithmOpen] = useState(false);
   const [isProductionLogsOpen, setIsProductionLogsOpen] = useState(false);
+  const [isProductionItemsOpen, setIsProductionItemsOpen] = useState(false);
   const token = localStorage.getItem("access_token");
   const isSyncAdmin = canSynchronizeChangeovers(token);
   const isSuperAdmin = canViewStatusAlgorithm(token);
@@ -479,6 +482,17 @@ export default function MouldPreparationReport() {
                   aria-label="Pokaż logi synchronizacji produkcji"
                 >
                   <ScrollText className="h-5 w-5" aria-hidden="true" />
+                </button>
+              )}
+              {isSuperAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setIsProductionItemsOpen(true)}
+                  className="inline-flex shrink-0 items-center justify-center rounded-lg border border-cyan-500/40 bg-cyan-500/10 p-2 text-cyan-200 transition-colors hover:bg-cyan-500/20 hover:text-cyan-100"
+                  title="Pokaż zsynchronizowane pozycje produkcji"
+                  aria-label="Pokaż zsynchronizowane pozycje produkcji"
+                >
+                  <ListChecks className="h-5 w-5" aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -746,6 +760,13 @@ export default function MouldPreparationReport() {
           token={token}
           formatDateTime={formatDateTime}
           onClose={() => setIsProductionLogsOpen(false)}
+        />
+      )}
+      {isSuperAdmin && isProductionItemsOpen && (
+        <ProductionSyncItemsModal
+          token={token}
+          formatDateTime={formatDateTime}
+          onClose={() => setIsProductionItemsOpen(false)}
         />
       )}
     </div>
