@@ -96,7 +96,7 @@ export default function ProductionSyncLogsModal({ token, onClose, formatDateTime
                   <table className="w-full min-w-[850px] text-sm">
                     <thead className="bg-white/5 text-left text-slate-200">
                       <tr>
-                        {["Wiersz źródłowy", "Forma", "Wyrób / kod", "Start produkcji", "Koniec produkcji", "Powód pominięcia"].map((label) => (
+                        {["Wiersz źródłowy", "Forma", "Wyrób / kod", "Start produkcji", "Koniec produkcji", "Powód pominięcia", "Dane źródłowe Oracle"].map((label) => (
                           <th key={label} className="px-4 py-3 font-semibold">{label}</th>
                         ))}
                       </tr>
@@ -113,6 +113,22 @@ export default function ProductionSyncLogsModal({ token, onClose, formatDateTime
                           <td className="whitespace-nowrap px-4 py-3">{formatDateTime(item.planned_start)}</td>
                           <td className="whitespace-nowrap px-4 py-3">{formatDateTime(item.planned_end)}</td>
                           <td className="px-4 py-3 text-amber-100">{item.reason || "—"}</td>
+                          <td className="px-4 py-3">
+                            {item.source_row ? (
+                              <details>
+                                <summary className="cursor-pointer whitespace-nowrap text-cyan-300 hover:text-cyan-200">
+                                  Pełny zwrot zapytania
+                                </summary>
+                                <pre className="mt-2 max-h-80 min-w-72 overflow-auto rounded-lg bg-black/30 p-3 text-xs text-slate-200">
+                                  {JSON.stringify(item.source_row, null, 2)}
+                                </pre>
+                              </details>
+                            ) : (
+                              <span className="text-xs text-slate-400">
+                                Pełne dane będą dostępne po kolejnej synchronizacji produkcji.
+                              </span>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
