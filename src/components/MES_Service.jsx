@@ -9,11 +9,29 @@ export default function MES_Service() {
   const navigate = useNavigate();
   const [workstations, setWorkstations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [usersById, setUsersById] = useState({});
+  const [usersLoaded, setUsersLoaded] = useState(false);
   const currentUserId = getCurrentUser()?.id ?? null;
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     const controller = new AbortController();
+    fetch(`${API_BASE}/production/users`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error("Nie udało się pobrać nazw użytkowników");
+        return r.json();
+      })
+      .then((data) => {
+        const users = Array.isArray(data) ? data : data.results ?? data.data ?? [];
+        setUsersById(Object.fromEntries(users.map((user) => [user.id, user.username])));
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!controller.signal.aborted) setUsersLoaded(true);
+      });
     const refresh = () => fetch(`${API_BASE}/service/workstations`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal,
@@ -63,7 +81,8 @@ export default function MES_Service() {
             const occupied = ws.user_id != null;
             const ownedByMe = occupied && currentUserId != null && Number(ws.user_id) === Number(currentUserId);
             const blocked = currentUserId == null || (occupied && !ownedByMe);
-            const operator = ws.operator_username || (ownedByMe ? getCurrentUser()?.sub : null) || `Użytkownik #${ws.user_id}`;
+            const operator = ws.operator_username || usersById[ws.user_id] || (ownedByMe ? getCurrentUser()?.sub : null)
+              || (usersLoaded ? "Nieznany użytkownik" : "Ładowanie nazwy użytkownika…");
             return (
             <button
               key={ws.id}
