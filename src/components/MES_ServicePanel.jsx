@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
 import { ChevronLeft } from "lucide-react";
 import MES_UserBar from "./MES_UserBar.jsx";
+import { getCurrentUser } from "../auth.js";
 
 const normalizeList = (data) =>
   Array.isArray(data) ? data : data?.results ?? data?.data ?? [];
@@ -61,6 +62,7 @@ function formatTime(ms) {
 export default function MES_ServicePanel() {
   const { workstationId, mouldNumber } = useParams();
   const navigate = useNavigate();
+  const currentUserId = getCurrentUser()?.id ?? null;
 
   const [workstation, setWorkstation] = useState(null);
   const [mould, setMould] = useState(null);
@@ -129,7 +131,7 @@ export default function MES_ServicePanel() {
 
   // Save current mould to workstation on entry
   useEffect(() => {
-    if (!workstation || !mouldNumber) return;
+    if (!workstation || !mouldNumber || currentUserId == null || workstation.user_id == null || Number(workstation.user_id) !== Number(currentUserId)) return;
     if (workstation.st === mouldNumber) return;
     const token = localStorage.getItem("access_token");
     fetch(`${API_BASE}/service/workstations/${workstation.id}`, {
@@ -140,7 +142,7 @@ export default function MES_ServicePanel() {
       },
       body: JSON.stringify({ st: mouldNumber }),
     }).catch(() => {});
-  }, [workstation, mouldNumber]);
+  }, [workstation, mouldNumber, currentUserId]);
 
   // Timer tick
   useEffect(() => {
@@ -244,7 +246,7 @@ export default function MES_ServicePanel() {
       updateWorkstationStatus(btn.label);
       createServiceLog(btn.label);
     },
-    [updateWorkstationStatus, createServiceLog],
+    [updateWorkstationStatus, createServiceLog, workstation, workstationId, navigate],
   );
 
   const activeBtn = activeStatusId ? allButtonsById[activeStatusId] : null;
@@ -270,6 +272,12 @@ export default function MES_ServicePanel() {
         <p className="text-slate-400 text-center">Ładowanie…</p>
       ) : !workstation ? (
         <p className="text-slate-400 text-center">Nie znaleziono stanowiska.</p>
+      ) : currentUserId == null || workstation.user_id == null || Number(workstation.user_id) !== Number(currentUserId) ? (
+        <p className="text-amber-300 text-center">
+          {workstation.user_id == null
+            ? "Najpierw zajmij stanowisko na ekranie wyboru stanowiska."
+            : `To stanowisko jest zajęte przez: ${workstation.operator_username || `Użytkownik #${workstation.user_id}`}.`}
+        </p>
       ) : (
         <>
           {/* ===== Two-column layout ===== */}

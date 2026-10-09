@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
 import { ChevronLeft, Wrench, Settings, LogOut } from "lucide-react";
 import MES_UserBar from "./MES_UserBar.jsx";
+import { getCurrentUser } from "../auth.js";
 
 export default function MES_ServiceWorkstation() {
   const { workstationId } = useParams();
@@ -20,17 +21,8 @@ export default function MES_ServiceWorkstation() {
   const [changeoverSearch, setChangeoverSearch] = useState("");
 
   const getUserId = useCallback(() => {
-    let userId = localStorage.getItem("user_id");
-    if (!userId) {
-      const token = localStorage.getItem("access_token");
-      if (token) {
-        try {
-          const decoded = JSON.parse(atob(token.split(".")[1]));
-          userId = decoded.id ?? decoded.user_id ?? decoded.sub ?? null;
-        } catch { /* ignore */ }
-      }
-    }
-    return userId ? parseInt(userId, 10) : null;
+    const userId = getCurrentUser()?.id;
+    return userId != null ? Number(userId) : null;
   }, []);
 
   const fetchWorkstation = useCallback(() => {
@@ -94,10 +86,7 @@ export default function MES_ServiceWorkstation() {
 
   const handleTakeover = () => {
     if (workstation?.user_id != null && Number(workstation.user_id) !== getUserId()) {
-      const confirmed = window.confirm(
-        "To stanowisko jest przypisane do innego pracownika. Przejęcie stanowiska odblokuje je dla Ciebie i odbierze dostęp poprzedniemu operatorowi. Czy na pewno przejąć stanowisko?"
-      );
-      if (!confirmed) return;
+      return;
     }
 
     const token = localStorage.getItem("access_token");
@@ -134,7 +123,10 @@ export default function MES_ServiceWorkstation() {
           }),
         }).catch(() => {});
       })
-      .catch(() => alert("Nie udało się przejąć stanowiska."));
+      .catch(() => {
+        alert("Nie udało się zająć stanowiska. Mogło zostać zajęte przez innego użytkownika.");
+        fetchWorkstation();
+      });
   };
 
   const handleRelease = () => {
@@ -179,7 +171,7 @@ export default function MES_ServiceWorkstation() {
 
   const currentUserId = getUserId();
   const isUnassigned = workstation.user_id === null || workstation.user_id === undefined;
-  const isOwnedByMe = workstation.user_id === currentUserId;
+  const isOwnedByMe = !isUnassigned && Number(workstation.user_id) === currentUserId;
   const isOwnedByOther = !isUnassigned && !isOwnedByMe;
 
   return (
@@ -365,17 +357,9 @@ export default function MES_ServiceWorkstation() {
       {isOwnedByOther && (
         <div className="flex flex-col items-center gap-4">
           <p className="text-slate-400 text-lg">
-            To stanowisko jest zajęte przez innego użytkownika.
+            To stanowisko jest zajęte przez: {workstation.operator_username || `Użytkownik #${workstation.user_id}`}.
           </p>
-          {!myOtherWorkstation ? (
-            <button
-              onClick={handleTakeover}
-              className="rounded-2xl border border-amber-500 bg-amber-600/20 px-8 py-4 text-lg font-semibold
-                         text-amber-300 hover:bg-amber-600/40 transition cursor-pointer"
-            >
-              Przejmij od poprzedniego pracownika
-            </button>
-          ) : (
+          {myOtherWorkstation && (
             <p className="text-amber-400 text-center">
               Masz już przejęte stanowisko:{" "}
               <span className="font-semibold">{myOtherWorkstation.nazwa_stanowiska}</span>
