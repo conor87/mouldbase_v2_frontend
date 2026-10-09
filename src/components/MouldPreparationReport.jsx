@@ -667,6 +667,7 @@ export default function MouldPreparationReport() {
             <thead className="bg-white/5 text-slate-200">
               <tr>
                 <th className="px-4 py-3 text-left font-semibold">Start produkcji</th>
+                <th className="px-4 py-3 text-left font-semibold">Stanowisko docelowe</th>
                 <th className="px-4 py-3 text-left font-semibold">Wymagana forma</th>
                 <th className="px-4 py-3 text-left font-semibold">Aktualna wersja</th>
                 <th className="px-4 py-3 text-center font-semibold">Gotowość</th>
@@ -687,6 +688,7 @@ export default function MouldPreparationReport() {
                 return (
                   <tr key={String(productionId)} className="border-t border-white/10 align-top hover:bg-white/[0.03]">
                     <td className="whitespace-nowrap px-4 py-4">{formatDateTime(row?.planned_start ?? row?.production_start)}</td>
+                    <td className="px-4 py-4 text-slate-200">{row?.workstation_name || "Nieprzypisane"}</td>
                     <td className="px-4 py-4">
                       {requiredNumber !== "-" ? (
                         <Link

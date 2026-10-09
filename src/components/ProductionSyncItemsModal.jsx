@@ -89,7 +89,7 @@ export default function ProductionSyncItemsModal({ token, onClose, formatDateTim
             <div className="relative mt-2">
               <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" aria-hidden="true" />
               <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} autoFocus
-                placeholder="Numer formy, wyrób, kod, data lub typ…"
+                placeholder="Numer formy, maszyna, wyrób, kod, data lub typ…"
                 className="w-full rounded-lg border border-white/15 bg-slate-900 py-2 pl-10 pr-3 text-white outline-none focus:border-cyan-500" />
             </div>
           </label>
@@ -110,7 +110,7 @@ export default function ProductionSyncItemsModal({ token, onClose, formatDateTim
                   <table className="w-full min-w-[900px] text-sm">
                     <thead className="bg-white/5 text-left text-slate-200">
                       <tr>
-                        {["Forma", "Wyrób", "Kod wyrobu", "Data źródłowa", "Start produkcji", "Koniec produkcji", "Typ"].map((label) => (
+                        {["Forma", "Maszyna", "Wyrób", "Kod wyrobu", "Data źródłowa", "Start produkcji", "Koniec produkcji", "Typ"].map((label) => (
                           <th key={label} className="px-4 py-3 font-semibold">{label}</th>
                         ))}
                       </tr>
@@ -119,6 +119,7 @@ export default function ProductionSyncItemsModal({ token, onClose, formatDateTim
                       {visibleItems.map((item, index) => (
                         <tr key={`${item.mould_number}-${item.planned_start}-${index}`} className="border-t border-white/10 align-top text-slate-300">
                           <td className="whitespace-nowrap px-4 py-3 font-semibold text-cyan-200">{item.mould_number || "—"}</td>
+                          <td className="px-4 py-3">{item.workstation_name || "Nieprzypisane"}</td>
                           <td className="px-4 py-3">{item.product || "—"}</td>
                           <td className="px-4 py-3">{item.product_code || "—"}</td>
                           <td className="whitespace-nowrap px-4 py-3">{item.source_date || "—"}</td>
