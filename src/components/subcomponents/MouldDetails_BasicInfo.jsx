@@ -53,6 +53,7 @@ export default function MouldDetails_BasicInfo({
     released: "",
     to_maint_cycles: "",
     num_of_cavities: "",
+    storage_location: "",
     from_maint_cycles: "",
   });
 
@@ -175,6 +176,7 @@ export default function MouldDetails_BasicInfo({
           ? String(mouldData.to_maint_cycles)
           : "",
       num_of_cavities: mouldData.num_of_cavities ?? "",
+      storage_location: mouldData.storage_location ?? "",
       from_maint_cycles:
         mouldData.from_maint_cycles !== undefined && mouldData.from_maint_cycles !== null
           ? String(mouldData.from_maint_cycles)
@@ -229,6 +231,7 @@ export default function MouldDetails_BasicInfo({
       fd.append("tool_weight", mouldDraft.tool_weight ?? "");
       fd.append("product", mouldDraft.product ?? "");
       fd.append("num_of_cavities", mouldDraft.num_of_cavities ?? "");
+      fd.append("storage_location", mouldDraft.storage_location ?? "");
       fd.append("released", mouldDraft.released ?? "");
 
       const maybeAppendInt = (name, value) => {
@@ -379,6 +382,11 @@ export default function MouldDetails_BasicInfo({
             <span className="text-gray-200">
               {mouldData.num_of_cavities}
             </span>
+          </div>
+
+          <div>
+            <span className="text-blue-400">Miejsce składowania:{" "}</span>
+            <span className="text-gray-200">{mouldData.storage_location || "—"}</span>
           </div>
 
           <div>
@@ -609,6 +617,21 @@ export default function MouldDetails_BasicInfo({
                             className="w-full rounded-lg p-2 bg-white/5 border border-white/10"
                             value={mouldDraft.num_of_cavities}
                             onChange={(e) => setDraftField("num_of_cavities", e.target.value)}
+                          />
+                        </td>
+                      </tr>
+
+                      <tr className="border-t border-white/10">
+                        <td className="px-4 py-3 font-semibold">
+                          <label htmlFor="mould-storage-location">Miejsce składowania</label>
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            id="mould-storage-location"
+                            type="text"
+                            className="w-full rounded-lg p-2 bg-white/5 border border-white/10"
+                            value={mouldDraft.storage_location}
+                            onChange={(e) => setDraftField("storage_location", e.target.value)}
                           />
                         </td>
                       </tr>
