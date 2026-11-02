@@ -181,8 +181,8 @@ export default function MouldDetails_Tpm({
   const [stepPhoto2, setStepPhoto2] = useState(null);
 
   const refreshTpms = async () => {
-    if (!mouldNumber) return;
-    const res = await axios.get(`${API_BASE}/tpm/`, { params: { search: mouldNumber } });
+    if (!mouldId) return;
+    const res = await axios.get(`${API_BASE}/tpm/`, { params: { mould_id: mouldId } });
     setTpms(normalizeList(res.data));
   };
 
@@ -193,7 +193,7 @@ export default function MouldDetails_Tpm({
   };
 
   useEffect(() => {
-    if (!mouldNumber) return;
+    if (!mouldId) return;
 
     const controller = new AbortController();
 
@@ -203,7 +203,7 @@ export default function MouldDetails_Tpm({
         setTpmError(null);
 
         const res = await axios.get(`${API_BASE}/tpm/`, {
-          params: { search: mouldNumber },
+          params: { mould_id: mouldId },
           signal: controller.signal,
         });
 
@@ -226,7 +226,7 @@ export default function MouldDetails_Tpm({
 
     fetchTpms();
     return () => controller.abort();
-  }, [API_BASE, mouldNumber]);
+  }, [API_BASE, mouldId]);
 
   useEffect(() => {
     if (!mouldId) return;
