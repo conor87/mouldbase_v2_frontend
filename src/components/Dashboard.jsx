@@ -189,7 +189,7 @@ export default function Dashboard() {
     <div className="p-10 text-white">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
-          <h1 className="text-4xl text-cyan-400 font-bold">Dashboard</h1>
+          <h1 className="text-4xl text-cyan-400 font-bold">TPM stats</h1>
           <div className="text-sm text-slate-300">
             TPM: zgloszone i niezamkniete w podziale na miesiace.
           </div>

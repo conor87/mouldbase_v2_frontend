@@ -29,6 +29,7 @@ import ServiceAdmin from "./components/ServiceAdmin.jsx";
 import AppLayout from "./components/AppLayout.jsx";
 import MouldsAdmin from "./components/MouldsAdmin.jsx";
 import Dashboard from "./components/Dashboard.jsx";
+import WorkHours from "./components/WorkHours.jsx";
 import CurrentSv from "./components/CurrentSv.jsx";
 import MES from "./components/MES.jsx";
 import MES_MachineGroups from "./components/MES_MachineGroups.jsx";
@@ -183,6 +184,7 @@ function App() {
               <Route element={<AppLayout />}>
                 <Route path="/superadmin" element={<SuperAdminPanel />} />
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/work-hours" element={<WorkHours />} />
               </Route>
             </Route>
 

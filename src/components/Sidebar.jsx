@@ -61,7 +61,8 @@ const moduleItems = [
 ];
 
 const navItems = [
-  { module: "moulds", to: "/dashboard", label: "Dashboard", icon: BarChart3, superAdminOnly: true },
+  { module: "moulds", to: "/dashboard", label: "TPM stats", icon: BarChart3, superAdminOnly: true },
+  { module: "moulds", to: "/work-hours", label: "Work hours", icon: BarChart3, superAdminOnly: true },
   { module: "moulds", to: "/moulds", label: "Formy", icon: Home, end: true },
   { module: "moulds", to: "/kalendarz", label: "Kalendarz", icon: Calendar },
   { module: "moulds", to: "/tpm", label: "TPM", icon: Wrench },

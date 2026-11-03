@@ -154,6 +154,12 @@ export const ACCESS_TABLE = [
     allowedRoles: ["superadmin"],
     description: "Główny dashboard systemowy",
   },
+  {
+    module: "Work hours",
+    path: "/work-hours",
+    allowedRoles: ["superadmin"],
+    description: "Pracochłonność według task i miesiąca",
+  },
 ];
 
 // ──────────────── Helpery ────────────────
