@@ -49,13 +49,6 @@ const canEditMouldFromToken = () => {
   return role === "admindn" || role === "superadmin";
 };
 
-const normalizeList = (payload) => {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.items)) return payload.items;
-  if (Array.isArray(payload?.results)) return payload.results;
-  return [];
-};
-
 // budowanie src dla zdjęć (ścieżka /media/... albo pełny URL)
 const buildMediaSrc = (maybePath) => {
   if (!maybePath) return "";
@@ -84,6 +77,7 @@ export default function MouldDetails() {
 
   // lokalny stan formy
   const [mouldData, setMouldData] = useState(mouldFromNav ?? null);
+  const [failedMouldNumber, setFailedMouldNumber] = useState(null);
 
   // UI auth
   const [logged, setLogged] = useState(isLoggedIn());
@@ -123,30 +117,18 @@ export default function MouldDetails() {
     }
   };
 
-  // Fetch świeżej formy po wejściu/refresh (GET /moulds/?search=...)
+  // Pobierz dokładnie formę wskazaną w adresie, niezależnie od poprzedniego stanu widoku.
   useEffect(() => {
-    const num = mould_number || mouldFromNav?.mould_number;
+    const num = mould_number;
     if (!num) return;
 
     const controller = new AbortController();
-
     const fetchMould = async () => {
       try {
-        const res = await axios.get(`${API_BASE}/moulds/`, {
-          params: { search: num, limit: 1000 },
+        const res = await axios.get(`${API_BASE}/moulds/${encodeURIComponent(num)}`, {
           signal: controller.signal,
         });
-
-        const list = normalizeList(res.data);
-        const found =
-          list.find(
-            (x) =>
-              String(x?.mould_number ?? "").toUpperCase() === String(num).toUpperCase()
-          ) ?? null;
-
-        if (found) {
-          handleMouldUpdated(found);
-        }
+        setMouldData(res.data);
       } catch (err) {
         if (
           axios.isCancel?.(err) ||
@@ -155,15 +137,21 @@ export default function MouldDetails() {
         )
           return;
         console.error(err);
+        setMouldData(null);
+        setFailedMouldNumber(num);
       }
     };
 
     fetchMould();
     return () => controller.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mould_number]);
 
-  if (!mouldData) return <p>Brak danych formy.</p>;
+  const matchesRoute =
+    String(mouldData?.mould_number ?? "").toUpperCase() ===
+    String(mould_number ?? "").toUpperCase();
+  if (!mouldData || !matchesRoute) {
+    return <p>{failedMouldNumber === mould_number ? "Nie udało się pobrać danych formy." : "Ładowanie danych formy…"}</p>;
+  }
 
   return (
     <>
