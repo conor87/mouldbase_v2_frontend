@@ -209,7 +209,7 @@ export default function Sidebar() {
 
   return (
     <>
-      <aside className="fixed left-0 top-0 z-[70] h-full w-10 border-r border-slate-700/80 bg-slate-800 backdrop-blur-md">
+      <aside className="fixed left-0 z-[70] w-10 border-r border-slate-700/80 bg-slate-800 backdrop-blur-md" style={{ top: "var(--license-banner-height, 0px)", height: "calc(100% - var(--license-banner-height, 0px))" }}>
         <div className="grid h-full grid-rows-3">
           {visibleModules.map((item) => {
             const active = item.key === activeModule;
@@ -228,7 +228,7 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      <aside className="fixed left-10 top-0 z-[60] h-full w-12 border-r border-slate-800/80 bg-slate-800/90 opacity-100 backdrop-blur-md">
+      <aside className="fixed left-10 z-[60] w-12 border-r border-slate-800/80 bg-slate-800/90 opacity-100 backdrop-blur-md" style={{ top: "var(--license-banner-height, 0px)", height: "calc(100% - var(--license-banner-height, 0px))" }}>
         <div className="flex h-full flex-col items-center gap-3 py-4">
           {items.map((item) =>
             item.smartMes ? (

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
 import { ChevronLeft } from "lucide-react";
 import MES_UserBar from "./MES_UserBar.jsx";
+import MES_ServiceShiftReport from "./MES_ServiceShiftReport.jsx";
 
 const normalizeList = (data) =>
   Array.isArray(data) ? data : data?.results ?? data?.data ?? [];
@@ -123,6 +124,7 @@ export default function MES_ChangeoverPanel() {
         mes_activ_changeover_id: parseInt(changeoverId, 10) || null,
         status_changeover: statusChangeover,
         mould_number: toMould?.mould_number || null,
+        workstation_id: workstation?.id ?? null,
       };
       try {
         await fetch(`${API_BASE}/service/logs`, {
@@ -172,7 +174,7 @@ export default function MES_ChangeoverPanel() {
     startRef.current = null;
     setStarted(false);
     if (!workstation) { navigate(`/mes/service/workstation/${workstationId}`); return; }
-    createServiceLog("Koniec przezbrojenia");
+    await createServiceLog("Koniec przezbrojenia");
     const token = localStorage.getItem("access_token");
     try {
       const res = await fetch(`${API_BASE}/changeovers/${changeoverId}/complete`, {
@@ -220,7 +222,10 @@ export default function MES_ChangeoverPanel() {
       >
         <ChevronLeft className="w-4 h-4" /> Powrót
       </button>
-      <h1 className="text-2xl font-bold mb-6 text-center">Panel przezbrajania</h1>
+      <div className="mb-6 flex items-center justify-center gap-3">
+        <h1 className="text-2xl font-bold">Panel przezbrajania</h1>
+        <MES_ServiceShiftReport />
+      </div>
 
       {loading ? (
         <p className="text-slate-400 text-center">Ładowanie…</p>

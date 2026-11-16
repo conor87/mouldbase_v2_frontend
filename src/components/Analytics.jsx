@@ -4,7 +4,7 @@ import { API_BASE } from "../config/api.js";
 import { getCurrentUser } from "../auth.js";
 import {
   BarChart3, Save, RotateCcw, ChevronDown, ChevronUp, Clock,
-  Loader2, Cpu, ScrollText, Wrench, LogIn, Plus, Pencil, Trash2, X, Factory,
+  Loader2, Cpu, ScrollText, Wrench, LogIn, Plus, Pencil, Trash2, X, Factory, ClipboardList,
 } from "lucide-react";
 import Navbar from "./Navbar.jsx";
 
@@ -65,6 +65,7 @@ const paginateRows = (rows, page, pageSize = LOGS_PAGE_SIZE) => {
 };
 
 const tabs = [
+  { id: "reports", label: "Raporty", icon: ClipboardList },
   { id: "machines", label: "Maszyny", icon: Cpu },
   { id: "operators", label: "Operatorzy", icon: Factory },
   { id: "service", label: "Serwis", icon: Wrench },
@@ -73,8 +74,8 @@ const tabs = [
   { id: "session_logs", label: "Logi sesji MES", icon: LogIn },
 ];
 
-const DataTable = ({ columns, rows, getRowKey }) => {
-  if (!rows.length) {
+const DataTable = ({ columns, rows, getRowKey, showEmptyTable = false }) => {
+  if (!rows.length && !showEmptyTable) {
     return <div className="text-sm text-slate-400">Brak rekordów.</div>;
   }
   return (
@@ -88,6 +89,9 @@ const DataTable = ({ columns, rows, getRowKey }) => {
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-700">
+          {rows.length === 0 && (
+            <tr><td colSpan={columns.length} className="px-3 py-6 text-center text-slate-400">Brak raportów dla wybranego okresu.</td></tr>
+          )}
           {rows.map((row, index) => (
             <tr key={getRowKey(row, index)} className="hover:bg-slate-800/40">
               {columns.map((col) => (
@@ -279,6 +283,9 @@ export default function Analytics() {
 
   // Machines state
   const [machines, setMachines] = useState([]);
+  const [shiftReports, setShiftReports] = useState([]);
+  const [reportDate, setReportDate] = useState("");
+  const [reportMouldFilter, setReportMouldFilter] = useState("");
   const [expandedMachine, setExpandedMachine] = useState(null);
   const [machineEdits, setMachineEdits] = useState({});
 
@@ -531,14 +538,45 @@ export default function Analytics() {
     finally { setLogsLoading(false); }
   }, []);
 
+  const fetchShiftReports = useCallback(async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const query = reportDate ? `?report_date=${encodeURIComponent(reportDate)}` : "";
+      const sources = [
+        { name: "produkcji", url: `${API_BASE}/machine-shift-reports/${query}` },
+        { name: "serwisu", url: `${API_BASE}/service-shift-reports/${query}` },
+      ];
+      const results = await Promise.allSettled(sources.map(async (source) => {
+        const res = await fetch(source.url, { headers: authHeaders() });
+        if (!res.ok) throw new Error(`Nie udało się pobrać raportów ${source.name} (HTTP ${res.status}).`);
+        return res.json();
+      }));
+      const production = results[0].status === "fulfilled" && Array.isArray(results[0].value) ? results[0].value : [];
+      const service = results[1].status === "fulfilled" && Array.isArray(results[1].value) ? results[1].value : [];
+      setShiftReports([
+        ...production.map((row) => ({ ...row, report_key: `production-${row.id}`, report_kind: "Produkcja", order_label: row.order_number })),
+        ...service.map((row) => ({ ...row, report_key: `service-${row.id}`, report_kind: row.item_type === "changeover" ? "Przezbrojenie" : "Serwis", order_label: row.moulds?.length ? (row.item_type === "changeover" ? `Przezbrojenie #${row.item_id}` : "Serwis formy") : row.title })),
+      ].sort((a, b) => b.shift_started_at.localeCompare(a.shift_started_at)));
+      const errors = results.filter((result) => result.status === "rejected").map((result) => result.reason?.message || "Błąd pobierania raportów.");
+      if (errors.length) setMessage(errors.join(" "));
+    } catch (err) {
+      setShiftReports([]);
+      setMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [reportDate]);
+
   const fetchData = useCallback(() => {
+    if (activeTab === "reports") return fetchShiftReports();
     if (activeTab === "machines") return fetchMachines();
     if (activeTab === "service") return fetchServiceWorkers();
     if (activeTab === "operators") return fetchOperators();
     if (activeTab === "production_logs") return fetchProductionLogs();
     if (activeTab === "service_logs") return fetchServiceLogs();
     if (activeTab === "session_logs") return fetchSessionLogs();
-  }, [activeTab, fetchMachines, fetchServiceWorkers, fetchOperators, fetchProductionLogs, fetchServiceLogs, fetchSessionLogs]);
+  }, [activeTab, fetchMachines, fetchServiceWorkers, fetchOperators, fetchProductionLogs, fetchServiceLogs, fetchSessionLogs, fetchShiftReports]);
 
   useEffect(() => {
     if (selectedDate) fetchData();
@@ -1037,6 +1075,12 @@ export default function Analytics() {
     () => paginateRows(filteredSessionLogs, sessionLogsPage),
     [filteredSessionLogs, sessionLogsPage]
   );
+  const visibleShiftReports = useMemo(() => {
+    const search = reportMouldFilter.trim().toLocaleLowerCase("pl-PL");
+    if (!search) return shiftReports;
+    return shiftReports.filter((row) => row.moulds?.some((mould) =>
+      mould.mould_number.toLocaleLowerCase("pl-PL").includes(search)));
+  }, [shiftReports, reportMouldFilter]);
 
   // ===== Render =====
   return (
@@ -1078,13 +1122,19 @@ export default function Analytics() {
             {/* Date picker */}
             <div className="bg-slate-800 rounded-xl p-4 mb-6 border border-slate-700">
               <div className="flex flex-wrap items-center gap-4">
-                <label className="text-sm text-slate-300 font-medium">Wybierz dzień:</label>
+                <label className="text-sm text-slate-300 font-medium">{activeTab === "reports" ? "Data raportu:" : "Wybierz dzień:"}</label>
                 <input
                   type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
+                  value={activeTab === "reports" ? reportDate : selectedDate}
+                  onChange={(e) => activeTab === "reports" ? setReportDate(e.target.value) : setSelectedDate(e.target.value)}
                   className="bg-slate-700 text-white px-3 py-2 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none"
                 />
+                {activeTab === "reports" && (
+                  <button type="button" onClick={() => setReportDate("")} disabled={!reportDate}
+                    className="px-3 py-2 rounded-lg border border-slate-600 text-sm text-slate-200 hover:bg-slate-700 disabled:opacity-50">
+                    Wszystkie daty
+                  </button>
+                )}
                 <button
                   onClick={refreshCurrentView}
                   disabled={loading}
@@ -1108,6 +1158,37 @@ export default function Analytics() {
                 <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
                 <span className="ml-3 text-slate-400">Ładowanie danych...</span>
               </div>
+            )}
+
+            {activeTab === "reports" && !loading && (
+              <section className="rounded-xl border border-slate-700 bg-slate-800/60 p-4">
+                <h2 className="mb-4 text-xl font-bold">Raporty operatorów {reportDate ? `z ${reportDate}` : "ze wszystkich dat"} ({visibleShiftReports.length})</h2>
+                <label className="mb-4 block max-w-sm text-sm text-slate-300">
+                  Szukaj formy
+                  <input type="search" value={reportMouldFilter} onChange={(e) => setReportMouldFilter(e.target.value)}
+                    placeholder="Numer formy" className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-900/60 px-3 py-2 text-white" />
+                </label>
+                <DataTable
+                  columns={[
+                    { key: "date", header: "Data", render: (row) => row.report_date },
+                    { key: "shift", header: "Wejście do pracy", render: (row) => new Date(row.shift_started_at).toLocaleString("pl-PL") },
+                    { key: "operator", header: "Operator", render: (row) => row.operator_name },
+                    { key: "type", header: "Rodzaj", render: (row) => row.report_kind },
+                    { key: "order", header: "Zlecenie", render: (row) => row.order_label },
+                    { key: "from_mould", header: "Z formy", render: (row) => row.moulds?.find((m) => m.role === "from")?.mould_number || "—" },
+                    { key: "to_mould", header: "Na formę", render: (row) => row.moulds?.find((m) => m.role === "to")?.mould_number || "—" },
+                    { key: "serviced_mould", header: "Forma serwisowana", render: (row) => row.moulds?.find((m) => m.role === "serviced")?.mould_number || "—" },
+                    { key: "workstation", header: "Stanowisko", render: (row) => row.workstation_names || "—" },
+                    { key: "product", header: "Wyrób", render: (row) => row.product_name || "—" },
+                    { key: "choice", header: "Deklaracja", render: (row) => row.is_completed ? "+ Wykona" : `${row.remaining_hours} godz. na następnej zmianie` },
+                    { key: "approved", header: "Czy zatwierdzony", render: (row) => row.czy_zatwierdzony ? "Tak" : "Nie" },
+                    { key: "updated", header: "Zapisano", render: (row) => new Date(row.updated_at).toLocaleString("pl-PL") },
+                  ]}
+                  rows={visibleShiftReports}
+                  getRowKey={(row) => row.report_key}
+                  showEmptyTable
+                />
+              </section>
             )}
 
             {/* ===== Machines tab ===== */}

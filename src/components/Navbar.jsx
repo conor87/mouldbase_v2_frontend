@@ -71,7 +71,7 @@ export default function Navbar({ titleOverride } = {}) {
     }
 
     return (
-        <nav className="fixed top-0 w-full z-50 transition-all duration-300 bg-slate-800/20 backdrop-blur-sm">
+        <nav className="fixed w-full z-50 transition-all duration-300 bg-slate-800/20 backdrop-blur-sm" style={{ top: "var(--license-banner-height, 0px)" }}>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-around items-center h-14 sm:h-16 md:h-20">
 

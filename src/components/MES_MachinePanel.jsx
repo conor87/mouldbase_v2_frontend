@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ClipboardList, X } from "lucide-react";
 import MES_UserBar from "./MES_UserBar.jsx";
 import MES_MachineTabs from "./MES_MachineTabs.jsx";
 
@@ -51,6 +51,12 @@ export default function MES_MachinePanel() {
   const [workstation, setWorkstation] = useState(null);
   const [machineStatuses, setMachineStatuses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState("");
+  const [reportShift, setReportShift] = useState(null);
+  const [savingOrderId, setSavingOrderId] = useState(null);
+  const [reportAction, setReportAction] = useState(null);
 
   // Status & timers
   const [activeStatusId, setActiveStatusId] = useState(null);
@@ -316,6 +322,98 @@ export default function MES_MachinePanel() {
     { label: "Stanowisko", value: workstation?.name || "—" },
   ];
 
+  const openReport = async () => {
+    setReportOpen(true);
+    setReportLoading(true);
+    setReportError("");
+    setReportShift(null);
+    try {
+      const res = await fetch(`${API_BASE}/machine-shift-reports/current`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
+      });
+      if (!res.ok) throw new Error("Nie udało się pobrać zleceń bieżącej zmiany.");
+      setReportShift(await res.json());
+    } catch (err) {
+      setReportError(err.message);
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const saveReportChoice = async (orderId, choice) => {
+    setSavingOrderId(orderId);
+    setReportError("");
+    try {
+      const res = await fetch(`${API_BASE}/machine-shift-reports/current`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          order_id: orderId,
+          remaining_hours: choice === "+" ? null : choice,
+          is_completed: choice === "+",
+        }),
+      });
+      if (!res.ok) throw new Error("Nie udało się zapisać raportu.");
+      setReportShift((prev) => ({
+        ...prev,
+        orders: prev.orders.map((item) => item.order_id === orderId
+          ? { ...item, remaining_hours: choice === "+" ? null : choice, is_completed: choice === "+" }
+          : item),
+      }));
+    } catch (err) {
+      setReportError(err.message);
+    } finally {
+      setSavingOrderId(null);
+    }
+  };
+
+  const confirmReport = async () => {
+    setReportAction("confirm");
+    setReportError("");
+    try {
+      const res = await fetch(`${API_BASE}/machine-shift-reports/current/confirm`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || "Nie udało się zatwierdzić raportu.");
+      }
+      setReportShift(await res.json());
+    } catch (err) {
+      setReportError(err.message);
+    } finally {
+      setReportAction(null);
+    }
+  };
+
+  const editReport = async () => {
+    setReportAction("edit");
+    setReportError("");
+    try {
+      const res = await fetch(`${API_BASE}/machine-shift-reports/current/unconfirm`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || "Nie udało się odblokować raportu.");
+      }
+      setReportShift(await res.json());
+    } catch (err) {
+      setReportError(err.message);
+    } finally {
+      setReportAction(null);
+    }
+  };
+
+  const reportConfirmed = reportShift?.orders.some((item) => item.czy_zatwierdzony) ?? false;
+  const reportComplete = reportShift?.orders.length > 0
+    && reportShift.orders.every((item) => item.is_completed || item.remaining_hours != null);
+
   return (
     <div className="flex flex-col min-h-[calc(100vh-2rem)] p-6 pt-14">
       <MES_UserBar />
@@ -326,7 +424,66 @@ export default function MES_MachinePanel() {
         <ChevronLeft className="w-4 h-4" /> Powrót do operacji
       </button>
       <MES_MachineTabs activeMachineId={machineId} refreshKey={tabsRefresh} />
-      <h1 className="text-2xl font-bold mb-6 text-center">Panel maszyny</h1>
+      <div className="mb-6 flex items-center justify-center gap-3">
+        <h1 className="text-2xl font-bold">Panel maszyny</h1>
+        <button type="button" onClick={openReport} title="Raport bieżącej zmiany" aria-label="Raport"
+          className="rounded-lg border border-cyan-500/50 p-2 text-cyan-300 hover:bg-cyan-500/20">
+          <ClipboardList className="h-5 w-5" />
+        </button>
+      </div>
+
+      {reportOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-label="Raport bieżącej zmiany">
+          <div className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-600 bg-slate-800 p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="text-xl font-bold">Raport bieżącej zmiany</h2>
+              <button type="button" onClick={() => setReportOpen(false)} aria-label="Zamknij raport" className="rounded p-1 hover:bg-slate-700"><X /></button>
+            </div>
+            {reportLoading && <p className="text-slate-300">Ładowanie zleceń…</p>}
+            {reportError && <p className="mb-3 text-red-300" role="alert">{reportError}</p>}
+            {!reportLoading && reportShift && (
+              <>
+                <p className="mb-4 text-sm text-slate-300">Od wejścia do pracy: {reportShift.shift_started_at ? new Date(reportShift.shift_started_at).toLocaleString("pl-PL") : "brak aktywnej sesji MES"}</p>
+                <p className="mb-4 text-sm text-slate-300">Wybierz 1–8 godzin potrzebnych na następnej zmianie lub +, jeśli zlecenie zostanie wykonane.</p>
+                {reportShift.orders.length === 0 && <p className="text-slate-300">Brak wykonywanych zleceń na tej zmianie.</p>}
+                <div className="space-y-3">
+                  {reportShift.orders.map((item) => (
+                    <div key={item.order_id} className="rounded-xl border border-slate-600 bg-slate-900/50 p-4">
+                      <div className="mb-1 text-sm font-medium text-cyan-300">Stanowisko: {item.workstation_names || "—"}</div>
+                      <div className="mb-3 font-semibold">{item.order_number} | {item.team || "—"} | {item.product_name || "—"}</div>
+                      <div className="flex flex-wrap gap-2" aria-label={`Pozostały czas dla ${item.order_number}`}>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, "+"].map((choice) => {
+                          const selected = choice === "+" ? item.is_completed : item.remaining_hours === choice;
+                          return <button key={choice} type="button" disabled={savingOrderId !== null || reportAction !== null || reportConfirmed}
+                            onClick={() => saveReportChoice(item.order_id, choice)}
+                            title={choice === "+" ? "Zlecenie zostanie wykonane" : `Pozostało ${choice} godzin na następnej zmianie`}
+                            aria-pressed={selected}
+                            className={`min-w-10 rounded-lg border px-3 py-2 font-bold transition disabled:opacity-50 ${selected ? "border-cyan-400 bg-cyan-500/30 text-white" : "border-slate-600 hover:bg-slate-700"}`}>{choice}</button>;
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {reportConfirmed ? (
+                  <div className="mt-5 flex flex-wrap items-center gap-3">
+                    <p className="rounded-lg border border-green-500/40 bg-green-500/10 px-4 py-3 text-green-200">Raport zatwierdzony.</p>
+                    <button type="button" onClick={editReport} disabled={reportAction !== null}
+                      className="rounded-lg border border-amber-500/50 px-4 py-2.5 font-semibold text-amber-200 hover:bg-amber-500/20 disabled:opacity-50">
+                      {reportAction === "edit" ? "Odblokowywanie…" : "Edytuj raport"}
+                    </button>
+                  </div>
+                ) : reportShift.orders.length > 0 && (
+                  <button type="button" onClick={confirmReport}
+                    disabled={!reportComplete || savingOrderId !== null || reportAction !== null}
+                    className="mt-5 rounded-lg bg-green-600 px-5 py-2.5 font-semibold text-white hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50">
+                    {reportAction === "confirm" ? "Zatwierdzanie…" : "Zatwierdź raport"}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <p className="text-slate-400 text-center">Ładowanie…</p>

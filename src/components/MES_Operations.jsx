@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
+import { getCurrentUser } from "../auth.js";
 import { ChevronLeft, GripVertical, Search, ArrowRightLeft, X } from "lucide-react";
 import MES_UserBar from "./MES_UserBar.jsx";
 
@@ -25,6 +26,8 @@ export default function MES_Operations() {
   const [transferShowAll, setTransferShowAll] = useState(false);
   const [transferring, setTransferring] = useState(false);
   const [transferError, setTransferError] = useState("");
+  const [releasingMachine, setReleasingMachine] = useState(false);
+  const [releaseError, setReleaseError] = useState("");
 
   const dragItem = useRef(null);
   const dragOverItem = useRef(null);
@@ -199,6 +202,29 @@ export default function MES_Operations() {
     }
   };
 
+  const currentMachine = allWorkstations.find((ws) => String(ws.id) === machineId);
+  const isMyMachine = currentMachine?.user_id != null
+    && Number(currentMachine.user_id) === Number(getCurrentUser()?.id);
+
+  const releaseMachine = async () => {
+    if (!isMyMachine) return;
+    setReleasingMachine(true);
+    setReleaseError("");
+    try {
+      const res = await fetch(`${API_BASE}/production/workstations/${machineId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ user_id: null }),
+      });
+      if (!res.ok) throw new Error("Nie udało się zwolnić maszyny.");
+      goBack();
+    } catch (err) {
+      setReleaseError(err.message);
+    } finally {
+      setReleasingMachine(false);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-[calc(100vh-2rem)] px-4 sm:px-6 pt-16 pb-6 max-w-7xl mx-auto w-full overflow-x-hidden">
       <MES_UserBar />
@@ -211,6 +237,13 @@ export default function MES_Operations() {
       <h1 className="text-2xl font-bold mb-6 text-center">
         Operacje{machineName ? ` — ${machineName}` : ""}
       </h1>
+      {isMyMachine && (
+        <button type="button" onClick={releaseMachine} disabled={releasingMachine}
+          className="mb-4 self-center rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-2 text-sm font-medium text-amber-200 hover:bg-amber-500/20 disabled:opacity-50">
+          {releasingMachine ? "Zwalnianie…" : "Zwolnij maszynę"}
+        </button>
+      )}
+      {releaseError && <p className="mb-4 text-center text-sm text-red-400" role="alert">{releaseError}</p>}
 
       {loading ? (
         <p className="text-slate-400">Ładowanie…</p>

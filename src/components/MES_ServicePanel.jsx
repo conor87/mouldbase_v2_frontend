@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { API_BASE } from "../config/api.js";
 import { ChevronLeft } from "lucide-react";
 import MES_UserBar from "./MES_UserBar.jsx";
+import MES_ServiceShiftReport from "./MES_ServiceShiftReport.jsx";
 import { getCurrentUser } from "../auth.js";
 
 const normalizeList = (data) =>
@@ -190,6 +191,7 @@ export default function MES_ServicePanel() {
         mes_activ_changeover_id: workstation?.aktualne_przezbrojenie_id || null,
         status_changeover: null,
         mould_number: mouldNumber || null,
+        workstation_id: workstation?.id ?? null,
       };
       try {
         await fetch(`${API_BASE}/service/logs`, {
@@ -266,7 +268,10 @@ export default function MES_ServicePanel() {
       >
         <ChevronLeft className="w-4 h-4" /> Powrót
       </button>
-      <h1 className="text-2xl font-bold mb-6 text-center">Panel serwisowy</h1>
+      <div className="mb-6 flex items-center justify-center gap-3">
+        <h1 className="text-2xl font-bold">Panel serwisowy</h1>
+        <MES_ServiceShiftReport />
+      </div>
 
       {loading ? (
         <p className="text-slate-400 text-center">Ładowanie…</p>

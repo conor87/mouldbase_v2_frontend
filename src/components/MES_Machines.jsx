@@ -92,7 +92,9 @@ export default function MES_Machines() {
             }),
           }).catch(() => {});
         }
-        navigate(`/mes/production/machine/${updated.id}`);
+        navigate(updated.current_operation_id
+          ? `/mes/production/machine/${updated.id}/panel/${updated.current_operation_id}`
+          : `/mes/production/machine/${updated.id}`);
       })
       .catch(() => alert("Nie udało się przejąć maszyny."))
       .finally(() => setClaiming(null));
@@ -135,7 +137,9 @@ export default function MES_Machines() {
                   }`}
               >
                 <button
-                  onClick={() => navigate(`/mes/production/machine/${m.id}`)}
+                  onClick={() => navigate(isMine && m.current_operation_id
+                    ? `/mes/production/machine/${m.id}/panel/${m.current_operation_id}`
+                    : `/mes/production/machine/${m.id}`)}
                   className="w-full text-left hover:opacity-80 transition"
                 >
                   <h2 className="text-lg font-semibold">{m.name}</h2>
