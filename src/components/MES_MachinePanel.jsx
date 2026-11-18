@@ -8,6 +8,11 @@ import MES_MachineTabs from "./MES_MachineTabs.jsx";
 const normalizeList = (data) =>
   Array.isArray(data) ? data : data?.results ?? data?.data ?? [];
 
+const todayLocal = () => {
+  const day = new Date();
+  return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+};
+
 // No-timer statuses by status_no (koniec operacji, koniec zmiany, zmiana zlecenia, przerwij pracę)
 const NO_TIMER_NOS = new Set([5, 6, 7, 8]);
 
@@ -57,6 +62,7 @@ export default function MES_MachinePanel() {
   const [reportShift, setReportShift] = useState(null);
   const [savingOrderId, setSavingOrderId] = useState(null);
   const [reportAction, setReportAction] = useState(null);
+  const [reportDate, setReportDate] = useState(todayLocal);
 
   // Status & timers
   const [activeStatusId, setActiveStatusId] = useState(null);
@@ -322,16 +328,16 @@ export default function MES_MachinePanel() {
     { label: "Stanowisko", value: workstation?.name || "—" },
   ];
 
-  const openReport = async () => {
+  const openReport = async (day = reportDate) => {
     setReportOpen(true);
     setReportLoading(true);
     setReportError("");
     setReportShift(null);
     try {
-      const res = await fetch(`${API_BASE}/machine-shift-reports/current`, {
+      const res = await fetch(`${API_BASE}/machine-shift-reports/current?report_date=${day}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
       });
-      if (!res.ok) throw new Error("Nie udało się pobrać zleceń bieżącej zmiany.");
+      if (!res.ok) throw new Error("Nie udało się pobrać zleceń z wybranego dnia.");
       setReportShift(await res.json());
     } catch (err) {
       setReportError(err.message);
@@ -344,7 +350,7 @@ export default function MES_MachinePanel() {
     setSavingOrderId(orderId);
     setReportError("");
     try {
-      const res = await fetch(`${API_BASE}/machine-shift-reports/current`, {
+      const res = await fetch(`${API_BASE}/machine-shift-reports/current?report_date=${reportDate}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
@@ -374,7 +380,7 @@ export default function MES_MachinePanel() {
     setReportAction("confirm");
     setReportError("");
     try {
-      const res = await fetch(`${API_BASE}/machine-shift-reports/current/confirm`, {
+      const res = await fetch(`${API_BASE}/machine-shift-reports/current/confirm?report_date=${reportDate}`, {
         method: "POST",
         headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
       });
@@ -394,7 +400,7 @@ export default function MES_MachinePanel() {
     setReportAction("edit");
     setReportError("");
     try {
-      const res = await fetch(`${API_BASE}/machine-shift-reports/current/unconfirm`, {
+      const res = await fetch(`${API_BASE}/machine-shift-reports/current/unconfirm?report_date=${reportDate}`, {
         method: "POST",
         headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
       });
@@ -426,26 +432,31 @@ export default function MES_MachinePanel() {
       <MES_MachineTabs activeMachineId={machineId} refreshKey={tabsRefresh} />
       <div className="mb-6 flex items-center justify-center gap-3">
         <h1 className="text-2xl font-bold">Panel maszyny</h1>
-        <button type="button" onClick={openReport} title="Raport bieżącej zmiany" aria-label="Raport"
+        <button type="button" onClick={() => openReport()} title="Raport dzienny" aria-label="Raport"
           className="rounded-lg border border-cyan-500/50 p-2 text-cyan-300 hover:bg-cyan-500/20">
           <ClipboardList className="h-5 w-5" />
         </button>
       </div>
 
       {reportOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-label="Raport bieżącej zmiany">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-label="Raport dzienny">
           <div className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-600 bg-slate-800 p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="text-xl font-bold">Raport bieżącej zmiany</h2>
+              <h2 className="text-xl font-bold">Raport dzienny</h2>
               <button type="button" onClick={() => setReportOpen(false)} aria-label="Zamknij raport" className="rounded p-1 hover:bg-slate-700"><X /></button>
             </div>
+            <label className="mb-3 block text-sm text-slate-300">Dzień raportu
+              <input type="date" max={todayLocal()} value={reportDate}
+                onChange={(event) => { setReportDate(event.target.value); if (event.target.value) openReport(event.target.value); }}
+                className="mt-1 block rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white" />
+            </label>
             {reportLoading && <p className="text-slate-300">Ładowanie zleceń…</p>}
             {reportError && <p className="mb-3 text-red-300" role="alert">{reportError}</p>}
             {!reportLoading && reportShift && (
               <>
-                <p className="mb-4 text-sm text-slate-300">Od wejścia do pracy: {reportShift.shift_started_at ? new Date(reportShift.shift_started_at).toLocaleString("pl-PL") : "brak aktywnej sesji MES"}</p>
+                <p className="mb-4 text-sm text-slate-300">Czynności z wybranego dnia</p>
                 <p className="mb-4 text-sm text-slate-300">Wybierz 1–8 godzin potrzebnych na następnej zmianie lub +, jeśli zlecenie zostanie wykonane.</p>
-                {reportShift.orders.length === 0 && <p className="text-slate-300">Brak wykonywanych zleceń na tej zmianie.</p>}
+                {reportShift.orders.length === 0 && <p className="text-slate-300">Brak wykonywanych zleceń w wybranym dniu.</p>}
                 <div className="space-y-3">
                   {reportShift.orders.map((item) => (
                     <div key={item.order_id} className="rounded-xl border border-slate-600 bg-slate-900/50 p-4">

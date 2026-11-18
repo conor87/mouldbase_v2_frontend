@@ -3,7 +3,11 @@ import { ClipboardList, X } from "lucide-react";
 import { API_BASE } from "../config/api.js";
 
 const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem("access_token")}` });
-const reportUrl = `${API_BASE}/service-shift-reports/current`;
+const reportUrl = (day) => `${API_BASE}/service-shift-reports/current?report_date=${day}`;
+const todayLocal = () => {
+  const day = new Date();
+  return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+};
 
 export default function MES_ServiceShiftReport() {
   const [open, setOpen] = useState(false);
@@ -12,15 +16,16 @@ export default function MES_ServiceShiftReport() {
   const [error, setError] = useState("");
   const [savingKey, setSavingKey] = useState(null);
   const [reportAction, setReportAction] = useState(null);
+  const [reportDate, setReportDate] = useState(todayLocal);
 
-  const openReport = async () => {
+  const openReport = async (day = reportDate) => {
     setOpen(true);
     setLoading(true);
     setReport(null);
     setError("");
     try {
-      const response = await fetch(reportUrl, { headers: authHeaders() });
-      if (!response.ok) throw new Error("Nie udało się pobrać raportu bieżącej zmiany.");
+      const response = await fetch(reportUrl(day), { headers: authHeaders() });
+      if (!response.ok) throw new Error("Nie udało się pobrać raportu z wybranego dnia.");
       setReport(await response.json());
     } catch (err) {
       setError(err.message);
@@ -34,7 +39,7 @@ export default function MES_ServiceShiftReport() {
     setSavingKey(key);
     setError("");
     try {
-      const response = await fetch(reportUrl, {
+      const response = await fetch(reportUrl(reportDate), {
         method: "PUT",
         headers: { ...authHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -64,7 +69,7 @@ export default function MES_ServiceShiftReport() {
     setReportAction(action);
     setError("");
     try {
-      const response = await fetch(`${reportUrl}/${action}`, {
+      const response = await fetch(`${API_BASE}/service-shift-reports/current/${action}?report_date=${reportDate}`, {
         method: "POST",
         headers: authHeaders(),
       });
@@ -86,25 +91,30 @@ export default function MES_ServiceShiftReport() {
 
   return (
     <>
-      <button type="button" onClick={openReport} title="Raport bieżącej zmiany" aria-label="Raport"
+      <button type="button" onClick={() => openReport()} title="Raport dzienny" aria-label="Raport"
         className="rounded-lg border border-cyan-500/50 p-2 text-cyan-300 hover:bg-cyan-500/20">
         <ClipboardList className="h-5 w-5" />
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-label="Raport bieżącej zmiany serwisu">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-label="Raport dzienny — serwis">
           <div className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-600 bg-slate-800 p-6 text-white shadow-xl">
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="text-xl font-bold">Raport bieżącej zmiany</h2>
+              <h2 className="text-xl font-bold">Raport dzienny</h2>
               <button type="button" onClick={() => setOpen(false)} aria-label="Zamknij raport" className="rounded p-1 hover:bg-slate-700"><X /></button>
             </div>
+            <label className="mb-3 block text-sm text-slate-300">Dzień raportu
+              <input type="date" max={todayLocal()} value={reportDate}
+                onChange={(event) => { setReportDate(event.target.value); if (event.target.value) openReport(event.target.value); }}
+                className="mt-1 block rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white" />
+            </label>
             {loading && <p className="text-slate-300">Ładowanie zleceń…</p>}
             {error && <p className="mb-3 text-red-300" role="alert">{error}</p>}
             {!loading && report && (
               <>
-                <p className="mb-3 text-sm text-slate-300">Od wejścia do pracy: {report.shift_started_at ? new Date(report.shift_started_at).toLocaleString("pl-PL") : "brak aktywnej sesji MES"}</p>
+                <p className="mb-3 text-sm text-slate-300">Czynności z wybranego dnia</p>
                 <p className="mb-4 text-sm text-slate-300">Wybierz 1–8 godzin potrzebnych na następnej zmianie lub +, jeśli zlecenie zostanie wykonane.</p>
-                {report.items.length === 0 && <p className="text-slate-300">Brak przezbrojeń i prac serwisowych na tej zmianie.</p>}
+                {report.items.length === 0 && <p className="text-slate-300">Brak przezbrojeń i prac serwisowych w wybranym dniu.</p>}
                 <div className="space-y-3">
                   {report.items.map((item) => (
                     <div key={`${item.item_type}:${item.item_id}`} className="rounded-xl border border-slate-600 bg-slate-900/50 p-4">

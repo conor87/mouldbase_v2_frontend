@@ -285,6 +285,24 @@ export default function Analytics() {
   const [machines, setMachines] = useState([]);
   const [shiftReports, setShiftReports] = useState([]);
   const [reportDate, setReportDate] = useState("");
+  const [sendingReport, setSendingReport] = useState(false);
+
+  const sendReportEmail = async () => {
+    if (!reportDate) return;
+    setSendingReport(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/report-email/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ report_date: reportDate }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Nie udało się wysłać raportu.");
+      setMessage(`Wysłano raport z ${reportDate}: ${data.reports} pozycji do ${data.recipients} odbiorców.`);
+    } catch (err) { setMessage(err.message); }
+    finally { setSendingReport(false); }
+  };
   const [reportMouldFilter, setReportMouldFilter] = useState("");
   const [expandedMachine, setExpandedMachine] = useState(null);
   const [machineEdits, setMachineEdits] = useState({});
@@ -1135,6 +1153,12 @@ export default function Analytics() {
                     Wszystkie daty
                   </button>
                 )}
+                {activeTab === "reports" && (
+                  <button type="button" onClick={sendReportEmail} disabled={!reportDate || sendingReport}
+                    className="px-4 py-2 rounded-lg bg-cyan-700 text-sm font-medium text-white hover:bg-cyan-600 disabled:opacity-50">
+                    {sendingReport ? "Wysyłanie..." : "Wyślij raport email"}
+                  </button>
+                )}
                 <button
                   onClick={refreshCurrentView}
                   disabled={loading}
@@ -1171,7 +1195,7 @@ export default function Analytics() {
                 <DataTable
                   columns={[
                     { key: "date", header: "Data", render: (row) => row.report_date },
-                    { key: "shift", header: "Wejście do pracy", render: (row) => new Date(row.shift_started_at).toLocaleString("pl-PL") },
+                    { key: "shift", header: "Początek raportu", render: (row) => new Date(row.shift_started_at).toLocaleString("pl-PL") },
                     { key: "operator", header: "Operator", render: (row) => row.operator_name },
                     { key: "type", header: "Rodzaj", render: (row) => row.report_kind },
                     { key: "order", header: "Zlecenie", render: (row) => row.order_label },

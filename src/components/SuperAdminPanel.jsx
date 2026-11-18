@@ -24,6 +24,23 @@ export default function SuperAdminPanel() {
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
   const [licenseStatus, setLicenseStatus] = useState(null);
+  const [reportRecipients, setReportRecipients] = useState("");
+  const [reportSender, setReportSender] = useState("");
+  const [smtpHost, setSmtpHost] = useState("");
+  const [smtpPort, setSmtpPort] = useState(587);
+  const [smtpUsername, setSmtpUsername] = useState("");
+  const [smtpPassword, setSmtpPassword] = useState("");
+  const [smtpHasPassword, setSmtpHasPassword] = useState(false);
+  const [smtpClearPassword, setSmtpClearPassword] = useState(false);
+  const [smtpSecurity, setSmtpSecurity] = useState("starttls");
+  const [reportSendTime1, setReportSendTime1] = useState("23:50");
+  const [reportSendTime2, setReportSendTime2] = useState("");
+  const [reportSaving, setReportSaving] = useState(false);
+  const [manualReportDate, setManualReportDate] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  });
+  const [reportSending, setReportSending] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -36,10 +53,23 @@ export default function SuperAdminPanel() {
         return res.json();
       }),
       fetch(`${API_BASE}/license/status`).then((res) => res.json()),
+      fetch(`${API_BASE}/report-email/settings`, { headers: { Authorization: `Bearer ${token}` } }).then((res) => {
+        if (!res.ok) throw new Error("Nie udało się pobrać ustawień raportów email.");
+        return res.json();
+      }),
     ])
-      .then(([settings, license]) => {
+      .then(([settings, license, reportEmail]) => {
         setEnabled(settings.enabled);
         setLicenseStatus(license);
+        setReportRecipients(reportEmail.recipients.join(", "));
+        setReportSender(reportEmail.sender || "");
+        setSmtpHost(reportEmail.host || "");
+        setSmtpPort(reportEmail.port || 587);
+        setSmtpUsername(reportEmail.username || "");
+        setSmtpSecurity(reportEmail.security || "starttls");
+        setSmtpHasPassword(Boolean(reportEmail.has_password));
+        setReportSendTime1(reportEmail.send_time_1);
+        setReportSendTime2(reportEmail.send_time_2 || "");
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -73,6 +103,53 @@ export default function SuperAdminPanel() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const saveReportEmail = async (event) => {
+    event.preventDefault();
+    setReportSaving(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const recipients = reportRecipients.split(/[,;\n]+/).map((value) => value.trim()).filter(Boolean);
+      const res = await fetch(`${API_BASE}/report-email/settings`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipients, sender: reportSender, send_time_1: reportSendTime1, send_time_2: reportSendTime2,
+          host: smtpHost, port: Number(smtpPort), username: smtpUsername, security: smtpSecurity,
+          password: smtpPassword || null, clear_password: smtpClearPassword,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(typeof data.detail === "string" ? data.detail : "Nie udało się zapisać ustawień wysyłki.");
+      }
+      const data = await res.json();
+      setSmtpHasPassword(Boolean(data.has_password));
+      setSmtpPassword("");
+      setSmtpClearPassword(false);
+      setMessage("Ustawienia wysyłki raportów zostały zapisane.");
+    } catch (err) { setError(err.message); }
+    finally { setReportSaving(false); }
+  };
+
+  const sendSelectedReport = async () => {
+    if (!manualReportDate) return;
+    setReportSending(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/report-email/send`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ report_date: manualReportDate }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Nie udało się wysłać raportu.");
+      setMessage(`Wysłano raport z ${manualReportDate}: ${data.reports} pozycji do ${data.recipients} odbiorców.`);
+    } catch (err) { setError(err.message); }
+    finally { setReportSending(false); }
   };
 
   return (
@@ -115,6 +192,75 @@ export default function SuperAdminPanel() {
           </div>
         ) : (
           <div className="space-y-6">
+            <form onSubmit={saveReportEmail} className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-6 space-y-4">
+              <h3 className="text-lg font-bold">Raporty MES — wysyłka email</h3>
+              <p className="text-sm text-slate-400">System wysyła raport z danego dnia o obu ustawionych godzinach. Puste pole odbiorców wyłącza automatyczną wysyłkę.</p>
+              <label className="block text-sm">Adres nadawcy
+                <input type="email" required value={reportSender} onChange={(e) => setReportSender(e.target.value)}
+                  className="mt-1 block w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white" />
+              </label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm">Serwer SMTP
+                  <input required value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} placeholder="smtp.example.com"
+                    className="mt-1 block w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white" />
+                </label>
+                <label className="block text-sm">Port SMTP
+                  <input type="number" min="1" max="65535" required value={smtpPort} onChange={(e) => setSmtpPort(e.target.value)}
+                    className="mt-1 block w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white" />
+                </label>
+                <label className="block text-sm">Użytkownik SMTP
+                  <input value={smtpUsername} onChange={(e) => setSmtpUsername(e.target.value)} autoComplete="username"
+                    className="mt-1 block w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white" />
+                </label>
+                <label className="block text-sm">Zabezpieczenie połączenia
+                  <select value={smtpSecurity} onChange={(e) => setSmtpSecurity(e.target.value)}
+                    className="mt-1 block w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white">
+                    <option value="starttls">STARTTLS</option>
+                    <option value="ssl">SSL/TLS</option>
+                    <option value="none">Brak</option>
+                  </select>
+                </label>
+              </div>
+              <label className="block text-sm">Hasło SMTP {smtpHasPassword && !smtpClearPassword ? "(ustawione — pozostaw puste, aby zachować)" : ""}
+                <input type="password" value={smtpPassword} onChange={(e) => setSmtpPassword(e.target.value)} autoComplete="new-password"
+                  className="mt-1 block w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white" />
+              </label>
+              {smtpHasPassword && (
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={smtpClearPassword} onChange={(e) => { setSmtpClearPassword(e.target.checked); if (e.target.checked) setSmtpPassword(""); }} />
+                  Usuń zapisane hasło SMTP
+                </label>
+              )}
+              <label className="block text-sm">Adresy odbiorców (oddziel przecinkiem lub średnikiem)
+                <textarea value={reportRecipients} onChange={(e) => setReportRecipients(e.target.value)} rows={3}
+                  className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white" />
+              </label>
+              <label className="block text-sm">Pierwsza godzina wysyłki (czas serwera)
+                <input type="time" required value={reportSendTime1} onChange={(e) => setReportSendTime1(e.target.value)}
+                  className="mt-1 block rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white" />
+              </label>
+              <label className="block text-sm">Druga godzina wysyłki (czas serwera)
+                <input type="time" required value={reportSendTime2} onChange={(e) => setReportSendTime2(e.target.value)}
+                  className="mt-1 block rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white" />
+              </label>
+              <button disabled={reportSaving} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                {reportSaving ? "Zapisywanie..." : "Zapisz ustawienia email"}
+              </button>
+            </form>
+            <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-6 space-y-4">
+              <h3 className="text-lg font-bold">Wyślij raport ręcznie</h3>
+              <p className="text-sm text-slate-400">Wybierz dzień raportu. Wysyłka używa zapisanych powyżej adresów.</p>
+              <div className="flex flex-wrap items-end gap-4">
+                <label className="block text-sm">Dzień raportu
+                  <input type="date" required value={manualReportDate} onChange={(e) => setManualReportDate(e.target.value)}
+                    className="mt-1 block rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-white" />
+                </label>
+                <button type="button" onClick={sendSelectedReport} disabled={!manualReportDate || reportSending}
+                  className="rounded-lg bg-cyan-700 px-4 py-2 text-sm font-medium hover:bg-cyan-600 disabled:opacity-50">
+                  {reportSending ? "Wysyłanie..." : "Wyślij raport"}
+                </button>
+              </div>
+            </div>
             <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-6 backdrop-blur-md shadow-xl hover:border-slate-600 transition-all duration-300">
               <div className="flex items-center justify-between gap-4">
                 <div>
