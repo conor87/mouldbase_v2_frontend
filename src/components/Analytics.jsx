@@ -575,7 +575,17 @@ export default function Analytics() {
       setShiftReports([
         ...production.map((row) => ({ ...row, report_key: `production-${row.id}`, report_kind: "Produkcja", order_label: row.order_number })),
         ...service.map((row) => ({ ...row, report_key: `service-${row.id}`, report_kind: row.item_type === "changeover" ? "Przezbrojenie" : "Serwis", order_label: row.moulds?.length ? (row.item_type === "changeover" ? `Przezbrojenie #${row.item_id}` : "Serwis formy") : row.title })),
-      ].sort((a, b) => b.shift_started_at.localeCompare(a.shift_started_at)));
+      ].sort((a, b) => {
+        const byDate = b.report_date.localeCompare(a.report_date);
+        if (byDate) return byDate;
+        const aMachine = a.report_kind === "Produkcja";
+        const bMachine = b.report_kind === "Produkcja";
+        if (aMachine !== bMachine) return aMachine ? -1 : 1;
+        const aKey = aMachine ? a.workstation_names : a.operator_name;
+        const bKey = bMachine ? b.workstation_names : b.operator_name;
+        return (aKey || "").localeCompare(bKey || "", "pl", { sensitivity: "base" })
+          || (a.order_label || "").localeCompare(b.order_label || "", "pl", { sensitivity: "base" });
+      }));
       const errors = results.filter((result) => result.status === "rejected").map((result) => result.reason?.message || "Błąd pobierania raportów.");
       if (errors.length) setMessage(errors.join(" "));
     } catch (err) {
